@@ -1,0 +1,42 @@
+{
+  "config": {
+    "platform": {
+      "php": "7.2"
+    }
+  },
+  "name": "ryunosuke/phpunit-extension",
+  "type": "library",
+  "description": "PHPUnit Fluent interface and Custom assertions",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "ryunosuke",
+      "email": "ryunosuke.arima@gmail.com"
+    }
+  ],
+  "require": {
+    "php": ">=7.2",
+    "phpunit/phpunit": "8.*"
+  },
+  "bin": [
+    "bin/phpunit-current"
+  ],
+  "autoload": {
+    "psr-4": {
+      "ryunosuke\\PHPUnit\\": "src"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "ryunosuke\\Test\\": "tests/Test"
+    }
+  },
+  "scripts": {
+    "build": [
+      "@composer test"
+    ],
+    "test": [
+      "vendor/bin/phpunit --configuration=tests/phpunit.xml"
+    ]
+  }
+}
