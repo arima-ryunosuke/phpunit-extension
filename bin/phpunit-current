@@ -1,0 +1,248 @@
+#!/usr/bin/env php
+<?php
+
+/**
+ * Test current editing class/method
+ *
+ * - step1: setting phpstorm external tools:
+ *     - Program: $PhpExecutable$
+ *     - Arguments: "$ProjectFileDir$/vendor/bin/phpunit-current.php" "$ProjectFileDir$" "$FilePath$" "$LineNumber$" 0
+ *         - last argument is coverage flag (0:off, 1:on)
+ * - step2: register keymap for external tool (e.g. Ctrl + T)
+ * - step3: select source or test file/directory and press Ctrl + T
+ */
+
+if ($argc === 2) {
+    $runner = new Runner($argv[1]);
+    $runner->runLatest();
+}
+elseif ($argc >= 5) {
+    list(, $root, $file, $line, $converage) = $argv;
+    $runner = new Runner($root);
+    $runner->run($file, $line, $converage);
+}
+else {
+    throw new \Exception("Requires arguments'length >= 1");
+}
+
+class Runner
+{
+    const HISTORY_SIZE = 32;
+
+    private $rootdir;
+    private $testdir;
+    private $logdir;
+    private $phpunit;
+    private $configxml;
+
+    public function __construct($root)
+    {
+        if (!is_dir($root)) {
+            throw new \Exception("'$root' is not directory.");
+        }
+
+        // determine field
+        $this->rootdir = str_replace('\\', '/', $root);
+        $this->testdir = $this->detectReadable(["{$this->rootdir}/tests", "{$this->rootdir}/test"]);
+        $this->logdir = ($_SERVER['HOME'] ?? $_SERVER['USERPROFILE'] ?? $this->testdir) . "/phpunit-history/" . urlencode($this->rootdir);
+        $this->phpunit = "{$this->rootdir}/vendor/phpunit/phpunit/phpunit";
+        $this->configxml = $this->detectReadable(array_merge(
+            glob("{$this->rootdir}/*phpunit.xml"),
+            glob("{$this->testdir}/*phpunit.xml"),
+            glob("{$this->rootdir}/*phpunit.xml.dist"),
+            glob("{$this->testdir}/*phpunit.xml.dist")
+        ));
+
+        $config = simplexml_load_file($this->configxml);
+
+        require_once "{$this->rootdir}/vendor/autoload.php";
+        require_once $this->detectReadable([
+            "{$config['bootstrap']}",
+            dirname($this->configxml) . "/{$config['bootstrap']}",
+            "{$this->testdir}/bootstrap.php",
+            "{$this->rootdir}/bootstrap.php",
+        ]);
+        // do other something phpunit.xml parsing
+
+        // ready
+        @mkdir($this->logdir, 0777, true);
+    }
+
+    public function run($file, $line, $coverable)
+    {
+        if (!is_readable($file)) {
+            throw new \Exception("'$file' is not readable.");
+        }
+
+        // detect arguments
+        $testfile = $this->detectTestFile($file, $this->testdir);
+        $configuration = "--configuration={$this->configxml}";
+        $testmethod = $this->detectMethod($file, $line);
+        $filter = $testmethod === null ? '' : '--filter="/' . $testmethod->name . '/i"';
+        $coverage = $coverable ? "--coverage-html={$this->logdir}/coverage" : '';
+
+        // start and save history
+        $logname = "{$this->logdir}/" . (new DateTime('now'))->format('YmdHis.u') . '.log';
+        file_put_contents($logname, $this->start($testfile, $configuration, $filter, $coverage));
+
+        // collect garbage (delete old history)
+        $logs = glob("{$this->logdir}/*.log");
+        array_map('unlink', array_slice($logs, 0, max(0, count($logs) - self::HISTORY_SIZE)));
+
+        // open coverage
+        if ($coverable) {
+            $cpath = preg_replace('#.*?/tests?/Test/[^/]*/#ui', '', $testfile);
+            $cpath = preg_replace('#Test\.php$#ui', '.php.html', $cpath);
+            $cpath = "{$this->logdir}/coverage/$cpath";
+            if (!file_exists($cpath)) {
+                $cpath = "{$this->logdir}/coverage";
+            }
+            if (is_dir($cpath)) {
+                $cpath = "$cpath/index.html";
+            }
+            exec($cpath);
+        }
+    }
+
+    public function runLatest()
+    {
+        $logs = glob("{$this->logdir}/*.log");
+        if (!$logs) {
+            throw new \Exception("notfound latest test in '{$this->logdir}'.");
+        }
+        $log = file(end($logs), FILE_IGNORE_NEW_LINES);
+        list($testfile, $configuration, $filter, $coverage) = json_decode($log[0], true);
+        $this->start($testfile, $configuration, $filter, $coverage);
+    }
+
+    private function start($testfile, $configuration, $filter, $coverage)
+    {
+        // detect php binary (trial and error currently)
+        $cmd = PHP_BINARY;
+        if (version_compare(PHP_VERSION, '5.6') >= 0 && $coverage) {
+            // $cmd = dirname($cmd) . '/phpdbg -qrr';
+        }
+
+        $command = "{$cmd} {$this->phpunit} ";
+        $options = array_filter([$testfile, $configuration, $filter, $coverage]);
+        echo "Run Test $command\n  " . implode("\n  ", $options) . "\n\n";
+
+        $log = json_encode(func_get_args(), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . "\n\n";
+        $handle = popen($command . implode(" ", $options), 'r');
+        while (!feof($handle)) {
+            $t = fread($handle, 8192);
+            $log .= $t;
+            echo $t;
+        }
+        pclose($handle);
+
+        return $log;
+    }
+
+    private function detectReadable($filelist)
+    {
+        $set = array_filter($filelist, 'is_readable');
+
+        if (!$set) {
+            throw new \Exception('[' . implode(', ', $filelist) . "] are all unreadable.");
+        }
+
+        return str_replace('\\', '/', reset($set));
+    }
+
+    private function detectTestFile($file, $testdir)
+    {
+        $file = str_replace('\\', '/', $file);
+
+        if (is_dir($file) && strpos($file, $testdir) === 0) {
+            return $file;
+        }
+
+        if (preg_match("#.+Test\\.php$#i", $file)) {
+            return $file;
+        }
+
+        $refclass = $this->detectClass($file);
+        if ($refclass !== null && $refclass->isAbstract()) {
+            return dirname($file);
+        }
+
+        $files = is_dir($file) ? glob("$file/*.php") : [$file];
+        $basenames = array_map(function ($v) { return basename($v, '.php'); }, $files);
+        $basename = '(' . implode('|', $basenames) . ')';
+
+        $rdi = new \RecursiveDirectoryIterator($testdir);
+        $rii = new \RecursiveIteratorIterator($rdi);
+        $iterator = new \RegexIterator($rii, "#{$basename}Test\\.php$#i");
+
+        foreach ($iterator as $key => $node) {
+            return is_dir($file) ? dirname($node->getPathname()) : $node->getPathname();
+        }
+
+        throw new \Exception("notfound Test file via '$file'.");
+    }
+
+    private function detectMethod($file, $line)
+    {
+        if (is_dir($file)) {
+            return null;
+        }
+
+        if (strlen($line) === 0) {
+            return null;
+        }
+
+        $refclass = $this->detectClass($file);
+        if ($refclass === null) {
+            return null;
+        }
+        $refmethods = $refclass->getMethods();
+        foreach ($refmethods as $method) {
+            if ($method->class === $refclass->name) {
+                if ($method->getStartLine() <= $line && $line <= $method->getEndLine()) {
+                    return $method;
+                }
+            }
+        }
+    }
+
+    private function detectClass($file)
+    {
+        if (is_dir($file)) {
+            return null;
+        }
+
+        $namespace = '';
+        $preferClass = basename($file, '.php');
+        $candidate = null;
+
+        $tokens = token_get_all(file_get_contents($file));
+        $lastToken = [null, null, null];
+        foreach ($tokens as $n => $token) {
+            if (is_array($token)) {
+                if ($token[0] === T_WHITESPACE) {
+                    continue;
+                }
+                if ($token[0] === T_NAMESPACE) {
+                    for ($m = $n + 2; $m < count($tokens); $m++) {
+                        if ($tokens[$m] === ';' || $tokens[$m] === '{') {
+                            break;
+                        }
+                        if (is_array($tokens[$m])) {
+                            $namespace .= trim($tokens[$m][1]);
+                        }
+                    }
+                }
+                if ($lastToken[0] !== T_DOUBLE_COLON && in_array($token[0], [T_CLASS, T_INTERFACE, T_TRAIT], true)) {
+                    $classname = $tokens[$n + 2][1];
+                    $candidate = new \ReflectionClass($namespace . '\\' . $classname);
+                    if (strcasecmp($preferClass, $classname) === 0) {
+                        return $candidate;
+                    }
+                }
+                $lastToken = $token;
+            }
+        }
+        return $candidate;
+    }
+}
