@@ -94,11 +94,11 @@ class Actual implements \ArrayAccess
     /** @var string */
     private $message = '';
 
-    public static function generateAnnotation($rawarray = false)
+    public static function generateAnnotation(bool $rawarray = false)
     {
         $annotate = function ($mname, $parameters, $defaults) {
             $result = [];
-            $returnType = __CLASS__;
+            $returnType = '\\' . __CLASS__;
 
             $argstrings = array_filter(array_map(function (\ReflectionParameter $parameter) use ($defaults) {
                 if (!$parameter->isOptional() && array_key_exists($parameter->getPosition(), $defaults)) {
@@ -123,12 +123,12 @@ class Actual implements \ArrayAccess
 
             // $allName = preg_replace('#^is([A-Z]+)#', 'allAre$1', $mname, 1, $count);
             $allName = "all" . ucfirst($mname);
-            $result[$allName] = "\\$returnType $allName($argstring)";
+            $result[$allName] = "$returnType $allName($argstring)";
 
-            $result[$mname] = "\\$returnType $mname($argstring)";
+            $result[$mname] = "$returnType $mname($argstring)";
 
             $notName = preg_replace('#^notIs#', 'isNot', "not" . ucfirst($mname), 1);
-            $result[$notName] = "\\$returnType $notName($argstring)";
+            $result[$notName] = "$returnType $notName($argstring)";
 
             $requiredCount = array_reduce($parameters, function ($carry, \ReflectionParameter $parameter) use ($defaults) {
                 return $carry + (int) !($parameter->isOptional() || array_key_exists($parameter->getPosition(), $defaults));
@@ -142,9 +142,9 @@ class Actual implements \ArrayAccess
                 $argstring = implode(', ', array_merge(["array \${$firstParam}s"], $optionalParams));
 
                 $anyName = $mname . 'Any';
-                $result[$anyName] = "\\$returnType $anyName($argstring)";
+                $result[$anyName] = "$returnType $anyName($argstring)";
                 $allName = $mname . 'All';
-                $result[$allName] = "\\$returnType $allName($argstring)";
+                $result[$allName] = "$returnType $allName($argstring)";
             }
 
             return $result;
@@ -162,17 +162,16 @@ class Actual implements \ArrayAccess
                 $refclass = new \ReflectionClass('\\' . trim($namespace, '\\') . '\\' . basename($file, '.php'));
                 if (false
                     || $refclass->isAbstract()
-                    || $refclass->isInterface()
                     || strpos($refclass->getShortName(), 'Logical') === 0
                     || !is_subclass_of($refclass->name, Constraint::class)
                 ) {
                     continue;
                 }
-
-                $name = lcfirst($refclass->getShortName());
                 $method = $refclass->getConstructor() ?? $dummyConstructor;
-                $parameters = $method ? $method->getParameters() : [];
+
                 $via = "\\{$refclass->name}";
+                $name = lcfirst($refclass->getShortName());
+                $parameters = $method->getParameters();
 
                 $annotations = array_merge($annotations, [$via => $annotate($name, $parameters, [])]);
             }
@@ -189,8 +188,7 @@ class Actual implements \ArrayAccess
                 continue;
             }
 
-            $via = [];
-            $parameters = $defaults = [];
+            $via = $parameters = $defaults = [];
             foreach ((array) $variation as $classname => $args) {
                 if (is_int($classname)) {
                     $classname = $args;
@@ -199,7 +197,9 @@ class Actual implements \ArrayAccess
                 $refclass = new \ReflectionClass($classname);
                 $method = $refclass->getConstructor() ?? $dummyConstructor;
 
-                $defaults = array_reduce($method->getParameters(), function ($carry, \ReflectionParameter $parameter) use ($args) {
+                $via[] = "\\{$refclass->name}::{$method->name}()" . ($args ? ' ' . json_encode($args) : '');
+                $parameters = $method->getParameters();
+                $defaults = array_reduce($parameters, function ($carry, \ReflectionParameter $parameter) use ($args) {
                     if (array_key_exists($parameter->getName(), $args)) {
                         $carry[$parameter->getPosition()] = $args[$parameter->getName()];
                     }
@@ -208,9 +208,6 @@ class Actual implements \ArrayAccess
                     }
                     return $carry;
                 }, []);
-
-                $parameters = $method->getParameters();
-                $via[] = "\\{$refclass->name}::{$method->name}()" . ($args ? ' ' . json_encode($args) : '');
             }
 
             $annotations = array_merge($annotations, [implode(',', $via) => $annotate($name, $parameters, $defaults)]);
@@ -231,11 +228,11 @@ class Actual implements \ArrayAccess
         return "/**\n" . implode("\n", $result) . "\n */";
     }
 
-    private static function create($actual, $parent = null)
+    private function create($actual): Actual
     {
         $that = new static($actual);
-        $that->parent = $parent ?? $that;
-        $that->autoback = !!$that->parent->autoback;
+        $that->parent = $this;
+        $that->autoback = !!$this->autoback;
         return $that;
     }
 
@@ -245,15 +242,9 @@ class Actual implements \ArrayAccess
         $this->parent = $this;
     }
 
-    public function __invoke(...$arguments)
+    public function __invoke(...$arguments): Actual
     {
-        if ($this->catch) {
-            $catch = $this->catch;
-            $this->catch = null;
-            Assert::assertThat(array_merge([$this->actual], $arguments), $catch);
-            return $this;
-        }
-        return static::create(($this->actual)(...$arguments), $this);
+        return $this->invoke($this->actual, $arguments);
     }
 
     public function __call($name, $arguments)
@@ -306,8 +297,8 @@ class Actual implements \ArrayAccess
             }
         }
 
-        if ($this->isCallableMethod($this->actual, $name)) {
-            return $this->call($name, ...$arguments);
+        if ($invoker = $this->invokerToCallable($this->actual, $name)) {
+            return $this->invoke($invoker, $arguments);
         }
 
         throw new \BadMethodCallException("$name -> $callee");
@@ -316,22 +307,21 @@ class Actual implements \ArrayAccess
     public function __get($name): Actual
     {
         $refclass = new \ReflectionObject($this->actual);
-        while ($refclass) {
+        do {
             if ($refclass->hasProperty($name)) {
                 $property = $refclass->getProperty($name);
                 if ($property->isPublic()) {
-                    return static::create($this->actual->$name, $this);
+                    return $this->create($this->actual->$name);
                 }
                 else {
                     $property->setAccessible(true);
-                    return static::create($property->isStatic() ? $property->getValue() : $property->getValue($this->actual), $this);
+                    return $this->create($property->isStatic() ? $property->getValue() : $property->getValue($this->actual));
                 }
             }
-            $refclass = $refclass->getParentClass();
-        }
+        } while ($refclass = $refclass->getParentClass());
 
         if (method_exists($this->actual, '__get')) {
-            return static::create($this->actual->$name, $this);
+            return $this->create($this->actual->$name);
         }
 
         /** @noinspection PhpIncompatibleReturnTypeInspection */
@@ -341,27 +331,15 @@ class Actual implements \ArrayAccess
     public function offsetGet($offset): Actual
     {
         Assert::assertArrayHasKey($offset, $this->actual);
-        return static::create($this->actual[$offset], $this);
+        return $this->create($this->actual[$offset]);
     }
 
-    public function call($name, ...$arguments)
+    public function call($name, ...$arguments): Actual
     {
-        $callee = [$this->actual, $name];
-        if (!is_callable($callee)) {
-            $method = (new \ReflectionMethod($this->actual, $name));
-            $callee = $method->isStatic() ? $method->getClosure() : $method->getClosure($this->actual);
-        }
-
-        if ($this->catch) {
-            $catch = $this->catch;
-            $this->catch = null;
-            Assert::assertThat(array_merge([$callee], $arguments), $catch);
-            return $this;
-        }
-        return static::create($callee(...$arguments), $this);
+        return $this->invoke($this->invokerToCallable($this->actual, $name), $arguments);
     }
 
-    public function parent(int $nest = 1)
+    public function parent(int $nest = 1): Actual
     {
         $that = $this;
         do {
@@ -370,13 +348,13 @@ class Actual implements \ArrayAccess
         return $that;
     }
 
-    public function autoback(bool $autoback = true)
+    public function autoback(bool $autoback = true): Actual
     {
         $this->autoback = $autoback;
         return $this;
     }
 
-    public function try($method = null, ...$arguments)
+    public function try($method = null, ...$arguments): Actual
     {
         $callee = $this->invokerToCallable($this->actual, $method);
         try {
@@ -388,7 +366,7 @@ class Actual implements \ArrayAccess
         return $this->create($return);
     }
 
-    public function catch($expected)
+    public function catch($expected): Actual
     {
         $this->catch = new Throws($expected);
         return $this;
@@ -400,12 +378,12 @@ class Actual implements \ArrayAccess
         return $this;
     }
 
-    public function assert(Constraint ...$constraints)
+    public function assert(Constraint ...$constraints): Actual
     {
         return $this->asserts([$this->actual], ...$constraints);
     }
 
-    private function asserts($actuals, Constraint ...$constraints)
+    private function asserts($actuals, Constraint ...$constraints): Actual
     {
         $constraint = LogicalOr::fromConstraints(...$constraints);
         foreach ($actuals as $actual) {
@@ -455,36 +433,45 @@ class Actual implements \ArrayAccess
                 return LogicalAnd::fromConstraints(...$constraints);
             }
         }
-        else {
-            return $newConstraint($arguments);
-        }
+        return $newConstraint($arguments);
     }
 
-    private function isCallableMethod($object, string $method): bool
+    private function invoke($callee, $arguments): Actual
+    {
+        if ($this->catch) {
+            $catch = $this->catch;
+            $this->catch = null;
+            return $this->asserts([array_merge([$callee], $arguments)], $catch);
+        }
+        return $this->create($callee(...$arguments));
+    }
+
+    private function invokerToCallable($object, string $method = null): ?callable
     {
         if (!is_object($object)) {
-            return false;
+            return null;
         }
-        if (method_exists($object, $method)) {
-            return true;
+        if ($method === null && method_exists($object, '__invoke')) {
+            return $object;
         }
-        if (!is_callable([$object, $method])) {
-            return false;
-        }
-
-        // treat __call magic method via @method
-        $ref = new \ReflectionClass($object);
-        do {
-            $doccomment = $ref->getDocComment();
-            preg_match_all('#@method\s+([_0-9a-z\\\\|\[\]$]+\s+)?\s*?([_0-9a-z]+)\(#iums', $doccomment, $matches, PREG_SET_ORDER);
-            foreach ($matches as [, , $mname]) {
-                if (strcasecmp($method, $mname) === 0) {
-                    return true;
-                }
+        if (is_callable([$object, $method])) {
+            if (method_exists($object, $method)) {
+                return [$object, $method];
             }
-        } while ($ref = $ref->getParentClass());
-
-        return false;
+            // treat __call magic method via @method
+            $ref = new \ReflectionClass($object);
+            do {
+                $doccomment = $ref->getDocComment();
+                preg_match_all('#@method\s+([_0-9a-z\\\\|\[\]$]+\s+)?\s*?([_0-9a-z]+)\(#iums', $doccomment, $matches, PREG_SET_ORDER);
+                foreach ($matches as [, , $mname]) {
+                    if (strcasecmp($method, $mname) === 0) {
+                        return [$object, $method];
+                    }
+                }
+            } while ($ref = $ref->getParentClass());
+        }
+        $refmethod = (new \ReflectionMethod($object, $method));
+        return $refmethod->isStatic() ? $refmethod->getClosure() : $refmethod->getClosure($object);
     }
 
     public function __isset($name) { throw new \DomainException(__FUNCTION__ . ' is not supported.'); }
@@ -495,7 +482,7 @@ class Actual implements \ArrayAccess
 
     public function offsetExists($offset) { throw new \DomainException(__FUNCTION__ . ' is not supported.'); }
 
-    public function offsetSet($offset, $value) { throw new \DomainException(__FUNCTION__ . ' is not supported.'); }
-
     public function offsetUnset($offset) { throw new \DomainException(__FUNCTION__ . ' is not supported.'); }
+
+    public function offsetSet($offset, $value) { throw new \DomainException(__FUNCTION__ . ' is not supported.'); }
 }
