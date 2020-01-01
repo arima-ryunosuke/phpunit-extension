@@ -2,13 +2,10 @@
 
 namespace ryunosuke\PHPUnit\Constraint;
 
-use PHPUnit\Framework\Constraint\Constraint;
-use PHPUnit\Framework\ExpectationFailedException;
-
-class Throws extends Constraint
+class Throws extends AbstractConstraint
 {
     /** @var \Throwable */
-    private $expected;
+    private $expected, $actual;
 
     public function __construct($value)
     {
@@ -25,15 +22,62 @@ class Throws extends Constraint
 
     protected function failureDescription($other): string
     {
-        list($caller, $ex) = $other;
-        $base = sprintf('%s %s', $caller, $this->toString());
-        if ($ex instanceof \Throwable) {
-            return $base . ' thrown ' . $this->throwableToString($ex);
+        [, , $string] = $this->extractArgument($other);
+
+        $base = sprintf('%s %s', $string, $this->toString());
+        if ($this->actual instanceof \Throwable) {
+            return $base . ' thrown ' . $this->throwableToString($this->actual);
         }
         return $base . ' not thrown';
     }
 
     public function evaluate($other, $description = '', $returnResult = false)
+    {
+        [$callable, $args] = $this->extractArgument($other);
+
+        try {
+            $this->actual = null;
+
+            $callable(...$args);
+        }
+        catch (\Throwable $actual) {
+            $this->actual = $actual;
+
+            if (!$actual instanceof $this->expected) {
+                if ($returnResult) {
+                    return false;
+                }
+                $this->fail($other, $description);
+            }
+            $expectedCode = $this->expected->getCode();
+            if ($expectedCode && $expectedCode !== $actual->getCode()) {
+                if ($returnResult) {
+                    return false;
+                }
+                $this->fail($other, $description);
+            }
+            $expectedMessage = $this->expected->getMessage();
+            if (strlen($expectedMessage) && strpos($actual->getMessage(), $expectedMessage) === false) {
+                if ($returnResult) {
+                    return false;
+                }
+                $this->fail($other, $description);
+            }
+            return true;
+        }
+
+        if ($returnResult) {
+            return false;
+        }
+        return $this->fail($other, $description);
+    }
+
+    public function toString(): string
+    {
+        return 'should throw ' . $this->throwableToString($this->expected);
+    }
+
+    private function extractArgument($other)
     {
         if (is_callable($other)) {
             $callable = $other;
@@ -53,44 +97,7 @@ class Throws extends Constraint
         }, $args));
         $caller = "$name($argstring)";
 
-        try {
-            $callable(...$args);
-            if ($returnResult) {
-                return false;
-            }
-            $this->fail([$caller, null], $description);
-        }
-        catch (ExpectationFailedException $fail) {
-            throw $fail;
-        }
-        catch (\Throwable $actual) {
-            if (!$actual instanceof $this->expected) {
-                if ($returnResult) {
-                    return false;
-                }
-                $this->fail([$caller, $actual], $description);
-            }
-            $expectedCode = $this->expected->getCode();
-            if ($expectedCode && $expectedCode !== $actual->getCode()) {
-                if ($returnResult) {
-                    return false;
-                }
-                $this->fail([$caller, $actual], $description);
-            }
-            $expectedMessage = $this->expected->getMessage();
-            if (strlen($expectedMessage) && strpos($actual->getMessage(), $expectedMessage) === false) {
-                if ($returnResult) {
-                    return false;
-                }
-                $this->fail([$caller, $actual], $description);
-            }
-            return true;
-        }
-    }// @codeCoverageIgnore
-
-    public function toString(): string
-    {
-        return 'should throw ' . $this->throwableToString($this->expected);
+        return [$callable, $args, $caller];
     }
 
     private function throwableToString(\Throwable $throwable)

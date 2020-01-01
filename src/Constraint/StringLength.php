@@ -2,9 +2,7 @@
 
 namespace ryunosuke\PHPUnit\Constraint;
 
-use PHPUnit\Framework\Constraint\Constraint;
-
-class StringLength extends Constraint
+class StringLength extends AbstractConstraint
 {
     private $length;
     private $multibyte;

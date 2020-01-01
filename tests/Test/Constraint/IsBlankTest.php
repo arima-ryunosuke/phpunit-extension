@@ -28,6 +28,6 @@ class IsBlankTest extends \ryunosuke\Test\AbstractTestCase
 
         $this->ng(function () use ($constraint) {
             $constraint->evaluate(0);
-        }, '0 is Blank');
+        }, '0 is blank');
     }
 }

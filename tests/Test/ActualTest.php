@@ -114,7 +114,7 @@ Nzxc ');
 
         $this->ng(function () {
             $this->actual([true, 1, 0, new \stdClass()])->allIsTruthy();
-        }, "0 is Truthy");
+        }, "0 is truthy");
 
         $this->ng(function () {
             $this->actual(['1', 2, '3'])->allIsString();

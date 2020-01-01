@@ -19,6 +19,6 @@ class IsTruthyTest extends \ryunosuke\Test\AbstractTestCase
 
         $this->ng(function () use ($constraint) {
             $constraint->evaluate(0);
-        }, "0 is Truthy");
+        }, "0 is truthy");
     }
 }

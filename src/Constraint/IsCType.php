@@ -2,9 +2,7 @@
 
 namespace ryunosuke\PHPUnit\Constraint;
 
-use PHPUnit\Framework\Constraint\Constraint;
-
-class IsCType extends Constraint
+class IsCType extends AbstractConstraint
 {
     public const CTYPE_ALNUM  = 'alnum';
     public const CTYPE_ALPHA  = 'alpha';

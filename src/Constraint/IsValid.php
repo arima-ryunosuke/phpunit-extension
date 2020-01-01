@@ -2,9 +2,7 @@
 
 namespace ryunosuke\PHPUnit\Constraint;
 
-use PHPUnit\Framework\Constraint\Constraint;
-
-class IsValid extends Constraint
+class IsValid extends AbstractConstraint
 {
     public const VALID_EMAIL = 'email';
     public const VALID_IP    = 'ip';

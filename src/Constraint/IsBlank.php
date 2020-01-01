@@ -2,9 +2,7 @@
 
 namespace ryunosuke\PHPUnit\Constraint;
 
-use PHPUnit\Framework\Constraint\Constraint;
-
-class IsBlank extends Constraint
+class IsBlank extends AbstractConstraint
 {
     private $trim;
 
@@ -28,10 +26,5 @@ class IsBlank extends Constraint
         }
 
         return empty($other);
-    }
-
-    public function toString(): string
-    {
-        return 'is Blank';
     }
 }

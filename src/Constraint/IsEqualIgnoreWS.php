@@ -8,16 +8,11 @@ class IsEqualIgnoreWS extends Composite
 {
     public function __construct($value, bool $ignoreCase = false)
     {
-        parent::__construct(new IsEqual($this->stripWhitespace($value), 0.0, 10, false, $ignoreCase));
+        parent::__construct(new IsEqual($this->filter($value), 0.0, 10, false, $ignoreCase));
     }
 
-    public function evaluate($other, $description = '', $returnResult = false)
+    protected function filter($other)
     {
-        return parent::evaluate($this->stripWhitespace($other), $description, $returnResult);
-    }
-
-    private function stripWhitespace($string)
-    {
-        return trim(preg_replace('#\\s+#u', " ", $string));
+        return trim(preg_replace('#\\s+#u', " ", $other));
     }
 }
