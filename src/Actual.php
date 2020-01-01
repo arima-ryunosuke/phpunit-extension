@@ -172,6 +172,16 @@ class Actual implements \ArrayAccess
         }
 
         foreach (self::$constraintVariations as $name => $variation) {
+            if ($variation instanceof Constraint) {
+                $refclass = new \ReflectionClass($variation);
+                $method = $refclass->getConstructor() ?? $dummyConstructor;
+
+                $via = sprintf('%s#%d-%d', basename($refclass->getFileName()), $refclass->getStartLine(), $refclass->getEndLine());
+                $parameters = $method->getParameters();
+                $annotations = array_merge($annotations, [$via => $annotate($name, $parameters, [])]);
+                continue;
+            }
+
             $via = [];
             $parameters = $defaults = [];
             foreach ((array) $variation as $classname => $args) {
@@ -246,8 +256,18 @@ class Actual implements \ArrayAccess
 
         $callee = lcfirst($callee);
         if (isset(self::$constraintVariations[$callee])) {
+            $variation = self::$constraintVariations[$callee];
+            if ($variation instanceof Constraint) {
+                $refclass = new \ReflectionClass($variation);
+                $constructor = $refclass->getConstructor();
+                if ($constructor) {
+                    $constructor->invokeArgs($variation, $arguments);
+                }
+                return $this->asserts($actuals, $variation);
+            }
+
             $constraints = [];
-            foreach ((array) self::$constraintVariations[$callee] as $classname => $args) {
+            foreach ((array) $variation as $classname => $args) {
                 if (is_int($classname)) {
                     $classname = $args;
                     $args = [];

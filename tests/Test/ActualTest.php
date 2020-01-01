@@ -301,5 +301,9 @@ Nzxc ');
         $this->actual("::1")->isValidIpv6();
         $this->actual("00-00-5E-00-53-00")->isValidMac();
         $this->actual("http://example.com")->isValidUrl();
+
+        $this->actual("1\n2\n3\n")->lineCount(4);
+        $this->actual("1\r2\r3\r4\r")->lineCount(1, "\n");
+        $this->actual("1\r2\r3\r4\r")->lineCount(5, "\r");
     }
 }
