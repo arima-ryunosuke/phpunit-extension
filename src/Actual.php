@@ -242,6 +242,17 @@ class Actual implements \ArrayAccess
         $this->parent = $this;
     }
 
+    public function __invoke(...$arguments)
+    {
+        if ($this->catch) {
+            $catch = $this->catch;
+            $this->catch = null;
+            Assert::assertThat(array_merge([$this->actual], $arguments), $catch);
+            return $this;
+        }
+        return static::create(($this->actual)(...$arguments), $this);
+    }
+
     public function __call($name, $arguments)
     {
         $callee = $name;

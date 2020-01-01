@@ -229,6 +229,31 @@ Nzxc ');
         }, "undefinedMethod");
     }
 
+    function test_invoke()
+    {
+        $actual = $this->actual(new class
+        {
+            public function __invoke($a, $b, $c)
+            {
+                return "$a,$b,$c";
+            }
+        });
+        $actual(1, 2, 3)->isEqual('1,2,3');
+
+        $actual = $this->actual(function ($a, $b, $c) {
+            return "$a,$b,$c";
+        });
+        $actual(1, 2, 3)->isEqual('1,2,3');
+
+        $actual = $this->actual(function () {
+            throw new \Exception('message');
+        });
+        $actual->catch('message')();
+        $this->ng(function () use ($actual) {
+            $actual->catch('notmessage')();
+        }, "should throw \Exception('notmessage', 0)");
+    }
+
     function test_parent()
     {
         $actual = $this->actual(new \ArrayObject([
