@@ -90,7 +90,7 @@ Nzxc ');
 
         $this->ng(function () {
             $this->actual(new \Exception())->isInstanceOf(\ArrayObject::class);
-        }, 'is instance of class "ArrayObject"');
+        }, 'is an instance of class "ArrayObject"');
 
         $this->ng(function () {
             $this->actual(function () { })->throws('dummy');

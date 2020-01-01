@@ -10,12 +10,12 @@ use PHPUnit\Framework\Constraint\IsIdentical;
 use PHPUnit\Framework\Constraint\IsNull;
 use PHPUnit\Framework\Constraint\IsType;
 use PHPUnit\Framework\Constraint\LessThan;
-use PHPUnit\Framework\Constraint\LogicalAnd;
-use PHPUnit\Framework\Constraint\LogicalNot;
-use PHPUnit\Framework\Constraint\LogicalOr;
 use PHPUnit\Framework\Constraint\RegularExpression;
 use ryunosuke\PHPUnit\Constraint\IsCType;
 use ryunosuke\PHPUnit\Constraint\IsValid;
+use ryunosuke\PHPUnit\Constraint\LogicalAnd;
+use ryunosuke\PHPUnit\Constraint\LogicalNot;
+use ryunosuke\PHPUnit\Constraint\LogicalOr;
 use ryunosuke\PHPUnit\Constraint\Throws;
 
 if (!trait_exists(Annotation::class)) {
