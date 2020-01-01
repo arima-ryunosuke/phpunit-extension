@@ -301,8 +301,27 @@ class Actual implements \ArrayAccess
 
     public function __get($name): Actual
     {
-        Assert::assertObjectHasAttribute($name, $this->actual);
-        return static::create($this->actual->$name, $this);
+        $refclass = new \ReflectionObject($this->actual);
+        while ($refclass) {
+            if ($refclass->hasProperty($name)) {
+                $property = $refclass->getProperty($name);
+                if ($property->isPublic()) {
+                    return static::create($this->actual->$name, $this);
+                }
+                else {
+                    $property->setAccessible(true);
+                    return static::create($property->isStatic() ? $property->getValue() : $property->getValue($this->actual), $this);
+                }
+            }
+            $refclass = $refclass->getParentClass();
+        }
+
+        if (method_exists($this->actual, '__get')) {
+            return static::create($this->actual->$name, $this);
+        }
+
+        /** @noinspection PhpIncompatibleReturnTypeInspection */
+        return Assert::assertObjectHasAttribute($name, $this->actual);
     }
 
     public function offsetGet($offset): Actual
@@ -313,13 +332,19 @@ class Actual implements \ArrayAccess
 
     public function call($name, ...$arguments)
     {
+        $callee = [$this->actual, $name];
+        if (!is_callable($callee)) {
+            $method = (new \ReflectionMethod($this->actual, $name));
+            $callee = $method->isStatic() ? $method->getClosure() : $method->getClosure($this->actual);
+        }
+
         if ($this->catch) {
             $catch = $this->catch;
             $this->catch = null;
-            Assert::assertThat(array_merge([[$this->actual, $name]], $arguments), $catch);
+            Assert::assertThat(array_merge([$callee], $arguments), $catch);
             return $this;
         }
-        return static::create($this->actual->$name(...$arguments), $this);
+        return static::create($callee(...$arguments), $this);
     }
 
     public function parent(int $nest = 1)

@@ -123,6 +123,19 @@ Nzxc ');
 
     function test_accessor()
     {
+        $actual = $this->actual(new class('testname') extends \ryunosuke\Test\AbstractTestCase
+        {
+            private /** @noinspection PhpUnusedPrivateFieldInspection */ $privateProperty = 'this is private';
+
+            public function __get($name)
+            {
+                return "$name is __get property";
+            }
+        });
+        $actual->privateProperty->isEqual('this is private');
+        $actual->getter->isEqual('getter is __get property');
+        $actual->name->isEqual('testname');
+
         $actual = $this->actual((object) [
             'x' => 'X',
         ]);
@@ -149,7 +162,16 @@ Nzxc ');
     {
         $actual = $this->actual(new class
         {
-            function method($x)
+            /** @noinspection PhpUnusedPrivateMethodInspection */
+            private function privateMethod($x)
+            {
+                if ($x === null) {
+                    throw new \Exception('this is message.', 123);
+                }
+                return $x * 10;
+            }
+
+            public function publicMethod($x)
             {
                 if ($x === null) {
                     throw new \Exception('this is message.', 123);
@@ -160,10 +182,16 @@ Nzxc ');
 
         /** @noinspection PhpUndefinedMethodInspection */
         {
-            $actual->method(3)->isEqual(30);
-            $actual->call('method', 5)->isEqual(50);
-            $actual->catch(new \Exception('this is message.', 123))->method(null);
-            $actual->catch(new \Exception('this is message.', 123))->call('method', null);
+            $actual->privateMethod(3)->isEqual(30);
+            $actual->call('privateMethod', 5)->isEqual(50);
+            $actual->catch(new \Exception('this is message.', 123))->privateMethod(null);
+            $actual->catch(new \Exception('this is message.', 123))->call('privateMethod', null);
+            $actual->isType('object');
+
+            $actual->publicMethod(3)->isEqual(30);
+            $actual->call('publicMethod', 5)->isEqual(50);
+            $actual->catch(new \Exception('this is message.', 123))->publicMethod(null);
+            $actual->catch(new \Exception('this is message.', 123))->call('publicMethod', null);
             $actual->isType('object');
         }
 
