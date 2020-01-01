@@ -24,6 +24,9 @@ class ActualTest extends \ryunosuke\Test\AbstractTestCase
         $this->assertStringContainsString('notStringLength', $annotations);
         $this->assertStringContainsString(' all', $annotations);
         $this->assertStringContainsString('Any(', $annotations);
+        $this->assertStringContainsString('isNullOrString()', $annotations);
+        $this->assertStringContainsString('gte($value)', $annotations);
+        $this->assertStringContainsString('equalsCanonicalizing($value, float $delta = 0.0, int $maxDepth = 10, bool $canonicalize = true, bool $ignoreCase = false)', $annotations);
 
         $this->assertIsArray(Actual::generateAnnotation(true));
     }
@@ -65,7 +68,7 @@ Nzxc ');
         $this->actual('qwe')
             ->stringLengthAny([1, 2, 3])
             ->isEqualAny(['qwe', 'asd'])
-            ->isEqualAny(['QWE', 'asd'], 0, 0, false, true);
+            ->isEqualAny(['QWE', 'asd'], 0, 10, false, true);
 
         $this->actual([true, 1, '1', new \stdClass()])->allIsTruthy();
         $this->actual(['1', '2', '3'])->allIsString();
@@ -260,6 +263,8 @@ Nzxc ');
         $this->actual('hoge')->isHoge();
 
         $this->actual('hoge')->isSame('hoge');
+        $this->actual(['a', 'b'])->equalsCanonicalizing(['b', 'a']);
+        $this->actual('hoge')->equalsIgnoreCase('HOGE');
         $this->actual('hoge')->matches('#hoge#');
         $this->actual(5)->gt(4)->gte(5);
         $this->actual(5)->lt(6)->lte(5);

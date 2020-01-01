@@ -29,45 +29,47 @@ class Actual implements \ArrayAccess
 
     public static $constraintVariations = [
         // alias
-        'isSame'         => IsIdentical::class,
-        'matches'        => RegularExpression::class,
-        'gt'             => GreaterThan::class,
-        'lt'             => LessThan::class,
-        'gte'            => [IsEqual::class, GreaterThan::class],
-        'lte'            => [IsEqual::class, LessThan::class],
-        'isNullOrString' => [IsNull::class, IsType::class => [IsType::TYPE_STRING]],
+        'isSame'               => IsIdentical::class,
+        'equalsCanonicalizing' => [IsEqual::class => ['canonicalize' => true]],
+        'equalsIgnoreCase'     => [IsEqual::class => [4 => true]],
+        'matches'              => RegularExpression::class,
+        'gt'                   => GreaterThan::class,
+        'lt'                   => LessThan::class,
+        'gte'                  => [IsEqual::class, GreaterThan::class],
+        'lte'                  => [IsEqual::class, LessThan::class],
+        'isNullOrString'       => [IsNull::class, IsType::class => [IsType::TYPE_STRING]],
         // via IsType
-        'isArray'        => [IsType::class => [IsType::TYPE_ARRAY]],
-        'isBool'         => [IsType::class => [IsType::TYPE_BOOL]],
-        'isFloat'        => [IsType::class => [IsType::TYPE_FLOAT]],
-        'isInt'          => [IsType::class => [IsType::TYPE_INT]],
+        'isArray'              => [IsType::class => [IsType::TYPE_ARRAY]],
+        'isBool'               => [IsType::class => [IsType::TYPE_BOOL]],
+        'isFloat'              => [IsType::class => [IsType::TYPE_FLOAT]],
+        'isInt'                => [IsType::class => [IsType::TYPE_INT]],
         # 'isNull'        => [IsType::class => [IsType::TYPE_NULL]], // already exists internal
-        'isNumeric'      => [IsType::class => [IsType::TYPE_NUMERIC]],
-        'isObject'       => [IsType::class => [IsType::TYPE_OBJECT]],
-        'isResource'     => [IsType::class => [IsType::TYPE_RESOURCE]],
-        'isString'       => [IsType::class => [IsType::TYPE_STRING]],
-        'isScalar'       => [IsType::class => [IsType::TYPE_SCALAR]],
-        'isCallable'     => [IsType::class => [IsType::TYPE_CALLABLE]],
-        'isIterable'     => [IsType::class => [IsType::TYPE_ITERABLE]],
+        'isNumeric'            => [IsType::class => [IsType::TYPE_NUMERIC]],
+        'isObject'             => [IsType::class => [IsType::TYPE_OBJECT]],
+        'isResource'           => [IsType::class => [IsType::TYPE_RESOURCE]],
+        'isString'             => [IsType::class => [IsType::TYPE_STRING]],
+        'isScalar'             => [IsType::class => [IsType::TYPE_SCALAR]],
+        'isCallable'           => [IsType::class => [IsType::TYPE_CALLABLE]],
+        'isIterable'           => [IsType::class => [IsType::TYPE_ITERABLE]],
         // via IsCType
-        'isCtypeAlnum'   => [IsCType::class => [IsCType::CTYPE_ALNUM]],
-        'isCtypeAlpha'   => [IsCType::class => [IsCType::CTYPE_ALPHA]],
-        'isCtypeCntrl'   => [IsCType::class => [IsCType::CTYPE_CNTRL]],
-        'isCtypeDigit'   => [IsCType::class => [IsCType::CTYPE_DIGIT]],
-        'isCtypeGraph'   => [IsCType::class => [IsCType::CTYPE_GRAPH]],
-        'isCtypeLower'   => [IsCType::class => [IsCType::CTYPE_LOWER]],
-        'isCtypePrint'   => [IsCType::class => [IsCType::CTYPE_PRINT]],
-        'isCtypePunct'   => [IsCType::class => [IsCType::CTYPE_PUNCT]],
-        'isCtypeSpace'   => [IsCType::class => [IsCType::CTYPE_SPACE]],
-        'isCtypeUpper'   => [IsCType::class => [IsCType::CTYPE_UPPER]],
-        'isCtypeXdigit'  => [IsCType::class => [IsCType::CTYPE_XDIGIT]],
+        'isCtypeAlnum'         => [IsCType::class => [IsCType::CTYPE_ALNUM]],
+        'isCtypeAlpha'         => [IsCType::class => [IsCType::CTYPE_ALPHA]],
+        'isCtypeCntrl'         => [IsCType::class => [IsCType::CTYPE_CNTRL]],
+        'isCtypeDigit'         => [IsCType::class => [IsCType::CTYPE_DIGIT]],
+        'isCtypeGraph'         => [IsCType::class => [IsCType::CTYPE_GRAPH]],
+        'isCtypeLower'         => [IsCType::class => [IsCType::CTYPE_LOWER]],
+        'isCtypePrint'         => [IsCType::class => [IsCType::CTYPE_PRINT]],
+        'isCtypePunct'         => [IsCType::class => [IsCType::CTYPE_PUNCT]],
+        'isCtypeSpace'         => [IsCType::class => [IsCType::CTYPE_SPACE]],
+        'isCtypeUpper'         => [IsCType::class => [IsCType::CTYPE_UPPER]],
+        'isCtypeXdigit'        => [IsCType::class => [IsCType::CTYPE_XDIGIT]],
         // via IsValid
-        'isValidEmail'   => [IsValid::class => [IsValid::VALID_EMAIL]],
-        'isValidIp'      => [IsValid::class => [IsValid::VALID_IP]],
-        'isValidIpv4'    => [IsValid::class => [IsValid::VALID_IPV4]],
-        'isValidIpv6'    => [IsValid::class => [IsValid::VALID_IPV6]],
-        'isValidMac'     => [IsValid::class => [IsValid::VALID_MAC]],
-        'isValidUrl'     => [IsValid::class => [IsValid::VALID_URL]],
+        'isValidEmail'         => [IsValid::class => [IsValid::VALID_EMAIL]],
+        'isValidIp'            => [IsValid::class => [IsValid::VALID_IP]],
+        'isValidIpv4'          => [IsValid::class => [IsValid::VALID_IPV4]],
+        'isValidIpv6'          => [IsValid::class => [IsValid::VALID_IPV6]],
+        'isValidMac'           => [IsValid::class => [IsValid::VALID_MAC]],
+        'isValidUrl'           => [IsValid::class => [IsValid::VALID_URL]],
     ];
 
     public static $constraintNamespaces = [
@@ -89,11 +91,14 @@ class Actual implements \ArrayAccess
 
     public static function generateAnnotation($rawarray = false)
     {
-        $annotate = function ($mname, $parameters) {
+        $annotate = function ($mname, $parameters, $defaults) {
             $result = [];
             $returnType = __CLASS__;
 
-            $argstrings = array_map(function (\ReflectionParameter $parameter) {
+            $argstrings = array_filter(array_map(function (\ReflectionParameter $parameter) use ($defaults) {
+                if (!$parameter->isOptional() && array_key_exists($parameter->getPosition(), $defaults)) {
+                    return null;
+                }
                 $type = '';
                 if ($parameter->hasType()) {
                     $tname = $parameter->getType()->getName();
@@ -101,21 +106,27 @@ class Actual implements \ArrayAccess
                     $type = ($parameter->allowsNull() ? '?' : '') . $tname . ' ';
                 }
                 $arg = $type . '$' . $parameter->getName();
-                $arg .= $parameter->isDefaultValueAvailable() ? ' = ' . var_export($parameter->getDefaultValue(), true) : '';
+                if (array_key_exists($parameter->getPosition(), $defaults)) {
+                    $arg .= ' = ' . var_export($defaults[$parameter->getPosition()], true);
+                }
+                elseif ($parameter->isDefaultValueAvailable()) {
+                    $arg .= ' = ' . var_export($parameter->getDefaultValue(), true);
+                }
                 return $arg;
-            }, $parameters);
+            }, $parameters), function ($v) { return $v !== null; });
+            $argstring = implode(', ', $argstrings);
 
             // $allName = preg_replace('#^is([A-Z]+)#', 'allAre$1', $mname, 1, $count);
             $allName = "all" . ucfirst($mname);
-            $result[$allName] = "\\$returnType $allName(" . implode(', ', $argstrings) . ")";
+            $result[$allName] = "\\$returnType $allName($argstring)";
 
-            $result[$mname] = "\\$returnType $mname(" . implode(', ', $argstrings) . ")";
+            $result[$mname] = "\\$returnType $mname($argstring)";
 
             $notName = preg_replace('#^notIs#', 'isNot', "not" . ucfirst($mname), 1);
-            $result[$notName] = "\\$returnType $notName(" . implode(', ', $argstrings) . ")";
+            $result[$notName] = "\\$returnType $notName($argstring)";
 
-            $requiredCount = array_reduce($parameters, function ($carry, \ReflectionParameter $parameter) {
-                return $carry + (int) !$parameter->isOptional();
+            $requiredCount = array_reduce($parameters, function ($carry, \ReflectionParameter $parameter) use ($defaults) {
+                return $carry + (int) !($parameter->isOptional() || array_key_exists($parameter->getPosition(), $defaults));
             }, 0);
             if ($requiredCount) {
                 $requiredParams = array_slice($parameters, 0, $requiredCount);
@@ -123,12 +134,19 @@ class Actual implements \ArrayAccess
                 $firstParam = implode('', array_map(function (\ReflectionParameter $parameter) {
                     return $parameter->getName();
                 }, $requiredParams));
+                $argstring = implode(', ', array_merge(["array \${$firstParam}s"], $optionalParams));
+
                 $anyName = $mname . 'Any';
-                $result[$anyName] = "\\$returnType $anyName(" . implode(', ', array_merge(["array \${$firstParam}s"], $optionalParams)) . ")";
+                $result[$anyName] = "\\$returnType $anyName($argstring)";
             }
 
             return $result;
         };
+
+        $dummyConstructor = (new \ReflectionClass(new class()
+        {
+            public function __construct() { }
+        }))->getConstructor();
 
         $annotations = [];
 
@@ -145,30 +163,40 @@ class Actual implements \ArrayAccess
                 }
 
                 $name = lcfirst($refclass->getShortName());
-                $method = $refclass->getConstructor();
+                $method = $refclass->getConstructor() ?? $dummyConstructor;
                 $parameters = $method ? $method->getParameters() : [];
                 $via = "\\{$refclass->name}";
 
-                $annotations = array_merge($annotations, [$via => $annotate($name, $parameters)]);
+                $annotations = array_merge($annotations, [$via => $annotate($name, $parameters, [])]);
             }
         }
 
         foreach (self::$constraintVariations as $name => $variation) {
             $via = [];
-            $parameters = [];
+            $parameters = $defaults = [];
             foreach ((array) $variation as $classname => $args) {
                 if (is_int($classname)) {
                     $classname = $args;
                     $args = [];
                 }
                 $refclass = new \ReflectionClass($classname);
-                $method = $refclass->getConstructor();
+                $method = $refclass->getConstructor() ?? $dummyConstructor;
 
-                $parameters = $method ? array_slice($method->getParameters(), count($args)) : [];
-                $via[] = "\\{$refclass->name}" . ($method ? "::{$method->name}()" . ($args ? ' ' . json_encode($args) : '') : '');
+                $defaults = array_reduce($method->getParameters(), function ($carry, \ReflectionParameter $parameter) use ($args) {
+                    if (array_key_exists($parameter->getName(), $args)) {
+                        $carry[$parameter->getPosition()] = $args[$parameter->getName()];
+                    }
+                    elseif (array_key_exists($parameter->getPosition(), $args)) {
+                        $carry[$parameter->getPosition()] = $args[$parameter->getPosition()];
+                    }
+                    return $carry;
+                }, []);
+
+                $parameters = $method->getParameters();
+                $via[] = "\\{$refclass->name}::{$method->name}()" . ($args ? ' ' . json_encode($args) : '');
             }
 
-            $annotations = array_merge($annotations, [implode(',', $via) => $annotate($name, $parameters)]);
+            $annotations = array_merge($annotations, [implode(',', $via) => $annotate($name, $parameters, $defaults)]);
         }
 
         if ($rawarray) {
@@ -222,9 +250,9 @@ class Actual implements \ArrayAccess
             foreach ((array) self::$constraintVariations[$callee] as $classname => $args) {
                 if (is_int($classname)) {
                     $classname = $args;
-                    $args = $arguments;
+                    $args = [];
                 }
-                $constraints[] = $this->newConstraint($classname, $args, $modes);
+                $constraints[] = $this->newConstraint($classname, $arguments + $args, $modes);
             }
             return $this->asserts($actuals, ...$constraints);
         }
@@ -307,7 +335,22 @@ class Actual implements \ArrayAccess
 
     private function newConstraint($constraintClass, $arguments, $modes): Constraint
     {
-        $newConstraint = function (...$args) use ($constraintClass, $modes) {
+        $newConstraint = function ($args) use ($constraintClass, $modes) {
+            $constructor = (new \ReflectionClass($constraintClass))->getConstructor();
+            if ($constructor) {
+                $args = array_reduce($constructor->getParameters(), function ($carry, \ReflectionParameter $parameter) use ($args) {
+                    if (array_key_exists($parameter->getName(), $args)) {
+                        $carry[$parameter->getPosition()] = $args[$parameter->getName()];
+                    }
+                    elseif (array_key_exists($parameter->getPosition(), $args)) {
+                        $carry[$parameter->getPosition()] = $args[$parameter->getPosition()];
+                    }
+                    elseif ($parameter->isDefaultValueAvailable()) {
+                        $carry[$parameter->getPosition()] = $parameter->getDefaultValue();
+                    }
+                    return $carry;
+                }, []);
+            }
             $constraint = new $constraintClass(...$args);
             if ($modes['not']) {
                 $constraint = new LogicalNot($constraint);
@@ -317,14 +360,14 @@ class Actual implements \ArrayAccess
 
         if ($modes['any']) {
             $constraints = [];
-            $values = array_shift($arguments);
+            $values = reset($arguments);
             foreach (is_array($values) ? $values : [$values] as $value) {
-                $constraints[] = $newConstraint($value, ...$arguments);
+                $constraints[] = $newConstraint([$value] + $arguments);
             }
             return LogicalOr::fromConstraints(...$constraints);
         }
         else {
-            return $newConstraint(...$arguments);
+            return $newConstraint($arguments);
         }
     }
 
