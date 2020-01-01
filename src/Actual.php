@@ -91,6 +91,9 @@ class Actual implements \ArrayAccess
     /** @var Throws */
     private $catch;
 
+    /** @var string */
+    private $message = '';
+
     public static function generateAnnotation($rawarray = false)
     {
         $annotate = function ($mname, $parameters, $defaults) {
@@ -379,6 +382,12 @@ class Actual implements \ArrayAccess
         return $this;
     }
 
+    public function message(string $message): Actual
+    {
+        $this->message = $message;
+        return $this;
+    }
+
     public function assert(Constraint ...$constraints)
     {
         return $this->asserts([$this->actual], ...$constraints);
@@ -388,7 +397,7 @@ class Actual implements \ArrayAccess
     {
         $constraint = LogicalOr::fromConstraints(...$constraints);
         foreach ($actuals as $actual) {
-            Assert::assertThat($actual, $constraint);
+            Assert::assertThat($actual, $constraint, $this->message);
         }
         if ($this->autoback) {
             return $this->parent();

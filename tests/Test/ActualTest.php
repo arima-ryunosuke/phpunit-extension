@@ -302,6 +302,13 @@ Nzxc ');
         }, "'qwe' is equal to 'asd' or is equal to 'zxc'");
     }
 
+    function test_message()
+    {
+        $this->ng(function () {
+            $this->actual(1)->message('this is fail message')->isFalse();
+        }, "this is fail message");
+    }
+
     function test_catch()
     {
         $thrower = new class()
