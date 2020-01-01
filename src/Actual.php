@@ -10,6 +10,7 @@ use PHPUnit\Framework\Constraint\IsIdentical;
 use PHPUnit\Framework\Constraint\IsNull;
 use PHPUnit\Framework\Constraint\IsType;
 use PHPUnit\Framework\Constraint\LessThan;
+use PHPUnit\Framework\Constraint\LogicalAnd;
 use PHPUnit\Framework\Constraint\LogicalNot;
 use PHPUnit\Framework\Constraint\LogicalOr;
 use PHPUnit\Framework\Constraint\RegularExpression;
@@ -139,6 +140,8 @@ class Actual implements \ArrayAccess
 
                 $anyName = $mname . 'Any';
                 $result[$anyName] = "\\$returnType $anyName($argstring)";
+                $allName = $mname . 'All';
+                $result[$allName] = "\\$returnType $allName($argstring)";
             }
 
             return $result;
@@ -245,7 +248,7 @@ class Actual implements \ArrayAccess
         $modes = [];
 
         $callee = preg_replace('#^all#', '', $callee, 1, $count);
-        $modes['all'] = !!$count;
+        $modes['every'] = !!$count;
 
         $callee = preg_replace('#^(is)?(Not|not)([A-Z])#', '$1$3', $callee, 1, $count);
         $modes['not'] = !!$count;
@@ -253,7 +256,10 @@ class Actual implements \ArrayAccess
         $callee = preg_replace('#Any$#', '', $callee, 1, $count);
         $modes['any'] = !!$count;
 
-        $actuals = $modes['all'] ? $this->actual : [$this->actual];
+        $callee = preg_replace('#All$#', '', $callee, 1, $count);
+        $modes['all'] = !!$count;
+
+        $actuals = $modes['every'] ? $this->actual : [$this->actual];
 
         $callee = lcfirst($callee);
         if (isset(self::$constraintVariations[$callee])) {
@@ -379,13 +385,18 @@ class Actual implements \ArrayAccess
             return $constraint;
         };
 
-        if ($modes['any']) {
+        if ($modes['any'] || $modes['all']) {
             $constraints = [];
             $values = reset($arguments);
             foreach (is_array($values) ? $values : [$values] as $value) {
                 $constraints[] = $newConstraint([$value] + $arguments);
             }
-            return LogicalOr::fromConstraints(...$constraints);
+            if ($modes['any']) {
+                return LogicalOr::fromConstraints(...$constraints);
+            }
+            if ($modes['all']) {
+                return LogicalAnd::fromConstraints(...$constraints);
+            }
         }
         else {
             return $newConstraint($arguments);

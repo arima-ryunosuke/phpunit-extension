@@ -24,6 +24,7 @@ class ActualTest extends \ryunosuke\Test\AbstractTestCase
         $this->assertStringContainsString('notStringLength', $annotations);
         $this->assertStringContainsString(' all', $annotations);
         $this->assertStringContainsString('Any(', $annotations);
+        $this->assertStringContainsString('All(', $annotations);
         $this->assertStringContainsString('isNullOrString()', $annotations);
         $this->assertStringContainsString('gte($value)', $annotations);
         $this->assertStringContainsString('equalsCanonicalizing($value, float $delta = 0.0, int $maxDepth = 10, bool $canonicalize = true, bool $ignoreCase = false)', $annotations);
@@ -70,6 +71,9 @@ Nzxc ');
             ->isEqualAny(['qwe', 'asd'])
             ->isEqualAny(['QWE', 'asd'], 0, 10, false, true);
 
+        $this->actual(['a' => 'A', 'b' => 'B', 'c' => 'C'])
+            ->arrayHasKeyAll(['a', 'b', 'c']);
+
         $this->actual([true, 1, '1', new \stdClass()])->allIsTruthy();
         $this->actual(['1', '2', '3'])->allIsString();
     }
@@ -103,6 +107,10 @@ Nzxc ');
         $this->ng(function () {
             $this->actual('qwe')->isEqualAny(['QWE', 'asd', 'zxc']);
         }, "'qwe' is equal to 'QWE' or is equal to 'asd' or is equal to 'zxc'");
+
+        $this->ng(function () {
+            $this->actual(['a' => 'A', 'b' => 'B', 'c' => 'C'])->arrayHasKeyAll(['a', 'b', 'c', 'x']);
+        }, "has the key 'a' and has the key 'b' and has the key 'c' and has the key 'x'");
 
         $this->ng(function () {
             $this->actual([true, 1, 0, new \stdClass()])->allIsTruthy();
