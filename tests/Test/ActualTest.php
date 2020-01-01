@@ -262,6 +262,7 @@ Nzxc ');
     {
         $this->actual('hoge')->isHoge();
 
+        $this->actual('hoge')->is('hoge');
         $this->actual('hoge')->isSame('hoge');
         $this->actual(['a', 'b'])->equalsCanonicalizing(['b', 'a']);
         $this->actual('hoge')->equalsIgnoreCase('HOGE');

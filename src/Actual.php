@@ -29,6 +29,7 @@ class Actual implements \ArrayAccess
 
     public static $constraintVariations = [
         // alias
+        'is'                   => IsEqual::class,
         'isSame'               => IsIdentical::class,
         'equalsCanonicalizing' => [IsEqual::class => ['canonicalize' => true]],
         'equalsIgnoreCase'     => [IsEqual::class => [4 => true]],
