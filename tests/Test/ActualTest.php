@@ -309,6 +309,24 @@ Nzxc ');
         }, "this is fail message");
     }
 
+    function test_try()
+    {
+        $thrower = new class()
+        {
+            function divide($x, $n) { return $x / $n; }
+
+            function __invoke($x, $n) { return $x / $n; }
+        };
+
+        /** @noinspection PhpUndefinedMethodInspection */
+        {
+            $this->actual($thrower)->try('divide', 10, 2)->is(5);
+            $this->actual($thrower)->try('divide', 10, 0)->isInstanceOf(\Exception::class)->getMessage()->is('Division by zero');
+            $this->actual($thrower)->try(null, 10, 2)->is(5);
+            $this->actual($thrower)->try(null, 10, 0)->getMessage()->is('Division by zero');
+        }
+    }
+
     function test_catch()
     {
         $thrower = new class()

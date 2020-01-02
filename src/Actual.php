@@ -376,6 +376,18 @@ class Actual implements \ArrayAccess
         return $this;
     }
 
+    public function try($method = null, ...$arguments)
+    {
+        $callee = $this->invokerToCallable($this->actual, $method);
+        try {
+            $return = $callee(...$arguments);
+        }
+        catch (\Throwable $t) {
+            $return = $t;
+        }
+        return $this->create($return);
+    }
+
     public function catch($expected)
     {
         $this->catch = new Throws($expected);
