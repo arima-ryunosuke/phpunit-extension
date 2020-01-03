@@ -10,9 +10,4 @@ class IsEqualFile extends Composite
     {
         parent::__construct(new IsEqual(file_get_contents($value), 0.0, 10, false, $ignoreCase));
     }
-
-    public function evaluate($other, $description = '', $returnResult = false)
-    {
-        return parent::evaluate($other, $description, $returnResult);
-    }
 }

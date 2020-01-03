@@ -15,6 +15,8 @@ class IsEqualFileTest extends \ryunosuke\Test\AbstractTestCase
         $this->assertFalse($constraint->evaluate('x', '', true));
         $this->assertTrue($constraint->evaluate('dummy', '', true));
 
+        $this->assertEquals("is equal to 'dummy'", $constraint->toString());
+
         $this->ng(function () use ($constraint) {
             $constraint->evaluate('x');
         }, "'x' is equal to 'dummy'");
