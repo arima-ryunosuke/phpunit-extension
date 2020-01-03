@@ -378,6 +378,11 @@ class Actual implements \ArrayAccess
         return $this;
     }
 
+    public function return()
+    {
+        return $this->actual;
+    }
+
     public function assert(Constraint ...$constraints): Actual
     {
         return $this->asserts([$this->actual], ...$constraints);

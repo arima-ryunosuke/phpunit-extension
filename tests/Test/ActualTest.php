@@ -344,6 +344,16 @@ Nzxc ');
         }, "should throw");
     }
 
+    function test_return()
+    {
+        $object = new \stdClass();
+        $object->child = new \stdClass();
+        $actual = $this->actual($object);
+
+        $this->assertSame($actual->return(), $object);
+        $this->assertSame($actual->child->return(), $object->child);
+    }
+
     function test_variation()
     {
         $this->actual('hoge')->isHoge();
