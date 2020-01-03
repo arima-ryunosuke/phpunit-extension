@@ -22,24 +22,30 @@ This package adds phpunit Fluent interface.
 
 ```php
 // e.g. bootstrap.php
-function actual($actual)
+function actual($actual, bool $autoback = false)
 {
-    return new \ryunosuke\PHPUnit\Actual($actual);
+    return new \ryunosuke\PHPUnit\Actual($actual, $autoback);
 }
 
-// TestCase
+// example TestCase
 class ExampleTest extends \PHPUnit\Framework\TestCase
 {
-    function test()
+    function test_fluent()
     {
         # fluent interface
         // means: assertThat(5, logicalAnd(isType('int'), greaterThanOrEqual(1), lessThanOrEqual(9)));
         actual(5)->isInt()->isBetween(1, 9);
+    }
 
+    function test_prefixAll()
+    {
         # "all*" asserts per values (assert AND all values)
         // means: assertThat(1, greaterThan(0)); assertThat(2, greaterThan(0)); assertThat(3, greaterThan(0));
         actual([1, 2, 3])->allGreaterThan(0);
+    }
 
+    function test_suffixAnyAll()
+    {
         # "*Any" asserts multiple arguments (assert OR all arguments)
         // means: assertThat('x', logicalOr(equalTo('x'), equalTo('y'), equalTo('z')));
         actual('x')->isEqualAny(['x', 'y', 'z']);
@@ -49,17 +55,36 @@ class ExampleTest extends \PHPUnit\Framework\TestCase
         # "*All" asserts multiple arguments (assert AND all arguments)
         // means: assertThat(['x' => 'X', 'y' => 'Y'], logicalAnd(arrayHasKey('x'), arrayHasKey('y')));
         actual(['x' => 'X', 'y' => 'Y'])->arrayHasKeyAll(['x', 'y']);
+    }
 
-        # "assert" asserts directly constraint (multiple arguments OR all arguments)
+    function test_eval()
+    {
+        # "eval" asserts directly constraint (variadic arguments OR all arguments)
         // means: assertThat('x', equalTo('x'));
-        actual('x')->assert(equalTo('x'));
+        actual('x')->eval(equalTo('x'));
         // means: assertThat('x', logicalOr(equalTo('x'), equalTo('y'), equalTo('z')));
-        actual('x')->assert(equalTo('x'), equalTo('y'), equalTo('z'));
+        actual('x')->eval(equalTo('x'), equalTo('y'), equalTo('z'));
+    }
 
-        # "message" describes failure text
+    function test_as()
+    {
+        # "as" describes failure text
         // means: assertThat('x', equalTo('notX'), 'this is failure message');
-        actual('x')->message('this is failure message')->isEqual('notX');
+        actual('x')->as('this is failure message')->isEqual('notX');
+    }
 
+    function test_try()
+    {
+        # "try" is not thrown method call and actual
+        $object = new \ReflectionObject((object) ['x' => 'X']);
+        // returns original result and actual if not thrown
+        actual($object)->try('getProperty', 'x')->isInstanceOf(\ReflectionProperty::class);
+        // returns thrown exception and actual if thrown
+        actual($object)->try('getProperty', 'y')->isInstanceOf(\ReflectionException::class);
+    }
+
+    function test_catch()
+    {
         # "catch" catches Throwable (message or code or classname)
         $object = new \ReflectionClass('stdClass');
         actual($object)->catch('Property dummy does not exist')->getProperty('dummy');
@@ -67,24 +92,40 @@ class ExampleTest extends \PHPUnit\Framework\TestCase
         actual($object)->catch(\ReflectionException::class)->getProperty('dummy');
         // or Exception instance (assert message and code and classname)
         actual($object)->catch(new \ReflectionException('Property dummy does not exist', 0))->getProperty('dummy');
+    }
 
-        # "try" is not thrown method call and actual
-        $object = new \ReflectionObject((object) ['x' => 'X']);
-        // returns original result and actual if not thrown
-        actual($object)->try('getProperty', 'x')->isInstanceOf(\ReflectionProperty::class);
-        // returns thrown exception and actual if thrown
-        actual($object)->try('getProperty', 'y')->isInstanceOf(\ReflectionException::class);
+    function test_print()
+    {
+        # "print" buffers STDOUT (like a expectOutputRegex)
+        $object = function () { echo 'hello world'; };
+        actual($object)->print('#world#')->__invoke();
+    }
 
+    function test_return()
+    {
+        # "return" returns original value
+        $object = new \stdClass();
+        assertSame($object, actual($object)->return());
+    }
+
+    function test_arrayAccess()
+    {
         # array access returns array's value and actual
         $array = ['x' => 'X'];
         // means: assertThat($array['x'], equalTo('X'));
         actual($array)['x']->isEqual('X');
+    }
 
+    function test_propertyAccess()
+    {
         # property access returns property and actual (non-public access is possible)
         $object = (object) ['x' => 'X'];
         // means: assertThat($object->x, equalTo('X'));
         actual($object)->x->isEqual('X');
+    }
 
+    function test_methodCall()
+    {
         # method call returns original result and actual (non-public access is possible)
         $object = new \ArrayObject([1, 2, 3]);
         // means: assertThat($object->getArrayCopy(), equalTo([1, 2, 3]));
@@ -94,26 +135,32 @@ class ExampleTest extends \PHPUnit\Framework\TestCase
         $object = new \ArrayObject([1, 2, 3]);
         // means: assertThat($object, countOf(3)); not: $object->count();
         actual($object)->count(3);
-        // "call" invokes original method
-        actual($object)->call('count')->isEqual(3);
+
+        # "use" returns closure of original method
+        assertThat(actual($object)->use('count')(), equalTo(3));
+
+        # "do" invokes original method and actual
+        actual($object)->do('count')->isEqual(3);
 
         # "__invoke" returns original::__invoke and actual
         $object = function ($a, $b) { return $a + $b; };
         // means: assertThat($object(1, 2), equalTo(3));
         actual($object)(1, 2)->isEqual(3);
+    }
 
-        # "parent" backs to before value (like a jQuery `end`)
+    function test_exit()
+    {
+        # "exit" backs to before value (like a jQuery `end`)
         $object = new \ArrayObject(['x' => 'X', 'y' => 'Y'], \ArrayObject::ARRAY_AS_PROPS);
         // means: assertThat($object->x, equalTo('X')); assertThat($object->y, equalTo('Y')); assertThat($object, isInstanceOf(\ArrayObject::class));
         actual($object)
-            ['x']->isEqual('X')->parent()
-            ->y->isEqual('Y')->parent()
+        ['x']->isEqual('X')->exit()
+            ->y->isEqual('Y')->exit()
             ->isInstanceOf(\ArrayObject::class);
 
-        # autoback calls parent automatically after assertion (parent is needless)
-        $object = new \ArrayObject(['x' => 'X', 'y' => 'Y'], \ArrayObject::ARRAY_AS_PROPS);
-        actual($object)->autoback()
-            ['x']->isEqual('X')
+        # constructor's 2nd argument (autoback) means automatically exit() after assertion (exit() is needless)
+        actual($object, true)
+        ['x']->isEqual('X')
             ->y->isEqual('Y')
             ->getArrayCopy()->isEqual(['x' => 'X', 'y' => 'Y'])
             ->getIterator()->isInstanceOf(\ArrayIterator::class)
@@ -128,17 +175,18 @@ Internals:
 
 | constraint         | description
 | :---               | :---
+| EqualsFile         | assert string equals file
+| EqualsIgnoreWS     | assert string equals ignoring whitespace
 | FileContains       | assert file contains string
 | FileEquals         | assert file equals string
 | IsBetween          | assert range of number
 | IsBlank            | assert blank string
 | IsCType            | assert value by ctype_xxx
-| IsEqualFile        | assert string equals file
-| IsEqualIgnoreWS    | assert string ignoring whitespace
 | IsFalsy            | assert value like a false
 | IsTruthy           | assert value like a true
 | IsValid            | assert value by filter_var
-| StringLength       | assert length of string
+| OutputMatches      | assert output of STDOUT
+| StringLengthEquals | assert length of string
 | Throws             | assert callable should throw exception
 
 Alias:
@@ -180,13 +228,13 @@ User defined:
 
 ```php
 // This ables to use: $actual->yourConstraint()
-\ryunosuke\PHPUnit\Actual::$constraintNamespaces['your namespace'] = 'your constraint directory';
+\ryunosuke\PHPUnit\Actual::$constraintNamespaces['your\\namespace'] = 'your/constraint/directory';
 ```
 
 ### Code completion
 
 Actual class is using `\ryunosuke\PHPUnit\Annotation` trait.
-This trait is not declared by default. If declare this class in your project space, then custom method and code completion are enabled.
+If declare this class in your project space, then custom method and code completion are enabled.
 
 ```php
 // e.g. bootstrap.php
@@ -198,8 +246,7 @@ namespace ryunosuke\PHPUnit {
     {
         function isFuga(): \ryunosuke\PHPUnit\Actual {
         {
-            $this->assert(new \PHPUnit\Framework\Constraint\IsEqual('fuga'));
-            return $this;
+            return $this->eval(new \PHPUnit\Framework\Constraint\IsEqual('fuga'));
         }
     }
 }
@@ -224,6 +271,16 @@ But this is very legacy. Better to use phpstorm Test Runner.
 ## Release
 
 Versioning is Semantic Versioning.
+
+### 0.2.0
+
+- [feature] add "var" method
+- [feature] add "use" method
+- [feature] add "print" method
+- [feature] add "return" method
+- [feature] add "OutputMatches" constraint
+- [change] delete "autoback" method
+- [change] rename class/method
 
 ### 0.1.0
 
