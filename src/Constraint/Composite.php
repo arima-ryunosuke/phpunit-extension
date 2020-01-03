@@ -27,7 +27,7 @@ abstract class Composite extends AbstractConstraint
 
     public function count(): int
     {
-        return \count($this->innerConstraint());
+        return count($this->innerConstraint());
     }
 
     public function toString(): string
@@ -35,18 +35,23 @@ abstract class Composite extends AbstractConstraint
         return $this->innerConstraint()->toString();
     }
 
+    protected function failureDescription($other): string
+    {
+        return $this->innerConstraint()->failureDescription($other);
+    }
+
     protected function additionalFailureDescription($other): string
     {
         return $this->innerConstraint()->additionalFailureDescription($other);
     }
 
-    protected function filter($other)
-    {
-        return $other;
-    }
-
     protected function innerConstraint(): Constraint
     {
         return $this->innerConstraint;
+    }
+
+    protected function filter($other)
+    {
+        return $other;
     }
 }
