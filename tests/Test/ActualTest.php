@@ -7,9 +7,9 @@ use ryunosuke\PHPUnit\Actual;
 
 class ActualTest extends \ryunosuke\Test\AbstractTestCase
 {
-    function actual($actual)
+    function actual($actual, bool $autoback = false)
     {
-        return new Actual($actual);
+        return new Actual($actual, $autoback);
     }
 
     function test_generateAnnotation()
@@ -274,7 +274,7 @@ Nzxc ');
             ->isInstanceOf(\ArrayObject::class);
     }
 
-    function test_parent_autoback()
+    function test_autoback()
     {
         $actual = $this->actual(new class
         {
@@ -283,10 +283,10 @@ Nzxc ');
             function getB() { return 'B'; }
 
             function getC() { return 'C'; }
-        });
+        }, true);
 
         /** @noinspection PhpUndefinedMethodInspection */
-        $actual->autoback()
+        $actual
             ->getA()->isEqual('A')
             ->getB()->isEqual('B')
             ->getC()->isEqual('C');

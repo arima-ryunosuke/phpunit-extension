@@ -240,10 +240,11 @@ class Actual implements \ArrayAccess
         return $that;
     }
 
-    public function __construct($actual)
+    public function __construct($actual, bool $autoback = false)
     {
         $this->actual = $actual;
         $this->parent = $this;
+        $this->autoback = $autoback;
     }
 
     public function __invoke(...$arguments): Actual
@@ -341,12 +342,6 @@ class Actual implements \ArrayAccess
     public function use(string $methodname): \Closure
     {
         return \Closure::fromCallable($this->invokerToCallable($this->actual, $methodname));
-    }
-
-    public function autoback(bool $autoback = true): Actual
-    {
-        $this->autoback = $autoback;
-        return $this;
     }
 
     public function try($method = null, ...$arguments): Actual
