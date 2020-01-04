@@ -16,6 +16,7 @@ use ryunosuke\PHPUnit\Constraint\IsValid;
 use ryunosuke\PHPUnit\Constraint\LogicalAnd;
 use ryunosuke\PHPUnit\Constraint\LogicalNot;
 use ryunosuke\PHPUnit\Constraint\LogicalOr;
+use ryunosuke\PHPUnit\Constraint\OutputMatches;
 use ryunosuke\PHPUnit\Constraint\Throws;
 
 if (!trait_exists(Annotation::class)) {
@@ -90,6 +91,9 @@ class Actual implements \ArrayAccess
 
     /** @var Throws */
     private $catch;
+
+    /** @var OutputMatches */
+    private $output;
 
     /** @var string */
     private $message = '';
@@ -372,6 +376,12 @@ class Actual implements \ArrayAccess
         return $this;
     }
 
+    public function print($expected): Actual
+    {
+        $this->output = new OutputMatches($expected);
+        return $this;
+    }
+
     public function message(string $message): Actual
     {
         $this->message = $message;
@@ -447,6 +457,11 @@ class Actual implements \ArrayAccess
             $catch = $this->catch;
             $this->catch = null;
             return $this->asserts([array_merge([$callee], $arguments)], $catch);
+        }
+        if ($this->output) {
+            $output = $this->output;
+            $this->output = null;
+            return $this->asserts([array_merge([$callee], $arguments)], $output);
         }
         return $this->create($callee(...$arguments));
     }

@@ -344,6 +344,20 @@ Nzxc ');
         }, "should throw");
     }
 
+    function test_print()
+    {
+        $printer = new class()
+        {
+            function echo() { echo 'hello world'; }
+
+            function __invoke() { echo 'hello world'; }
+        };
+
+        /** @noinspection PhpUndefinedMethodInspection */
+        $this->actual($printer)->print('#hello#')->echo();
+        $this->actual($printer)->outputMatches('#hello#');
+    }
+
     function test_return()
     {
         $object = new \stdClass();
