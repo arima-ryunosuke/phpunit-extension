@@ -36,8 +36,7 @@ trait Annotation
 {
     function isHoge()
     {
-        \$this->assert(new \\PHPUnit\\Framework\\Constraint\\IsEqual('hoge'));
-        return \$this;
+        return \$this->eval(new \\PHPUnit\\Framework\\Constraint\\IsEqual('hoge'));
     }
 }
 ");

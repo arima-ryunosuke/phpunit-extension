@@ -4,7 +4,7 @@ namespace ryunosuke\PHPUnit\Constraint;
 
 use PHPUnit\Framework\Constraint\IsEqual;
 
-class IsEqualIgnoreWS extends Composite
+class EqualsIgnoreWS extends Composite
 {
     public function __construct($value, bool $ignoreCase = false)
     {

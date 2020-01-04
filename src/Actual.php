@@ -280,7 +280,7 @@ class Actual implements \ArrayAccess
                 if ($constructor) {
                     $constructor->invokeArgs($variation, $arguments);
                 }
-                return $this->asserts($actuals, $variation);
+                return $this->assert($actuals, $variation);
             }
 
             $constraints = [];
@@ -291,14 +291,14 @@ class Actual implements \ArrayAccess
                 }
                 $constraints[] = $this->newConstraint($classname, $arguments + $args, $modes);
             }
-            return $this->asserts($actuals, ...$constraints);
+            return $this->assert($actuals, ...$constraints);
         }
 
         $callee = ucfirst($callee);
         foreach (self::$constraintNamespaces as $namespace => $directory) {
             if (class_exists($constraintClass = trim($namespace, '\\') . '\\' . $callee)) {
                 $constraint = $this->newConstraint($constraintClass, $arguments, $modes);
-                return $this->asserts($actuals, $constraint);
+                return $this->assert($actuals, $constraint);
             }
         }
 
@@ -320,12 +320,12 @@ class Actual implements \ArrayAccess
         return $this->create($this->actual[$offset]);
     }
 
-    public function call($name, ...$arguments): Actual
+    public function do($name, ...$arguments): Actual
     {
         return $this->invoke($this->invokerToCallable($this->actual, $name), $arguments);
     }
 
-    public function parent(int $nest = 1): Actual
+    public function exit(int $nest = 1): Actual
     {
         $that = $this;
         do {
@@ -368,7 +368,7 @@ class Actual implements \ArrayAccess
         return $this;
     }
 
-    public function message(string $message): Actual
+    public function as(string $message): Actual
     {
         $this->message = $message;
         return $this;
@@ -379,19 +379,19 @@ class Actual implements \ArrayAccess
         return $this->actual;
     }
 
-    public function assert(Constraint ...$constraints): Actual
+    public function eval(Constraint ...$constraints): Actual
     {
-        return $this->asserts([$this->actual], ...$constraints);
+        return $this->assert([$this->actual], ...$constraints);
     }
 
-    private function asserts($actuals, Constraint ...$constraints): Actual
+    private function assert($actuals, Constraint ...$constraints): Actual
     {
         $constraint = LogicalOr::fromConstraints(...$constraints);
         foreach ($actuals as $actual) {
             Assert::assertThat($actual, $constraint, $this->message);
         }
         if ($this->autoback) {
-            return $this->parent();
+            return $this->exit();
         }
         return $this;
     }
@@ -442,12 +442,12 @@ class Actual implements \ArrayAccess
         if ($this->catch) {
             $catch = $this->catch;
             $this->catch = null;
-            return $this->asserts([array_merge([$callee], $arguments)], $catch);
+            return $this->assert([array_merge([$callee], $arguments)], $catch);
         }
         if ($this->output) {
             $output = $this->output;
             $this->output = null;
-            return $this->asserts([array_merge([$callee], $arguments)], $output);
+            return $this->assert([array_merge([$callee], $arguments)], $output);
         }
         return $this->create($callee(...$arguments));
     }

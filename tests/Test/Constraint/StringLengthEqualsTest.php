@@ -2,13 +2,13 @@
 
 namespace ryunosuke\Test\Constraint;
 
-use ryunosuke\PHPUnit\Constraint\StringLength;
+use ryunosuke\PHPUnit\Constraint\StringLengthEquals;
 
-class StringLengthTest extends \ryunosuke\Test\AbstractTestCase
+class StringLengthEqualsTest extends \ryunosuke\Test\AbstractTestCase
 {
     function test()
     {
-        $constraint = new StringLength(5);
+        $constraint = new StringLengthEquals(5);
         $this->assertFalse($constraint->evaluate('1234', '', true));
         $this->assertTrue($constraint->evaluate('12345', '', true));
         $this->assertFalse($constraint->evaluate('123456', '', true));
@@ -17,7 +17,7 @@ class StringLengthTest extends \ryunosuke\Test\AbstractTestCase
             $constraint->evaluate('x');
         }, "'x' length is 5");
 
-        $constraint = new StringLength(5, true);
+        $constraint = new StringLengthEquals(5, true);
         $this->assertFalse($constraint->evaluate('１２３４', '', true));
         $this->assertTrue($constraint->evaluate('１２３４５', '', true));
         $this->assertFalse($constraint->evaluate('１２３４５６', '', true));

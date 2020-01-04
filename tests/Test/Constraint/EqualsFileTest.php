@@ -2,15 +2,15 @@
 
 namespace ryunosuke\Test\Constraint;
 
-use ryunosuke\PHPUnit\Constraint\IsEqualFile;
+use ryunosuke\PHPUnit\Constraint\EqualsFile;
 
-class IsEqualFileTest extends \ryunosuke\Test\AbstractTestCase
+class EqualsFileTest extends \ryunosuke\Test\AbstractTestCase
 {
     function test()
     {
         file_put_contents($filename = sys_get_temp_dir() . '/tmp.txt', 'dummy');
 
-        $constraint = new IsEqualFile($filename);
+        $constraint = new EqualsFile($filename);
         $this->assertFalse($constraint->evaluate('', '', true));
         $this->assertFalse($constraint->evaluate('x', '', true));
         $this->assertTrue($constraint->evaluate('dummy', '', true));

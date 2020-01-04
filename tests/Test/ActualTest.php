@@ -20,8 +20,8 @@ class ActualTest extends \ryunosuke\Test\AbstractTestCase
         $this->assertStringContainsString('@see', $annotations);
         $this->assertStringContainsString('isFalse', $annotations);
         $this->assertStringContainsString('isNotFalse', $annotations);
-        $this->assertStringContainsString('stringLength', $annotations);
-        $this->assertStringContainsString('notStringLength', $annotations);
+        $this->assertStringContainsString('stringLengthEquals', $annotations);
+        $this->assertStringContainsString('notStringLengthEquals', $annotations);
         $this->assertStringContainsString(' all', $annotations);
         $this->assertStringContainsString('Any(', $annotations);
         $this->assertStringContainsString('All(', $annotations);
@@ -41,7 +41,7 @@ class ActualTest extends \ryunosuke\Test\AbstractTestCase
             ->stringStartsWith('qwe')
             ->stringEndsWith('zxc')
             ->notStringStartsWith('zxc')
-            ->isEqualIgnoreWS('
+            ->equalsIgnoreWS('
 qweN
 N
 Nzxc ');
@@ -67,7 +67,7 @@ Nzxc ');
         $this->actual(function () { throw new \Exception('hogera', 22); })->throws(new \Exception('hogera', 22));
 
         $this->actual('qwe')
-            ->stringLengthAny([1, 2, 3])
+            ->stringLengthEqualsAny([1, 2, 3])
             ->isEqualAny(['qwe', 'asd'])
             ->isEqualAny(['QWE', 'asd'], 0, 10, false, true);
 
@@ -158,7 +158,7 @@ Nzxc ');
         }, 'has attribute "undefined"');
     }
 
-    function test_call()
+    function test_do()
     {
         $actual = $this->actual(new class
         {
@@ -183,15 +183,15 @@ Nzxc ');
         /** @noinspection PhpUndefinedMethodInspection */
         {
             $actual->privateMethod(3)->isEqual(30);
-            $actual->call('privateMethod', 5)->isEqual(50);
+            $actual->do('privateMethod', 5)->isEqual(50);
             $actual->catch(new \Exception('this is message.', 123))->privateMethod(null);
-            $actual->catch(new \Exception('this is message.', 123))->call('privateMethod', null);
+            $actual->catch(new \Exception('this is message.', 123))->do('privateMethod', null);
             $actual->isType('object');
 
             $actual->publicMethod(3)->isEqual(30);
-            $actual->call('publicMethod', 5)->isEqual(50);
+            $actual->do('publicMethod', 5)->isEqual(50);
             $actual->catch(new \Exception('this is message.', 123))->publicMethod(null);
-            $actual->catch(new \Exception('this is message.', 123))->call('publicMethod', null);
+            $actual->catch(new \Exception('this is message.', 123))->do('publicMethod', null);
             $actual->isType('object');
         }
 
@@ -254,7 +254,7 @@ Nzxc ');
         }, "should throw \Exception('notmessage', 0)");
     }
 
-    function test_parent()
+    function test_exit()
     {
         $actual = $this->actual(new \ArrayObject([
             'x' => 'X',
@@ -266,11 +266,11 @@ Nzxc ');
         ], \ArrayObject::ARRAY_AS_PROPS));
 
         $actual['z']->count(2)
-            ->a->isEqual('A')->parent()
-            ->b->isEqual('B')->parent(2)
-            ->x->isEqual('X')->parent()
-            ->y->isEqual('Y')->parent(99)
-            ->call('count')->isEqual(3)->parent()
+            ->a->isEqual('A')->exit()
+            ->b->isEqual('B')->exit(2)
+            ->x->isEqual('X')->exit()
+            ->y->isEqual('Y')->exit(99)
+            ->do('count')->isEqual(3)->exit()
             ->isInstanceOf(\ArrayObject::class);
     }
 
@@ -292,20 +292,20 @@ Nzxc ');
             ->getC()->isEqual('C');
     }
 
-    function test_assert()
+    function test_eval()
     {
-        $this->actual('qwe')->assert(new IsEqual('qwe'));
-        $this->actual('qwe')->assert(new IsEqual('asd'), new IsEqual('qwe'));
+        $this->actual('qwe')->eval(new IsEqual('qwe'));
+        $this->actual('qwe')->eval(new IsEqual('asd'), new IsEqual('qwe'));
 
         $this->ng(function () {
-            $this->actual('qwe')->assert(new IsEqual('asd'), new IsEqual('zxc'));
+            $this->actual('qwe')->eval(new IsEqual('asd'), new IsEqual('zxc'));
         }, "'qwe' is equal to 'asd' or is equal to 'zxc'");
     }
 
-    function test_message()
+    function test_as()
     {
         $this->ng(function () {
-            $this->actual(1)->message('this is fail message')->isFalse();
+            $this->actual(1)->as('this is fail message')->isFalse();
         }, "this is fail message");
     }
 

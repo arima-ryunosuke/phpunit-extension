@@ -2,7 +2,7 @@
 
 namespace ryunosuke\PHPUnit\Constraint;
 
-class StringLength extends AbstractConstraint
+class StringLengthEquals extends AbstractConstraint
 {
     private $length;
     private $multibyte;

@@ -2,13 +2,13 @@
 
 namespace ryunosuke\Test\Constraint;
 
-use ryunosuke\PHPUnit\Constraint\IsEqualIgnoreWS;
+use ryunosuke\PHPUnit\Constraint\EqualsIgnoreWS;
 
-class IsEqualIgnoreWSTest extends \ryunosuke\Test\AbstractTestCase
+class EqualsIgnoreWSTest extends \ryunosuke\Test\AbstractTestCase
 {
     function test()
     {
-        $constraint = new IsEqualIgnoreWS('hoge');
+        $constraint = new EqualsIgnoreWS('hoge');
         $this->assertFalse($constraint->evaluate('', '', true));
         $this->assertFalse($constraint->evaluate('x', '', true));
         $this->assertTrue($constraint->evaluate('hoge', '', true));
