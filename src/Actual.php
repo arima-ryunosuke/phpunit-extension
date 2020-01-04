@@ -310,26 +310,7 @@ class Actual implements \ArrayAccess
 
     public function __get($name): Actual
     {
-        $refclass = new \ReflectionObject($this->actual);
-        do {
-            if ($refclass->hasProperty($name)) {
-                $property = $refclass->getProperty($name);
-                if ($property->isPublic()) {
-                    return $this->create($this->actual->$name);
-                }
-                else {
-                    $property->setAccessible(true);
-                    return $this->create($property->isStatic() ? $property->getValue() : $property->getValue($this->actual));
-                }
-            }
-        } while ($refclass = $refclass->getParentClass());
-
-        if (method_exists($this->actual, '__get')) {
-            return $this->create($this->actual->$name);
-        }
-
-        /** @noinspection PhpIncompatibleReturnTypeInspection */
-        return Assert::assertObjectHasAttribute($name, $this->actual);
+        return $this->create($this->getProperty($this->actual, $name));
     }
 
     public function offsetGet($offset): Actual
@@ -350,6 +331,11 @@ class Actual implements \ArrayAccess
             $that = $that->parent;
         } while (--$nest > 0);
         return $that;
+    }
+
+    public function var(string $propertyname)
+    {
+        return $this->getProperty($this->actual, $propertyname);
     }
 
     public function use(string $methodname): \Closure
@@ -469,6 +455,23 @@ class Actual implements \ArrayAccess
             return $this->asserts([array_merge([$callee], $arguments)], $output);
         }
         return $this->create($callee(...$arguments));
+    }
+
+    private function getProperty($object, string $property)
+    {
+        $refclass = new \ReflectionObject($object);
+        do {
+            if ($refclass->hasProperty($property)) {
+                $refproperty = $refclass->getProperty($property);
+                $refproperty->setAccessible(true);
+                return $refproperty->isStatic() ? $refproperty->getValue() : $refproperty->getValue($object);
+            }
+        } while ($refclass = $refclass->getParentClass());
+
+        if (method_exists($object, '__get')) {
+            return $object->$property;
+        }
+        return Assert::assertObjectHasAttribute($property, $object);
     }
 
     private function invokerToCallable($object, string $method = null): ?callable

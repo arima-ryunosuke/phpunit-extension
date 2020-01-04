@@ -309,6 +309,28 @@ Nzxc ');
         }, "this is fail message");
     }
 
+    function test_var()
+    {
+        $object = new class('testname') extends \ryunosuke\Test\AbstractTestCase
+        {
+            private /** @noinspection PhpUnusedPrivateFieldInspection */ $privateProperty = 'this is private';
+            public                                                       $publicProperty  = 'this is public';
+
+            public function __get($name)
+            {
+                return "$name is __get property";
+            }
+        };
+        /** @noinspection PhpUndefinedFieldInspection */
+        $object->dynamicProperty = 'this is dynamic';
+        $actual = $this->actual($object);
+
+        $this->assertEquals('this is private', $actual->var('privateProperty'));
+        $this->assertEquals('this is public', $actual->var('publicProperty'));
+        $this->assertEquals('getter is __get property', $actual->var('getter'));
+        $this->assertEquals('testname', $actual->var('name'));
+    }
+
     function test_use()
     {
         $actual = $this->actual(new class
