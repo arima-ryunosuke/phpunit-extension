@@ -77,29 +77,6 @@ class Throws extends AbstractConstraint
         return 'should throw ' . $this->throwableToString($this->expected);
     }
 
-    private function extractArgument($other)
-    {
-        if (is_callable($other)) {
-            $callable = $other;
-            $args = [];
-        }
-        else {
-            $callable = $other[0];
-            $args = array_slice($other, 1);
-        }
-
-        is_callable($callable, null, $name);
-        $argstring = implode(', ', array_map(function ($v) {
-            if (is_object($v) && !$v instanceof \JsonSerializable) {
-                return '\\' . get_class($v);
-            }
-            return json_encode($v, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-        }, $args));
-        $caller = "$name($argstring)";
-
-        return [$callable, $args, $caller];
-    }
-
     private function throwableToString(\Throwable $throwable)
     {
         return sprintf('\\%s(%s, %s)',
