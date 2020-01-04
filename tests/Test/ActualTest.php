@@ -309,6 +309,26 @@ Nzxc ');
         }, "this is fail message");
     }
 
+    function test_use()
+    {
+        $actual = $this->actual(new class
+        {
+            /** @noinspection PhpUnusedPrivateMethodInspection */
+            private function privateMethod($x)
+            {
+                return $x * 10;
+            }
+
+            public function publicMethod($x)
+            {
+                return $x * 20;
+            }
+        });
+
+        $this->assertEquals(10, $actual->use('privateMethod')(1));
+        $this->assertEquals(20, $actual->use('publicMethod')(1));
+    }
+
     function test_try()
     {
         $thrower = new class()

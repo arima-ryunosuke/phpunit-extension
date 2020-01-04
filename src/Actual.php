@@ -352,6 +352,11 @@ class Actual implements \ArrayAccess
         return $that;
     }
 
+    public function use(string $methodname): \Closure
+    {
+        return \Closure::fromCallable($this->invokerToCallable($this->actual, $methodname));
+    }
+
     public function autoback(bool $autoback = true): Actual
     {
         $this->autoback = $autoback;
