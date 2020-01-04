@@ -3,6 +3,20 @@
 namespace ryunosuke\PHPUnit;
 
 /**
+ * @see \ryunosuke\PHPUnit\Constraint\EqualsFile
+ * @method \ryunosuke\PHPUnit\Actual allEqualsFile($value, bool $ignoreCase = false)
+ * @method \ryunosuke\PHPUnit\Actual equalsFile($value, bool $ignoreCase = false)
+ * @method \ryunosuke\PHPUnit\Actual notEqualsFile($value, bool $ignoreCase = false)
+ * @method \ryunosuke\PHPUnit\Actual equalsFileAny(array $values, bool $ignoreCase = false)
+ * @method \ryunosuke\PHPUnit\Actual equalsFileAll(array $values, bool $ignoreCase = false)
+ *
+ * @see \ryunosuke\PHPUnit\Constraint\EqualsIgnoreWS
+ * @method \ryunosuke\PHPUnit\Actual allEqualsIgnoreWS($value, bool $ignoreCase = false)
+ * @method \ryunosuke\PHPUnit\Actual equalsIgnoreWS($value, bool $ignoreCase = false)
+ * @method \ryunosuke\PHPUnit\Actual notEqualsIgnoreWS($value, bool $ignoreCase = false)
+ * @method \ryunosuke\PHPUnit\Actual equalsIgnoreWSAny(array $values, bool $ignoreCase = false)
+ * @method \ryunosuke\PHPUnit\Actual equalsIgnoreWSAll(array $values, bool $ignoreCase = false)
+ *
  * @see \ryunosuke\PHPUnit\Constraint\FileContains
  * @method \ryunosuke\PHPUnit\Actual allFileContains($value, bool $ignoreCase = false)
  * @method \ryunosuke\PHPUnit\Actual fileContains($value, bool $ignoreCase = false)
@@ -36,20 +50,6 @@ namespace ryunosuke\PHPUnit;
  * @method \ryunosuke\PHPUnit\Actual isCTypeAny(array $types)
  * @method \ryunosuke\PHPUnit\Actual isCTypeAll(array $types)
  *
- * @see \ryunosuke\PHPUnit\Constraint\IsEqualFile
- * @method \ryunosuke\PHPUnit\Actual allIsEqualFile($value, bool $ignoreCase = false)
- * @method \ryunosuke\PHPUnit\Actual isEqualFile($value, bool $ignoreCase = false)
- * @method \ryunosuke\PHPUnit\Actual isNotEqualFile($value, bool $ignoreCase = false)
- * @method \ryunosuke\PHPUnit\Actual isEqualFileAny(array $values, bool $ignoreCase = false)
- * @method \ryunosuke\PHPUnit\Actual isEqualFileAll(array $values, bool $ignoreCase = false)
- *
- * @see \ryunosuke\PHPUnit\Constraint\IsEqualIgnoreWS
- * @method \ryunosuke\PHPUnit\Actual allIsEqualIgnoreWS($value, bool $ignoreCase = false)
- * @method \ryunosuke\PHPUnit\Actual isEqualIgnoreWS($value, bool $ignoreCase = false)
- * @method \ryunosuke\PHPUnit\Actual isNotEqualIgnoreWS($value, bool $ignoreCase = false)
- * @method \ryunosuke\PHPUnit\Actual isEqualIgnoreWSAny(array $values, bool $ignoreCase = false)
- * @method \ryunosuke\PHPUnit\Actual isEqualIgnoreWSAll(array $values, bool $ignoreCase = false)
- *
  * @see \ryunosuke\PHPUnit\Constraint\IsFalsy
  * @method \ryunosuke\PHPUnit\Actual allIsFalsy()
  * @method \ryunosuke\PHPUnit\Actual isFalsy()
@@ -67,12 +67,19 @@ namespace ryunosuke\PHPUnit;
  * @method \ryunosuke\PHPUnit\Actual isValidAny(array $types, $flags = 0)
  * @method \ryunosuke\PHPUnit\Actual isValidAll(array $types, $flags = 0)
  *
- * @see \ryunosuke\PHPUnit\Constraint\StringLength
- * @method \ryunosuke\PHPUnit\Actual allStringLength(int $length, bool $multibyte = false)
- * @method \ryunosuke\PHPUnit\Actual stringLength(int $length, bool $multibyte = false)
- * @method \ryunosuke\PHPUnit\Actual notStringLength(int $length, bool $multibyte = false)
- * @method \ryunosuke\PHPUnit\Actual stringLengthAny(array $lengths, bool $multibyte = false)
- * @method \ryunosuke\PHPUnit\Actual stringLengthAll(array $lengths, bool $multibyte = false)
+ * @see \ryunosuke\PHPUnit\Constraint\OutputMatches
+ * @method \ryunosuke\PHPUnit\Actual allOutputMatches($value)
+ * @method \ryunosuke\PHPUnit\Actual outputMatches($value)
+ * @method \ryunosuke\PHPUnit\Actual notOutputMatches($value)
+ * @method \ryunosuke\PHPUnit\Actual outputMatchesAny(array $values)
+ * @method \ryunosuke\PHPUnit\Actual outputMatchesAll(array $values)
+ *
+ * @see \ryunosuke\PHPUnit\Constraint\StringLengthEquals
+ * @method \ryunosuke\PHPUnit\Actual allStringLengthEquals(int $length, bool $multibyte = false)
+ * @method \ryunosuke\PHPUnit\Actual stringLengthEquals(int $length, bool $multibyte = false)
+ * @method \ryunosuke\PHPUnit\Actual notStringLengthEquals(int $length, bool $multibyte = false)
+ * @method \ryunosuke\PHPUnit\Actual stringLengthEqualsAny(array $lengths, bool $multibyte = false)
+ * @method \ryunosuke\PHPUnit\Actual stringLengthEqualsAll(array $lengths, bool $multibyte = false)
  *
  * @see \ryunosuke\PHPUnit\Constraint\Throws
  * @method \ryunosuke\PHPUnit\Actual allThrows($value)
@@ -569,7 +576,6 @@ trait Annotation
 {
     function isHoge()
     {
-        $this->assert(new \PHPUnit\Framework\Constraint\IsEqual('hoge'));
-        return $this;
+        return $this->eval(new \PHPUnit\Framework\Constraint\IsEqual('hoge'));
     }
 }
