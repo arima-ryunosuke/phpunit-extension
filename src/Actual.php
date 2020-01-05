@@ -334,6 +334,34 @@ class Actual implements \ArrayAccess
         return $that;
     }
 
+    public function function ($function, ...$arguments): Actual
+    {
+        [$funcname, $position] = $this->functionArgument($function);
+        assert($position !== null, 'please use "do" method.');
+
+        array_splice($arguments, $position, 0, [$this->actual]);
+        return $this->create($funcname(...$arguments));
+    }
+
+    public function foreach($function, ...$arguments): Actual
+    {
+        [$funcname, $position] = $this->functionArgument($function);
+
+        $actuals = [];
+        foreach ($this->actual as $k => $actual) {
+            if ($position === null) {
+                $method = Util::methodToCallable($actual, $funcname);
+                $actuals[$k] = $method(...$arguments);
+            }
+            else {
+                $original = $arguments;
+                array_splice($original, $position, 0, [$actual]);
+                $actuals[$k] = $funcname(...$original);
+            }
+        }
+        return $this->create($actuals);
+    }
+
     public function var(string $propertyname)
     {
         return $this->getProperty($this->actual, $propertyname);
@@ -394,6 +422,23 @@ class Actual implements \ArrayAccess
             return $this->exit();
         }
         return $this;
+    }
+
+    private function functionArgument($function): array
+    {
+        if (is_callable($function)) {
+            return [$function, 0];
+        }
+
+        if (preg_match('#(.+?)(\d+)$#', $function, $match) && is_callable($match[1])) {
+            return [$match[1], (int) $match[2]];
+        }
+
+        if (strpos($function, '->') === 0 || strpos($function, '::') === 0) {
+            return [substr($function, 2), null];
+        }
+
+        throw new \BadFunctionCallException("$function is not callable.");
     }
 
     private function newConstraint($constraintClass, $arguments, $modes): Constraint

@@ -309,6 +309,62 @@ Nzxc ');
         }, "this is fail message");
     }
 
+    function test_function()
+    {
+        $this->actual(' qwe ')->function('trim')->isEqual('qwe');
+        $this->actual('XqweX')->function('trim', 'X')->isEqual('qwe');
+        $this->actual('XqweX')->function('str_replace2', 'X', 'Z')->isEqual('ZqweZ');
+
+        $this->ng(function () {
+            $this->actual('qwe')->function('undefined');
+        }, "undefined is not callable");
+    }
+
+    function test_foreach()
+    {
+        $this->actual(['a', 'b', 'c'])->foreach('strtoupper')->isEqual(['A', 'B', 'C']);
+        $this->actual(['XaX', 'XbX', 'XcX'])->foreach('trim', 'X')->isEqual(['a', 'b', 'c']);
+    }
+
+    function test_function_foreach()
+    {
+        $user = new class()
+        {
+            public $code, $name;
+
+            function new($code, $name)
+            {
+                $that = new self();
+                $that->code = $code;
+                $that->name = $name;
+                return $that;
+            }
+
+            private function privateCodeName()
+            {
+                return "$this->code:$this->name";
+            }
+
+            public function publicCodeName()
+            {
+                return $this->privateCodeName();
+            }
+        };
+
+        $users = [
+            1 => $user->new(1, 'hoge'),
+            2 => $user->new(2, 'fuga'),
+            3 => $user->new(3, 'piyo'),
+        ];
+
+        $this->actual($users, true)
+            ->function('array_column', 'code')->isEqual([1, 2, 3])
+            ->function('array_column', 'name')->foreach('strtoupper')->isEqual(['HOGE', 'FUGA', 'PIYO'])->exit()
+            ->foreach(function ($user) { return $user->code; })->isEqual([1 => 1, 2 => 2, 3 => 3])
+            ->foreach('->privateCodeName')->isEqual([1 => '1:hoge', 2 => '2:fuga', 3 => '3:piyo'])
+            ->foreach('::publicCodeName')->isEqual([1 => '1:hoge', 2 => '2:fuga', 3 => '3:piyo']);
+    }
+
     function test_var()
     {
         $object = new class('testname') extends \ryunosuke\Test\AbstractTestCase
