@@ -82,11 +82,9 @@ namespace ryunosuke\PHPUnit;
  * @method \ryunosuke\PHPUnit\Actual stringLengthEqualsAll(array $lengths, bool $multibyte = false)
  *
  * @see \ryunosuke\PHPUnit\Constraint\Throws
- * @method \ryunosuke\PHPUnit\Actual allThrows($value)
- * @method \ryunosuke\PHPUnit\Actual throws($value)
- * @method \ryunosuke\PHPUnit\Actual notThrows($value)
- * @method \ryunosuke\PHPUnit\Actual throwsAny(array $values)
- * @method \ryunosuke\PHPUnit\Actual throwsAll(array $values)
+ * @method \ryunosuke\PHPUnit\Actual allThrows($orValues)
+ * @method \ryunosuke\PHPUnit\Actual throws($orValues)
+ * @method \ryunosuke\PHPUnit\Actual notThrows($orValues)
  *
  * @see \PHPUnit\Framework\Constraint\ArrayHasKey
  * @method \ryunosuke\PHPUnit\Actual allArrayHasKey($key)

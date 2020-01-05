@@ -379,7 +379,12 @@ Nzxc ');
         };
 
         /** @noinspection PhpUndefinedMethodInspection */
-        $this->actual($thrower)->catch('actual message')->throw();
+        {
+            $this->actual($thrower)->catch('actual message')->throw();
+            $this->actual($thrower)->catch('actual message', 1)->throw();
+            $this->actual($thrower)->catch(123, 'invalid')->throw();
+            $this->actual($thrower)->catch(\RuntimeException::class, \DomainException::class, \Exception::class)->throw();
+        }
         $this->ng(function () use ($thrower) {
             /** @noinspection PhpUndefinedMethodInspection */
             $this->actual($thrower)->catch('actual message')->nothrow();

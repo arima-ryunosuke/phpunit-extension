@@ -4,20 +4,30 @@ namespace ryunosuke\PHPUnit\Constraint;
 
 class Throws extends AbstractConstraint
 {
-    /** @var \Throwable */
-    private $expected, $actual;
+    /** @var \Throwable[] */
+    private $expected;
 
-    public function __construct($value)
+    /** @var \Throwable */
+    private $actual;
+
+    public function __construct(...$orValues)
     {
-        if (is_string($value)) {
-            if (class_exists($value)) {
-                $value = (new \ReflectionClass($value))->newInstanceWithoutConstructor();
+        $expected = [];
+        foreach ($orValues as $value) {
+            if ($value instanceof \Throwable) {
+                $expected[] = $value;
             }
-            else {
-                $value = new \Exception($value);
+            elseif (class_exists($value)) {
+                $expected[] = (new \ReflectionClass($value))->newInstanceWithoutConstructor();
+            }
+            elseif (is_string($value)) {
+                $expected[] = new \Exception($value, 0);
+            }
+            elseif (is_int($value)) {
+                $expected[] = new \Exception('', $value);
             }
         }
-        $this->expected = $value;
+        $this->expected = $expected;
     }
 
     protected function failureDescription($other): string
@@ -43,38 +53,23 @@ class Throws extends AbstractConstraint
         catch (\Throwable $actual) {
             $this->actual = $actual;
 
-            if (!$actual instanceof $this->expected) {
-                if ($returnResult) {
-                    return false;
+            foreach ($this->expected as $expected) {
+                if ($this->compareThrowable($expected)) {
+                    return $returnResult ? true : null;
                 }
-                $this->fail($other, $description);
             }
-            $expectedCode = $this->expected->getCode();
-            if ($expectedCode && $expectedCode !== $actual->getCode()) {
-                if ($returnResult) {
-                    return false;
-                }
-                $this->fail($other, $description);
-            }
-            $expectedMessage = $this->expected->getMessage();
-            if (strlen($expectedMessage) && strpos($actual->getMessage(), $expectedMessage) === false) {
-                if ($returnResult) {
-                    return false;
-                }
-                $this->fail($other, $description);
-            }
-            return true;
         }
 
-        if ($returnResult) {
-            return false;
-        }
-        return $this->fail($other, $description);
+        return $returnResult ? false : $this->fail($other, $description);
     }
 
     public function toString(): string
     {
-        return 'should throw ' . $this->throwableToString($this->expected);
+        $expecteds = [];
+        foreach ($this->expected as $expected) {
+            $expecteds[] = $this->throwableToString($expected);
+        }
+        return 'should throw ' . implode(' or ', $expecteds);
     }
 
     private function throwableToString(\Throwable $throwable)
@@ -84,5 +79,24 @@ class Throws extends AbstractConstraint
             $this->exporter()->export($throwable->getMessage()),
             $this->exporter()->export($throwable->getCode())
         );
+    }
+
+    private function compareThrowable(\Throwable $expected)
+    {
+        if (!$this->actual instanceof $expected) {
+            return false;
+        }
+
+        $expectedCode = $expected->getCode();
+        if ($expectedCode && $expectedCode !== $this->actual->getCode()) {
+            return false;
+        }
+
+        $expectedMessage = $expected->getMessage();
+        if (strlen($expectedMessage) && strpos($this->actual->getMessage(), $expectedMessage) === false) {
+            return false;
+        }
+
+        return true;
     }
 }

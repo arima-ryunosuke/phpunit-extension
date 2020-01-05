@@ -356,9 +356,9 @@ class Actual implements \ArrayAccess
         return $this->create($return);
     }
 
-    public function catch($expected): Actual
+    public function catch(...$expected): Actual
     {
-        $this->catch = new Throws($expected);
+        $this->catch = new Throws(...$expected);
         return $this;
     }
 

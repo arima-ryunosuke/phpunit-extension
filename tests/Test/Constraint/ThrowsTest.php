@@ -8,6 +8,18 @@ class ThrowsTest extends \ryunosuke\Test\AbstractTestCase
 {
     function test()
     {
+        $constraint = new Throws(
+            new \DomainException('message', 123),
+            \RuntimeException::class,
+            'ex message',
+            1
+        );
+        $this->assertTrue($constraint->evaluate(function () { throw new \DomainException('message', 123); }, '', true));
+        $this->assertTrue($constraint->evaluate(function () { throw new \RuntimeException(); }, '', true));
+        $this->assertTrue($constraint->evaluate(function () { throw new \Exception('ex message'); }, '', true));
+        $this->assertTrue($constraint->evaluate(function () { throw new \Exception('', 1); }, '', true));
+        $this->assertFalse($constraint->evaluate(function () { throw new \InvalidArgumentException(); }, '', true));
+
         $constraint = new Throws(\InvalidArgumentException::class);
         $this->assertFalse($constraint->evaluate(function () { }, '', true));
         $this->assertFalse($constraint->evaluate(function () { throw new \Exception(); }, '', true));
@@ -18,6 +30,11 @@ class ThrowsTest extends \ryunosuke\Test\AbstractTestCase
         $this->assertFalse($constraint->evaluate(function () { }, '', true));
         $this->assertFalse($constraint->evaluate(function () { throw new \Exception('hoge'); }, '', true));
         $this->assertTrue($constraint->evaluate(function () { throw new \Exception('message'); }, '', true));
+
+        $constraint = new Throws(123);
+        $this->assertFalse($constraint->evaluate(function () { }, '', true));
+        $this->assertFalse($constraint->evaluate(function () { throw new \Exception('', 1); }, '', true));
+        $this->assertTrue($constraint->evaluate(function () { throw new \Exception('', 123); }, '', true));
 
         $constraint = new Throws(new \InvalidArgumentException('message', 123));
         $this->assertFalse($constraint->evaluate(function () { }, '', true));
