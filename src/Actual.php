@@ -46,7 +46,7 @@ class Actual implements \ArrayAccess
         'isBool'               => [IsType::class => [IsType::TYPE_BOOL]],
         'isFloat'              => [IsType::class => [IsType::TYPE_FLOAT]],
         'isInt'                => [IsType::class => [IsType::TYPE_INT]],
-        # 'isNull'        => [IsType::class => [IsType::TYPE_NULL]], // already exists internal
+        # 'isNull'             => [IsType::class => [IsType::TYPE_NULL]], // already exists internal
         'isNumeric'            => [IsType::class => [IsType::TYPE_NUMERIC]],
         'isObject'             => [IsType::class => [IsType::TYPE_OBJECT]],
         'isResource'           => [IsType::class => [IsType::TYPE_RESOURCE]],
@@ -186,7 +186,7 @@ class Actual implements \ArrayAccess
                 $refclass = new \ReflectionClass($variation);
                 $method = $refclass->getConstructor() ?? $dummyConstructor;
 
-                $via = sprintf('%s#%d-%d', basename($refclass->getFileName()), $refclass->getStartLine(), $refclass->getEndLine());
+                $via = Util::reflectFile($refclass);
                 $parameters = $method->getParameters();
                 $annotations = array_merge($annotations, [$via => $annotate($name, $parameters, [])]);
                 continue;
@@ -247,11 +247,6 @@ class Actual implements \ArrayAccess
         $this->autoback = $autoback;
     }
 
-    public function __invoke(...$arguments): Actual
-    {
-        return $this->invoke($this->actual, $arguments);
-    }
-
     public function __call($name, $arguments)
     {
         $callee = $name;
@@ -302,16 +297,17 @@ class Actual implements \ArrayAccess
             }
         }
 
-        if ($invoker = $this->invokerToCallable($this->actual, $name)) {
-            return $this->invoke($invoker, $arguments);
-        }
+        return $this->do($name, ...$arguments);
+    }
 
-        throw new \BadMethodCallException("$name -> $callee");
+    public function __invoke(...$arguments): Actual
+    {
+        return $this->do(null, ...$arguments);
     }
 
     public function __get($name): Actual
     {
-        return $this->create($this->getProperty($this->actual, $name));
+        return $this->create(Util::propertyToValue($this->actual, $name));
     }
 
     public function offsetGet($offset): Actual
@@ -320,18 +316,64 @@ class Actual implements \ArrayAccess
         return $this->create($this->actual[$offset]);
     }
 
-    public function do($name, ...$arguments): Actual
+    public function var(string $propertyname)
     {
-        return $this->invoke($this->invokerToCallable($this->actual, $name), $arguments);
+        return Util::propertyToValue($this->actual, $propertyname);
     }
 
-    public function exit(int $nest = 1): Actual
+    public function use(string $methodname): \Closure
     {
-        $that = $this;
-        do {
-            $that = $that->parent;
-        } while (--$nest > 0);
-        return $that;
+        return \Closure::fromCallable(Util::methodToCallable($this->actual, $methodname));
+    }
+
+    public function do($name, ...$arguments): Actual
+    {
+        $callee = $this->actual;
+        if (is_object($this->actual)) {
+            $callee = Util::methodToCallable($this->actual, $name);
+        }
+
+        if ($this->catch) {
+            $catch = $this->catch;
+            $this->catch = null;
+            return $this->assert([array_merge([$callee], $arguments)], $catch);
+        }
+        if ($this->output) {
+            $output = $this->output;
+            $this->output = null;
+            return $this->assert([array_merge([$callee], $arguments)], $output);
+        }
+        return $this->create($callee(...$arguments));
+    }
+
+    public function try($method = null, ...$arguments): Actual
+    {
+        $callee = Util::methodToCallable($this->actual, $method);
+        try {
+            $return = $callee(...$arguments);
+        }
+        catch (\Throwable $t) {
+            $return = $t;
+        }
+        return $this->create($return);
+    }
+
+    public function catch(...$expected): Actual
+    {
+        $this->catch = new Throws(...$expected);
+        return $this;
+    }
+
+    public function print(string $expected): Actual
+    {
+        $this->output = new OutputMatches($expected);
+        return $this;
+    }
+
+    public function as(string $message): Actual
+    {
+        $this->message = $message;
+        return $this;
     }
 
     public function function ($function, ...$arguments): Actual
@@ -362,46 +404,6 @@ class Actual implements \ArrayAccess
         return $this->create($actuals);
     }
 
-    public function var(string $propertyname)
-    {
-        return $this->getProperty($this->actual, $propertyname);
-    }
-
-    public function use(string $methodname): \Closure
-    {
-        return \Closure::fromCallable($this->invokerToCallable($this->actual, $methodname));
-    }
-
-    public function try($method = null, ...$arguments): Actual
-    {
-        $callee = $this->invokerToCallable($this->actual, $method);
-        try {
-            $return = $callee(...$arguments);
-        }
-        catch (\Throwable $t) {
-            $return = $t;
-        }
-        return $this->create($return);
-    }
-
-    public function catch(...$expected): Actual
-    {
-        $this->catch = new Throws(...$expected);
-        return $this;
-    }
-
-    public function print($expected): Actual
-    {
-        $this->output = new OutputMatches($expected);
-        return $this;
-    }
-
-    public function as(string $message): Actual
-    {
-        $this->message = $message;
-        return $this;
-    }
-
     public function return()
     {
         return $this->actual;
@@ -410,6 +412,15 @@ class Actual implements \ArrayAccess
     public function eval(Constraint ...$constraints): Actual
     {
         return $this->assert([$this->actual], ...$constraints);
+    }
+
+    public function exit(int $nest = 1): Actual
+    {
+        $that = $this;
+        do {
+            $that = $that->parent;
+        } while (--$nest > 0);
+        return $that;
     }
 
     private function assert($actuals, Constraint ...$constraints): Actual
@@ -441,7 +452,7 @@ class Actual implements \ArrayAccess
         throw new \BadFunctionCallException("$function is not callable.");
     }
 
-    private function newConstraint($constraintClass, $arguments, $modes): Constraint
+    private function newConstraint(string $constraintClass, array $arguments, array $modes): Constraint
     {
         $newConstraint = function ($args) use ($constraintClass, $modes) {
             $constructor = (new \ReflectionClass($constraintClass))->getConstructor();
@@ -480,66 +491,6 @@ class Actual implements \ArrayAccess
             }
         }
         return $newConstraint($arguments);
-    }
-
-    private function invoke($callee, $arguments): Actual
-    {
-        if ($this->catch) {
-            $catch = $this->catch;
-            $this->catch = null;
-            return $this->assert([array_merge([$callee], $arguments)], $catch);
-        }
-        if ($this->output) {
-            $output = $this->output;
-            $this->output = null;
-            return $this->assert([array_merge([$callee], $arguments)], $output);
-        }
-        return $this->create($callee(...$arguments));
-    }
-
-    private function getProperty($object, string $property)
-    {
-        $refclass = new \ReflectionObject($object);
-        do {
-            if ($refclass->hasProperty($property)) {
-                $refproperty = $refclass->getProperty($property);
-                $refproperty->setAccessible(true);
-                return $refproperty->isStatic() ? $refproperty->getValue() : $refproperty->getValue($object);
-            }
-        } while ($refclass = $refclass->getParentClass());
-
-        if (method_exists($object, '__get')) {
-            return $object->$property;
-        }
-        return Assert::assertObjectHasAttribute($property, $object);
-    }
-
-    private function invokerToCallable($object, string $method = null): ?callable
-    {
-        if (!is_object($object)) {
-            return null;
-        }
-        if ($method === null && method_exists($object, '__invoke')) {
-            return $object;
-        }
-        if (is_callable([$object, $method])) {
-            if (method_exists($object, $method)) {
-                return [$object, $method];
-            }
-            // treat __call magic method via @method
-            $ref = new \ReflectionClass($object);
-            do {
-                $doccomment = $ref->getDocComment();
-                preg_match_all('#@method\s+([_0-9a-z\\\\|\[\]$]+\s+)?\s*?([_0-9a-z]+)\(#iums', $doccomment, $matches, PREG_SET_ORDER);
-                foreach ($matches as [, , $mname]) {
-                    if (strcasecmp($method, $mname) === 0) {
-                        return [$object, $method];
-                    }
-                }
-            } while ($ref = $ref->getParentClass());
-        }
-        $refmethod = (new \ReflectionMethod($object, $method));
-        return $refmethod->isStatic() ? $refmethod->getClosure() : $refmethod->getClosure($object);
     }
 
     public function __isset($name) { throw new \DomainException(__FUNCTION__ . ' is not supported.'); }

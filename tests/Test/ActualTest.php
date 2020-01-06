@@ -125,10 +125,11 @@ Nzxc ');
     {
         $actual = $this->actual(new class('testname') extends \ryunosuke\Test\AbstractTestCase
         {
-            private /** @noinspection PhpUnusedPrivateFieldInspection */ $privateProperty = 'this is private';
+            private $privateProperty = 'this is private';
 
             public function __get($name)
             {
+                assert(strlen($this->privateProperty));
                 return "$name is __get property";
             }
         });
@@ -155,14 +156,71 @@ Nzxc ');
 
         $this->ng(function () use ($actual) {
             $actual->undefined->isInt();
-        }, 'has attribute "undefined"');
+        }, '$undefined is not defined');
     }
 
-    function test_do()
+    function test_var()
+    {
+        $object = new class('testname') extends \ryunosuke\Test\AbstractTestCase
+        {
+            private $privateProperty = 'this is private';
+            public  $publicProperty  = 'this is public';
+
+            public function __get($name)
+            {
+                assert(strlen($this->privateProperty));
+                return "$name is __get property";
+            }
+        };
+        /** @noinspection PhpUndefinedFieldInspection */
+        $object->dynamicProperty = 'this is dynamic';
+        $actual = $this->actual($object);
+
+        $this->assertEquals('this is private', $actual->var('privateProperty'));
+        $this->assertEquals('this is public', $actual->var('publicProperty'));
+        $this->assertEquals('getter is __get property', $actual->var('getter'));
+        $this->assertEquals('testname', $actual->var('name'));
+
+        $actual = $this->actual(new \stdClass());
+        $this->ng(function () use ($actual) {
+            /** @noinspection PhpUndefinedMethodInspection */
+            $actual->var('undefinedProperty');
+        }, '::$undefinedProperty is not defined');
+    }
+
+    function test_use()
     {
         $actual = $this->actual(new class
         {
             /** @noinspection PhpUnusedPrivateMethodInspection */
+            private function privateMethod($x)
+            {
+                return $x * 10;
+            }
+
+            public function publicMethod($x)
+            {
+                return $x * 20;
+            }
+        });
+
+        $this->assertEquals(10, $actual->use('privateMethod')(1));
+        $this->assertEquals(20, $actual->use('publicMethod')(1));
+
+        $actual = $this->actual(new \stdClass());
+        $this->ng(function () use ($actual) {
+            /** @noinspection PhpUndefinedMethodInspection */
+            $actual->use('undefinedMethod');
+        }, '::undefinedMethod() is not defined');
+    }
+
+    function test_do()
+    {
+        $actual = $this->actual('strlen');
+        $actual('hoge')->isEqual(4);
+
+        $actual = $this->actual(new class
+        {
             private function privateMethod($x)
             {
                 if ($x === null) {
@@ -173,10 +231,17 @@ Nzxc ');
 
             public function publicMethod($x)
             {
-                if ($x === null) {
-                    throw new \Exception('this is message.', 123);
-                }
-                return $x * 10;
+                return $this->privateMethod($x);
+            }
+
+            public function __invoke($x)
+            {
+                return $this->privateMethod($x);
+            }
+
+            public function __call($name, $arguments)
+            {
+                return $name . $arguments[0] * 10;
             }
         });
 
@@ -187,119 +252,80 @@ Nzxc ');
             $actual->catch(new \Exception('this is message.', 123))->privateMethod(null);
             $actual->catch(new \Exception('this is message.', 123))->do('privateMethod', null);
             $actual->isType('object');
+            $this->ng(function () use ($actual) {
+                /** @noinspection PhpUndefinedMethodInspection */
+                $actual->catch(new \Exception('ng message'))->privateMethod(null);
+            }, '::privateMethod(null)');
 
             $actual->publicMethod(3)->isEqual(30);
             $actual->do('publicMethod', 5)->isEqual(50);
             $actual->catch(new \Exception('this is message.', 123))->publicMethod(null);
             $actual->catch(new \Exception('this is message.', 123))->do('publicMethod', null);
             $actual->isType('object');
-        }
-
-        $actual = $this->actual(
-        /**
-         * @method hoge()
-         * @method int fuga()
-         */
-            new class()
-            {
-                public function __call($name, $arguments)
-                {
-                    return $name . $arguments[0] * 10;
-                }
-            });
-        /** @noinspection PhpUndefinedMethodInspection */
-        {
-            $actual->hoge(3)->isEqual('hoge30');
-            $actual->fuga(4)->isEqual('fuga40');
             $this->ng(function () use ($actual) {
                 /** @noinspection PhpUndefinedMethodInspection */
-                $actual->piyo();
-            }, 'piyo');
+                $actual->catch(new \Exception('ng message'))->publicMethod(null);
+            }, '::publicMethod(null)');
+
+            $actual->catch(new \Exception('this is message.', 123))(null);
+
+            $actual->hoge(3)->isEqual('hoge30');
+            $actual->fuga(4)->isEqual('fuga40');
         }
-
-        $actual = $this->actual(new \stdClass());
-        $this->ng(function () use ($actual) {
-            /** @noinspection PhpUndefinedMethodInspection */
-            $actual->undefinedMethod();
-        }, 'undefinedMethod');
-
-        $this->ng(function () {
-            /** @noinspection PhpUndefinedMethodInspection */
-            $this->actual(null)->undefinedMethod();
-        }, "undefinedMethod");
     }
 
-    function test_invoke()
+    function test_try()
     {
-        $actual = $this->actual(new class
+        $thrower = new class()
         {
-            public function __invoke($a, $b, $c)
-            {
-                return "$a,$b,$c";
-            }
-        });
-        $actual(1, 2, 3)->isEqual('1,2,3');
+            function divide($x, $n) { return $x / $n; }
 
-        $actual = $this->actual(function ($a, $b, $c) {
-            return "$a,$b,$c";
-        });
-        $actual(1, 2, 3)->isEqual('1,2,3');
-
-        $actual = $this->actual(function () {
-            throw new \Exception('message');
-        });
-        $actual->catch('message')();
-        $this->ng(function () use ($actual) {
-            $actual->catch('notmessage')();
-        }, "should throw \Exception('notmessage', 0)");
-    }
-
-    function test_exit()
-    {
-        $actual = $this->actual(new \ArrayObject([
-            'x' => 'X',
-            'y' => 'Y',
-            'z' => new \ArrayObject([
-                'a' => 'A',
-                'b' => 'B',
-            ], \ArrayObject::ARRAY_AS_PROPS),
-        ], \ArrayObject::ARRAY_AS_PROPS));
-
-        $actual['z']->count(2)
-            ->a->isEqual('A')->exit()
-            ->b->isEqual('B')->exit(2)
-            ->x->isEqual('X')->exit()
-            ->y->isEqual('Y')->exit(99)
-            ->do('count')->isEqual(3)->exit()
-            ->isInstanceOf(\ArrayObject::class);
-    }
-
-    function test_autoback()
-    {
-        $actual = $this->actual(new class
-        {
-            function getA() { return 'A'; }
-
-            function getB() { return 'B'; }
-
-            function getC() { return 'C'; }
-        }, true);
+            function __invoke($x, $n) { return $x / $n; }
+        };
 
         /** @noinspection PhpUndefinedMethodInspection */
-        $actual
-            ->getA()->isEqual('A')
-            ->getB()->isEqual('B')
-            ->getC()->isEqual('C');
+        {
+            $this->actual($thrower)->try('divide', 10, 2)->is(5);
+            $this->actual($thrower)->try('divide', 10, 0)->isInstanceOf(\Exception::class)->getMessage()->is('Division by zero');
+            $this->actual($thrower)->try(null, 10, 2)->is(5);
+            $this->actual($thrower)->try(null, 10, 0)->getMessage()->is('Division by zero');
+        }
     }
 
-    function test_eval()
+    function test_catch()
     {
-        $this->actual('qwe')->eval(new IsEqual('qwe'));
-        $this->actual('qwe')->eval(new IsEqual('asd'), new IsEqual('qwe'));
+        $thrower = new class()
+        {
+            function throw() { throw new \Exception('actual message', 123); }
 
-        $this->ng(function () {
-            $this->actual('qwe')->eval(new IsEqual('asd'), new IsEqual('zxc'));
-        }, "'qwe' is equal to 'asd' or is equal to 'zxc'");
+            function nothrow() { }
+        };
+
+        /** @noinspection PhpUndefinedMethodInspection */
+        {
+            $this->actual($thrower)->catch('actual message')->throw();
+            $this->actual($thrower)->catch('actual message', 1)->throw();
+            $this->actual($thrower)->catch(123, 'invalid')->throw();
+            $this->actual($thrower)->catch(\RuntimeException::class, \DomainException::class, \Exception::class)->throw();
+        }
+        $this->ng(function () use ($thrower) {
+            /** @noinspection PhpUndefinedMethodInspection */
+            $this->actual($thrower)->catch('actual message')->nothrow();
+        }, "should throw");
+    }
+
+    function test_print()
+    {
+        $printer = new class()
+        {
+            function echo() { echo 'hello world'; }
+
+            function __invoke() { echo 'hello world'; }
+        };
+
+        /** @noinspection PhpUndefinedMethodInspection */
+        $this->actual($printer)->print('#hello#')->echo();
+        $this->actual($printer)->outputMatches('#hello#');
     }
 
     function test_as()
@@ -365,102 +391,6 @@ Nzxc ');
             ->foreach('::publicCodeName')->isEqual([1 => '1:hoge', 2 => '2:fuga', 3 => '3:piyo']);
     }
 
-    function test_var()
-    {
-        $object = new class('testname') extends \ryunosuke\Test\AbstractTestCase
-        {
-            private /** @noinspection PhpUnusedPrivateFieldInspection */ $privateProperty = 'this is private';
-            public                                                       $publicProperty  = 'this is public';
-
-            public function __get($name)
-            {
-                return "$name is __get property";
-            }
-        };
-        /** @noinspection PhpUndefinedFieldInspection */
-        $object->dynamicProperty = 'this is dynamic';
-        $actual = $this->actual($object);
-
-        $this->assertEquals('this is private', $actual->var('privateProperty'));
-        $this->assertEquals('this is public', $actual->var('publicProperty'));
-        $this->assertEquals('getter is __get property', $actual->var('getter'));
-        $this->assertEquals('testname', $actual->var('name'));
-    }
-
-    function test_use()
-    {
-        $actual = $this->actual(new class
-        {
-            /** @noinspection PhpUnusedPrivateMethodInspection */
-            private function privateMethod($x)
-            {
-                return $x * 10;
-            }
-
-            public function publicMethod($x)
-            {
-                return $x * 20;
-            }
-        });
-
-        $this->assertEquals(10, $actual->use('privateMethod')(1));
-        $this->assertEquals(20, $actual->use('publicMethod')(1));
-    }
-
-    function test_try()
-    {
-        $thrower = new class()
-        {
-            function divide($x, $n) { return $x / $n; }
-
-            function __invoke($x, $n) { return $x / $n; }
-        };
-
-        /** @noinspection PhpUndefinedMethodInspection */
-        {
-            $this->actual($thrower)->try('divide', 10, 2)->is(5);
-            $this->actual($thrower)->try('divide', 10, 0)->isInstanceOf(\Exception::class)->getMessage()->is('Division by zero');
-            $this->actual($thrower)->try(null, 10, 2)->is(5);
-            $this->actual($thrower)->try(null, 10, 0)->getMessage()->is('Division by zero');
-        }
-    }
-
-    function test_catch()
-    {
-        $thrower = new class()
-        {
-            function throw() { throw new \Exception('actual message', 123); }
-
-            function nothrow() { }
-        };
-
-        /** @noinspection PhpUndefinedMethodInspection */
-        {
-            $this->actual($thrower)->catch('actual message')->throw();
-            $this->actual($thrower)->catch('actual message', 1)->throw();
-            $this->actual($thrower)->catch(123, 'invalid')->throw();
-            $this->actual($thrower)->catch(\RuntimeException::class, \DomainException::class, \Exception::class)->throw();
-        }
-        $this->ng(function () use ($thrower) {
-            /** @noinspection PhpUndefinedMethodInspection */
-            $this->actual($thrower)->catch('actual message')->nothrow();
-        }, "should throw");
-    }
-
-    function test_print()
-    {
-        $printer = new class()
-        {
-            function echo() { echo 'hello world'; }
-
-            function __invoke() { echo 'hello world'; }
-        };
-
-        /** @noinspection PhpUndefinedMethodInspection */
-        $this->actual($printer)->print('#hello#')->echo();
-        $this->actual($printer)->outputMatches('#hello#');
-    }
-
     function test_return()
     {
         $object = new \stdClass();
@@ -469,6 +399,48 @@ Nzxc ');
 
         $this->assertSame($actual->return(), $object);
         $this->assertSame($actual->child->return(), $object->child);
+    }
+
+    function test_eval()
+    {
+        $this->actual('qwe')->eval(new IsEqual('qwe'));
+        $this->actual('qwe')->eval(new IsEqual('asd'), new IsEqual('qwe'));
+
+        $this->ng(function () {
+            $this->actual('qwe')->eval(new IsEqual('asd'), new IsEqual('zxc'));
+        }, "'qwe' is equal to 'asd' or is equal to 'zxc'");
+    }
+
+    function test_exit()
+    {
+        $object = new \ArrayObject([
+            'x' => 'X',
+            'y' => 'Y',
+            'z' => new \ArrayObject([
+                'a' => 'A',
+                'b' => 'B',
+            ], \ArrayObject::ARRAY_AS_PROPS),
+        ], \ArrayObject::ARRAY_AS_PROPS);
+
+        $actual = $this->actual($object);
+        $actual['z']->count(2)
+            ->a->isEqual('A')->exit()
+            ->b->isEqual('B')->exit(2)
+            ->x->isEqual('X')->exit()
+            ->y->isEqual('Y')->exit(99)
+            ->do('count')->isEqual(3)->exit()
+            ->isInstanceOf(\ArrayObject::class);
+
+        $actual = $this->actual($object, true);
+        $actual
+            ->x->isEqual('X')
+            ->y->isEqual('Y')
+        ['z']
+            ->a->isEqual('A')
+            ->b->isEqual('B')
+            ->exit()
+            ->do('count')->isEqual(3)
+            ->isInstanceOf(\ArrayObject::class);
     }
 
     function test_variation()

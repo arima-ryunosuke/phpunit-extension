@@ -35,7 +35,7 @@ class IsCType extends AbstractConstraint
     public function __construct(string $type)
     {
         if (!isset(self::KNOWN_TYPES[$type])) {
-            throw new \PHPUnit\Framework\Exception(\sprintf('Type specified for %s <%s> ' . 'is not a valid type.', __CLASS__, $type));
+            throw new \PHPUnit\Framework\Exception(sprintf('Type specified for %s <%s> ' . 'is not a valid type.', __CLASS__, $type));
         }
 
         $this->type = $type;
@@ -53,6 +53,6 @@ class IsCType extends AbstractConstraint
 
     public function toString(): string
     {
-        return \sprintf('is of ctype "%s"', $this->type);
+        return sprintf('is of ctype "%s"', $this->type);
     }
 }

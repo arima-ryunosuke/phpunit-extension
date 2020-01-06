@@ -4,6 +4,7 @@ namespace ryunosuke\PHPUnit\Constraint;
 
 use PHPUnit\Framework\Constraint\Constraint;
 use PHPUnit\Framework\ExpectationFailedException;
+use ryunosuke\PHPUnit\Util;
 
 abstract class AbstractConstraint extends Constraint
 {
@@ -28,8 +29,9 @@ abstract class AbstractConstraint extends Constraint
         throw new ExpectationFailedException($description, $comparisonFailure, $prev);
     }
 
-    protected function extractArgument($other)
+    protected function extractCallable($other): array
     {
+        // detect invoker
         if (is_callable($other)) {
             $callable = $other;
             $args = [];
@@ -39,15 +41,17 @@ abstract class AbstractConstraint extends Constraint
             $args = array_slice($other, 1);
         }
 
-        is_callable($callable, null, $name);
+        // detect call name
+        $callname = Util::callableToString($callable);
+
+        // detect argument string
         $argstring = implode(', ', array_map(function ($v) {
             if (is_object($v) && !$v instanceof \JsonSerializable) {
                 return '\\' . get_class($v);
             }
             return json_encode($v, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         }, $args));
-        $caller = "$name($argstring)";
 
-        return [$callable, $args, $caller];
+        return [$callable, $args, "$callname($argstring)"];
     }
 }

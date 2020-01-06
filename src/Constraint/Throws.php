@@ -32,7 +32,7 @@ class Throws extends AbstractConstraint
 
     protected function failureDescription($other): string
     {
-        [, , $string] = $this->extractArgument($other);
+        [, , $string] = $this->extractCallable($other);
 
         $base = sprintf('%s %s', $string, $this->toString());
         if ($this->actual instanceof \Throwable) {
@@ -43,7 +43,7 @@ class Throws extends AbstractConstraint
 
     public function evaluate($other, $description = '', $returnResult = false)
     {
-        [$callable, $args] = $this->extractArgument($other);
+        [$callable, $args] = $this->extractCallable($other);
 
         try {
             $this->actual = null;

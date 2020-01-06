@@ -16,13 +16,13 @@ class OutputMatches extends AbstractConstraint
 
     protected function failureDescription($other): string
     {
-        [, , $string] = $this->extractArgument($other);
+        [, , $string] = $this->extractCallable($other);
         return sprintf('%s %s', $string, $this->toString());
     }
 
     public function evaluate($other, $description = '', $returnResult = false)
     {
-        [$callable, $args] = $this->extractArgument($other);
+        [$callable, $args] = $this->extractCallable($other);
 
         try {
             ob_start();

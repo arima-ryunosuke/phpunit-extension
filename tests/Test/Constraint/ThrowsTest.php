@@ -63,13 +63,5 @@ class ThrowsTest extends \ryunosuke\Test\AbstractTestCase
         $this->ng(function () use ($constraint) {
             $constraint->evaluate(function () { throw new \InvalidArgumentException('hoge', 123); });
         }, 'throw \InvalidArgumentException');
-
-        $this->ng(function () use ($constraint) {
-            $constraint->evaluate([function () { }, 1, 'str']);
-        }, 'Closure::__invoke(1, "str")');
-
-        $this->ng(function () use ($constraint) {
-            $constraint->evaluate([function () { }, new \stdClass()]);
-        }, 'Closure::__invoke(\\stdClass)');
     }
 }

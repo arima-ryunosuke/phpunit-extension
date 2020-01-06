@@ -49,7 +49,7 @@ class IsValid extends AbstractConstraint
     {
         $result = true;
         foreach (self::KNOWN_TYPES[$this->type] as $filter => $flags) {
-            $result = $result && \filter_var($other, $filter, ['flags' => $this->flags | $flags]);
+            $result = $result && filter_var($other, $filter, ['flags' => $this->flags | $flags]);
         }
         return $result;
     }
