@@ -562,7 +562,7 @@ namespace ryunosuke\PHPUnit;
  * @method \ryunosuke\PHPUnit\Actual isValidUrl($flags = 0)
  * @method \ryunosuke\PHPUnit\Actual isNotValidUrl($flags = 0)
  *
- * @see bootstrap.php#8-28
+ * @see tests\bootstrap.php#8-28
  * @method \ryunosuke\PHPUnit\Actual allLineCount(int $lineCount, string $delimiter = '\\R')
  * @method \ryunosuke\PHPUnit\Actual lineCount(int $lineCount, string $delimiter = '\\R')
  * @method \ryunosuke\PHPUnit\Actual notLineCount(int $lineCount, string $delimiter = '\\R')
