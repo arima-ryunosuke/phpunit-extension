@@ -1,7 +1,7 @@
 {
   "config": {
     "platform": {
-      "php": "7.2"
+      "php": "7.2.11"
     }
   },
   "name": "ryunosuke/phpunit-extension",
@@ -16,7 +16,10 @@
   ],
   "require": {
     "php": ">=7.2",
-    "phpunit/phpunit": "8.*"
+    "phpunit/phpunit": "8.*",
+    "flow/jsonpath": "0.5.*",
+    "mtdowling/jmespath.php": "2.*",
+    "symfony/css-selector": "5.*"
   },
   "bin": [
     "bin/phpunit-current"
