@@ -73,6 +73,27 @@ class ExampleTest extends \PHPUnit\Framework\TestCase
         actual('x')->as('this is failure message')->isEqual('notX');
     }
 
+    function test_function()
+    {
+        # "function" applys function and actual
+        // means: assertThat(strtoupper('hello'), equalTo('HELLO'));
+        actual('hello')->function('strtoupper')->isEqual('HELLO');
+        // if function name suffix is numeric, applys argument the number (zero base)
+        // means: assertThat(str_replace('l', 'L', 'hello'), equalTo('heLLo'));
+        actual('hello')->function('str_replace2', 'l', 'L')->isEqual('heLLo');
+    }
+
+    function test_foreach()
+    {
+        # "foreach" is similar to "function" method. the differences are below:
+        // applys each element
+        actual(['x', 'y', 'z'])->foreach('strtoupper')->isEqual(['X', 'Y', 'Z']);
+        // suffix effect is same as "function"
+        actual(['hoge', 'fuga', 'piyo'])->foreach('str_replace2', ['o', 'g'], ['O', 'G'])->isEqual(['hOGe', 'fuGa', 'piyO']);
+        // invokes object's method (if prefix is "::", "->")
+        actual([new \Exception('foo'), new \Exception('bar')])->foreach('::getMessage')->isEqual(['foo', 'bar']);
+    }
+
     function test_try()
     {
         # "try" is not thrown method call and actual
@@ -271,6 +292,14 @@ But this is very legacy. Better to use phpstorm Test Runner.
 ## Release
 
 Versioning is Semantic Versioning.
+
+### 1.0.0
+
+- release 1.0.0
+- [change] drastic change
+- [feature] add "function" method
+- [feature] add "foreach" method
+- [feature] support "Throws" multiple arguments
 
 ### 0.2.0
 
