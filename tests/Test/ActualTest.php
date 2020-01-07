@@ -121,6 +121,12 @@ Nzxc ');
         }, '2 is of type "string"');
     }
 
+    function test_toString()
+    {
+        $this->assertEquals("null\n", (string) $this->actual(null));
+        $this->assertEquals("[1, 2, 3]\n", (string) $this->actual([1, 2, 3]));
+    }
+
     function test_accessor()
     {
         $actual = $this->actual(new class('testname') extends \ryunosuke\Test\AbstractTestCase

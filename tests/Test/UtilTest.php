@@ -3,6 +3,7 @@
 namespace ryunosuke\Test;
 
 use PHPUnit\Framework\SelfDescribing;
+use ryunosuke\PHPUnit\Actual;
 use ryunosuke\PHPUnit\Util;
 
 class UtilTest extends \ryunosuke\Test\AbstractTestCase
@@ -69,5 +70,48 @@ class UtilTest extends \ryunosuke\Test\AbstractTestCase
         $actual = Util::callableToString($object);
         $this->assertStringStartsWith("Hoge@tests{$DS}Test{$DS}UtilTest.php#", $actual);
         $this->assertStringEndsWith("::fuga", $actual);
+    }
+
+    function test_exportVar()
+    {
+        $value = [
+            'null'   => null,
+            'list'   => ['x', 'y', 'z'],
+            'arrays' => [['x'], ['y'], ['z']],
+            'hash'   => [
+                'b' => [
+                    'k1' => 'v1',
+                    'k2' => 'v2',
+                ],
+            ],
+            'object' => (new Actual('value'))->as('message'),
+        ];
+        $this->assertEquals(<<<CODE
+[
+    'null'   => null,
+    'list'   => ['x', 'y', 'z'],
+    'arrays' => [
+        ['x'],
+        ['y'],
+        ['z'],
+    ],
+    'hash'   => [
+        'b' => [
+            'k1' => 'v1',
+            'k2' => 'v2',
+        ],
+    ],
+    'object' => ryunosuke\PHPUnit\Actual::__set_state([
+        'actual'   => 'value',
+        'parent'   => '*RECURSION*',
+        'autoback' => false,
+        'catch'    => null,
+        'output'   => null,
+        'message'  => 'message',
+    ]),
+]
+
+CODE
+            , Util::exportVar($value));
     }
 }

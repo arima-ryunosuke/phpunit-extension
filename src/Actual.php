@@ -247,6 +247,11 @@ class Actual implements \ArrayAccess
         $this->autoback = $autoback;
     }
 
+    public function __toString()
+    {
+        return Util::exportVar($this->actual);
+    }
+
     public function __call($name, $arguments)
     {
         $callee = $name;

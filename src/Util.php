@@ -120,4 +120,69 @@ class Util
 
         return $callname;
     }
+
+    public static function exportVar($value): string
+    {
+        $INDENT = 4;
+
+        $export = function ($value, $nest = 0, $parents = []) use (&$export, $INDENT) {
+            foreach ($parents as $parent) {
+                if ($parent === $value) {
+                    return $export('*RECURSION*');
+                }
+            }
+            if (is_array($value)) {
+                $spacer1 = str_repeat(' ', ($nest + 1) * $INDENT);
+                $spacer2 = str_repeat(' ', $nest * $INDENT);
+
+                $hashed = array_values($value) !== $value;
+
+                if ($hashed) {
+                    $keys = array_map($export, array_combine($keys = array_keys($value), $keys));
+                    $maxlen = max(array_map('strlen', $keys));
+                }
+                else {
+                    $primitive = true;
+                    foreach ($value as $k => $v) {
+                        $primitive = $primitive && (is_scalar($v) || is_null($v) || is_resource($v));
+                    }
+                    if ($primitive) {
+                        return '[' . implode(', ', array_map($export, $value)) . ']';
+                    }
+                }
+
+                $kvl = '';
+                $parents[] = $value;
+                foreach ($value as $k => $v) {
+                    /** @noinspection PhpUndefinedVariableInspection */
+                    $keystr = $hashed ? $keys[$k] . str_repeat(' ', $maxlen - strlen($keys[$k])) . ' => ' : '';
+                    $kvl .= $spacer1 . $keystr . $export($v, $nest + 1, $parents) . ",\n";
+                }
+                return "[\n{$kvl}{$spacer2}]";
+            }
+            elseif (is_object($value)) {
+                $refclass = new \ReflectionClass($value);
+                $props = get_object_vars($value);
+                do {
+                    foreach ($refclass->getProperties() as $property) {
+                        if (!$property->isStatic()) {
+                            $property->setAccessible(true);
+                            $props += [$property->getName() => $property->getValue($value)];
+                        }
+                    }
+                } while ($refclass = $refclass->getParentClass());
+
+                $parents[] = $value;
+                return get_class($value) . '::__set_state(' . $export($props, $nest, $parents) . ')';
+            }
+            elseif (is_null($value)) {
+                return 'null';
+            }
+            else {
+                return var_export($value, true);
+            }
+        };
+
+        return $export($value) . "\n";
+    }
 }
