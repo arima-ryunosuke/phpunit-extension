@@ -22,7 +22,7 @@ class ActualTest extends \ryunosuke\Test\AbstractTestCase
         $this->assertStringContainsString('isNotFalse', $annotations);
         $this->assertStringContainsString('stringLengthEquals', $annotations);
         $this->assertStringContainsString('notStringLengthEquals', $annotations);
-        $this->assertStringContainsString(' all', $annotations);
+        $this->assertStringContainsString(' each', $annotations);
         $this->assertStringContainsString('Any(', $annotations);
         $this->assertStringContainsString('All(', $annotations);
         $this->assertStringContainsString('isNullOrString()', $annotations);
@@ -74,8 +74,8 @@ Nzxc ');
         $this->actual(['a' => 'A', 'b' => 'B', 'c' => 'C'])
             ->arrayHasKeyAll(['a', 'b', 'c']);
 
-        $this->actual([true, 1, '1', new \stdClass()])->allIsTruthy();
-        $this->actual(['1', '2', '3'])->allIsString();
+        $this->actual([true, 1, '1', new \stdClass()])->eachIsTruthy();
+        $this->actual(['1', '2', '3'])->eachIsString();
     }
 
     function test_ng()
@@ -113,11 +113,11 @@ Nzxc ');
         }, "has the key 'a' and has the key 'b' and has the key 'c' and has the key 'x'");
 
         $this->ng(function () {
-            $this->actual([true, 1, 0, new \stdClass()])->allIsTruthy();
+            $this->actual([true, 1, 0, new \stdClass()])->eachIsTruthy();
         }, "0 is truthy");
 
         $this->ng(function () {
-            $this->actual(['1', 2, '3'])->allIsString();
+            $this->actual(['1', 2, '3'])->eachIsString();
         }, '2 is of type "string"');
     }
 

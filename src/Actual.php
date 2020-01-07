@@ -125,9 +125,8 @@ class Actual implements \ArrayAccess
             }, $parameters), function ($v) { return $v !== null; });
             $argstring = implode(', ', $argstrings);
 
-            // $allName = preg_replace('#^is([A-Z]+)#', 'allAre$1', $mname, 1, $count);
-            $allName = "all" . ucfirst($mname);
-            $result[$allName] = "$returnType $allName($argstring)";
+            $eachName = "each" . ucfirst($mname);
+            $result[$eachName] = "$returnType $eachName($argstring)";
 
             $result[$mname] = "$returnType $mname($argstring)";
 
@@ -257,8 +256,8 @@ class Actual implements \ArrayAccess
         $callee = $name;
         $modes = [];
 
-        $callee = preg_replace('#^all#', '', $callee, 1, $count);
-        $modes['every'] = !!$count;
+        $callee = preg_replace('#^each#', '', $callee, 1, $count);
+        $modes['each'] = !!$count;
 
         $callee = preg_replace('#^(is)?(Not|not)([A-Z])#', '$1$3', $callee, 1, $count);
         $modes['not'] = !!$count;
@@ -269,7 +268,7 @@ class Actual implements \ArrayAccess
         $callee = preg_replace('#All$#', '', $callee, 1, $count);
         $modes['all'] = !!$count;
 
-        $actuals = $modes['every'] ? $this->actual : [$this->actual];
+        $actuals = $modes['each'] ? $this->actual : [$this->actual];
 
         $callee = lcfirst($callee);
         if (isset(self::$constraintVariations[$callee])) {
