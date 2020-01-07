@@ -22,6 +22,7 @@ This package adds phpunit Fluent interface.
 
 ```php
 // e.g. bootstrap.php
+\ryunosuke\PHPUnit\Actual::$compatibleVersion = 2; // see below
 function actual($actual, bool $autoback = false)
 {
     return new \ryunosuke\PHPUnit\Actual($actual, $autoback);
@@ -37,61 +38,97 @@ class ExampleTest extends \PHPUnit\Framework\TestCase
         actual(5)->isInt()->isBetween(1, 9);
     }
 
-    function test_prefixAll()
+    function test_prefixEach()
     {
-        # "all*" asserts per values (assert AND all values)
+        # "each*" asserts per values (assert AND all values)
         // means: assertThat(1, greaterThan(0)); assertThat(2, greaterThan(0)); assertThat(3, greaterThan(0));
-        actual([1, 2, 3])->allGreaterThan(0);
+        actual([1, 2, 3])->eachGreaterThan(0);
     }
 
     function test_suffixAnyAll()
     {
         # "*Any" asserts multiple arguments (assert OR all arguments)
-        // means: assertThat('x', logicalOr(equalTo('x'), equalTo('y'), equalTo('z')));
-        actual('x')->isEqualAny(['x', 'y', 'z']);
+        // means: assertThat('hello world', logicalOr(stringContains('hello'), stringContains('noexists')));
+        actual('hello world')->stringContainsAny(['hello', 'noexists']);
         // ignore case (other arguments are normal)
-        actual('X')->isEqualAny(['x', 'y', 'z'], 0, 0.0, false, true);
+        actual('hello world')->stringContainsAny(['HELLO', 'noexists'], true);
 
         # "*All" asserts multiple arguments (assert AND all arguments)
-        // means: assertThat(['x' => 'X', 'y' => 'Y'], logicalAnd(arrayHasKey('x'), arrayHasKey('y')));
-        actual(['x' => 'X', 'y' => 'Y'])->arrayHasKeyAll(['x', 'y']);
+        // means: assertThat('hello world', logicalAnd(stringContains('hello'), stringContains('world')));
+        actual('hello world')->stringContainsAll(['hello', 'world']);
     }
 
-    function test_eval()
+    function test_var_use()
     {
-        # "eval" asserts directly constraint (variadic arguments OR all arguments)
-        // means: assertThat('x', equalTo('x'));
-        actual('x')->eval(equalTo('x'));
-        // means: assertThat('x', logicalOr(equalTo('x'), equalTo('y'), equalTo('z')));
-        actual('x')->eval(equalTo('x'), equalTo('y'), equalTo('z'));
+        # "var" returns property of original object (non-public access is possible)
+        $object = new \ArrayObject(['x' => 'X', 'y' => 'Y'], \ArrayObject::ARRAY_AS_PROPS);
+        $property = actual($object)->var('x');
+        assertThat($property, equalTo('X'));
+
+        # "use" returns method's closure of original object (non-public access is possible)
+        $object = new \ArrayObject(['x' => 'X', 'y' => 'Y'], \ArrayObject::ARRAY_AS_PROPS);
+        $method = actual($object)->use('getArrayCopy');
+        assertThat($method(), equalTo(['x' => 'X', 'y' => 'Y']));
     }
 
-    function test_as()
+    function test_arrayAccess()
     {
-        # "as" describes failure text
-        // means: assertThat('x', equalTo('notX'), 'this is failure message');
-        actual('x')->as('this is failure message')->isEqual('notX');
+        # array access returns array's value by JMESPath and actual
+        $array = ['x' => ['y' => ['z' => [1, 2, 3]]]];
+        // means: assertThat($array['x']['y']['z'], equalTo([1, 2, 3]));
+        actual($array)['x']['y']['z']->isEqual([1, 2, 3]); // simple access
+        actual($array)['x.y.z']->isEqual([1, 2, 3]);       // JMESPath access
+
+        # if value is string then argument behaves RegularExpression
+        # no return 0 (full pattern matches) and unset numeric key of named pattern and sequential array
+        $string = 'Hello World';
+        actual($string)['#(?<first>[A-Z])([a-z]+)#']->is(['first' => 'H', 'ello']);
+
+        # if pattern contains g flag then pattern behaves preg_match_all (like a javascript) 
+        $string = 'Hello World';
+        actual($string)['#(?<first>[A-Z])([a-z]+)#g']->is([
+            ['first' => 'H', 'ello'],
+            ['first' => 'W', 'orld'],
+        ]);
+
+        # if value is SimpleXmlElement or like a XmlString then argument behaves xpath(prefix is "/") or css selector(prefix is not "/")
+        $xml = '<a><b><c>C</c></b></a>';
+        actual($xml)['/a/b/c'][0]->is('C'); // case xpath
+        actual($xml)['a b c'][0]->is('C');  // case css selector
     }
 
-    function test_function()
+    function test_propertyAccess()
     {
-        # "function" applys function and actual
-        // means: assertThat(strtoupper('hello'), equalTo('HELLO'));
-        actual('hello')->function('strtoupper')->isEqual('HELLO');
-        // if function name suffix is numeric, applys argument the number (zero base)
-        // means: assertThat(str_replace('l', 'L', 'hello'), equalTo('heLLo'));
-        actual('hello')->function('str_replace2', 'l', 'L')->isEqual('heLLo');
+        # property access returns property and actual (non-public access is possible)
+        $object = (object) ['x' => 'X'];
+        // means: assertThat($object->x, equalTo('X'));
+        actual($object)->x->isEqual('X');
+
+        # if prefix is "$" then argument behaves JSONPath
+        $object = (object) ['x' => (object) ['y' => (object) ['z' => [1, 2, 3]]]];
+        // means: assertThat($object->x->y->z, equalTo([1, 2, 3]));
+        actual($object)->{'$.x.y.z.*'}->is([1, 2, 3]);
     }
 
-    function test_foreach()
+    function test_methodCall()
     {
-        # "foreach" is similar to "function" method. the differences are below:
-        // applys each element
-        actual(['x', 'y', 'z'])->foreach('strtoupper')->isEqual(['X', 'Y', 'Z']);
-        // suffix effect is same as "function"
-        actual(['hoge', 'fuga', 'piyo'])->foreach('str_replace2', ['o', 'g'], ['O', 'G'])->isEqual(['hOGe', 'fuGa', 'piyO']);
-        // invokes object's method (if prefix is "::", "->")
-        actual([new \Exception('foo'), new \Exception('bar')])->foreach('::getMessage')->isEqual(['foo', 'bar']);
+        # method call returns original result and actual (non-public access is possible)
+        $object = new \ArrayObject([1, 2, 3]);
+        // means: assertThat($object->getArrayCopy(), equalTo([1, 2, 3]));
+        actual($object)->getArrayCopy()->isEqual([1, 2, 3]);
+
+        # actual's method prefers to original method
+        $object = new \ArrayObject([1, 2, 3]);
+        // means: assertThat($object, countOf(3)); not: $object->count();
+        actual($object)->count(3);
+
+        # "do" invokes original method and actual
+        actual($object)->do('count')->isEqual(3);
+
+        # "__invoke" returns original::__invoke and actual
+        $object = function ($a, $b) { return $a + $b; };
+        // means: assertThat($object(1, 2), equalTo(3));
+        actual($object)(1, 2)->isEqual(3);
     }
 
     function test_try()
@@ -122,6 +159,34 @@ class ExampleTest extends \PHPUnit\Framework\TestCase
         actual($object)->print('#world#')->__invoke();
     }
 
+    function test_as()
+    {
+        # "as" describes failure text
+        // means: assertThat('x', equalTo('notX'), 'this is failure message');
+        actual('x')->as('this is failure message')->isEqual('notX');
+    }
+
+    function test_function()
+    {
+        # "function" applys function and actual
+        // means: assertThat(strtoupper('hello'), equalTo('HELLO'));
+        actual('hello')->function('strtoupper')->isEqual('HELLO');
+        // if function name suffix is numeric, applys argument the number (zero base)
+        // means: assertThat(str_replace('l', 'L', 'hello'), equalTo('heLLo'));
+        actual('hello')->function('str_replace2', 'l', 'L')->isEqual('heLLo');
+    }
+
+    function test_foreach()
+    {
+        # "foreach" is similar to "function" method. the differences are below:
+        // applys each element
+        actual(['x', 'y', 'z'])->foreach('strtoupper')->isEqual(['X', 'Y', 'Z']);
+        // suffix effect is same as "function"
+        actual(['hoge', 'fuga', 'piyo'])->foreach('str_replace2', ['o', 'g'], ['O', 'G'])->isEqual(['hOGe', 'fuGa', 'piyO']);
+        // invokes object's method (if prefix is "::", "->")
+        actual([new \Exception('foo'), new \Exception('bar')])->foreach('::getMessage')->isEqual(['foo', 'bar']);
+    }
+
     function test_return()
     {
         # "return" returns original value
@@ -129,44 +194,13 @@ class ExampleTest extends \PHPUnit\Framework\TestCase
         assertSame($object, actual($object)->return());
     }
 
-    function test_arrayAccess()
+    function test_eval()
     {
-        # array access returns array's value and actual
-        $array = ['x' => 'X'];
-        // means: assertThat($array['x'], equalTo('X'));
-        actual($array)['x']->isEqual('X');
-    }
-
-    function test_propertyAccess()
-    {
-        # property access returns property and actual (non-public access is possible)
-        $object = (object) ['x' => 'X'];
-        // means: assertThat($object->x, equalTo('X'));
-        actual($object)->x->isEqual('X');
-    }
-
-    function test_methodCall()
-    {
-        # method call returns original result and actual (non-public access is possible)
-        $object = new \ArrayObject([1, 2, 3]);
-        // means: assertThat($object->getArrayCopy(), equalTo([1, 2, 3]));
-        actual($object)->getArrayCopy()->isEqual([1, 2, 3]);
-
-        # actual's method prefers to original method
-        $object = new \ArrayObject([1, 2, 3]);
-        // means: assertThat($object, countOf(3)); not: $object->count();
-        actual($object)->count(3);
-
-        # "use" returns closure of original method
-        assertThat(actual($object)->use('count')(), equalTo(3));
-
-        # "do" invokes original method and actual
-        actual($object)->do('count')->isEqual(3);
-
-        # "__invoke" returns original::__invoke and actual
-        $object = function ($a, $b) { return $a + $b; };
-        // means: assertThat($object(1, 2), equalTo(3));
-        actual($object)(1, 2)->isEqual(3);
+        # "eval" asserts directly constraint (variadic arguments OR all arguments)
+        // means: assertThat('x', equalTo('x'));
+        actual('x')->eval(equalTo('x'));
+        // means: assertThat('x', logicalOr(equalTo('x'), equalTo('y'), equalTo('z')));
+        actual('x')->eval(equalTo('x'), equalTo('y'), equalTo('z'));
     }
 
     function test_exit()
@@ -196,16 +230,20 @@ Internals:
 
 | constraint         | description
 | :---               | :---
+| Contains           | assert string/iterable/file contains substring/element/content
 | EqualsFile         | assert string equals file
 | EqualsIgnoreWS     | assert string equals ignoring whitespace
 | FileContains       | assert file contains string
 | FileEquals         | assert file equals string
+| FileSizeIs         | assert file size
+| HasKey             | assert array/object has key/property
 | IsBetween          | assert range of number
 | IsBlank            | assert blank string
 | IsCType            | assert value by ctype_xxx
 | IsFalsy            | assert value like a false
 | IsTruthy           | assert value like a true
 | IsValid            | assert value by filter_var
+| LengthEquals       | assert string/iterable/file length/count/size
 | OutputMatches      | assert output of STDOUT
 | StringLengthEquals | assert length of string
 | Throws             | assert callable should throw exception
@@ -292,6 +330,25 @@ But this is very legacy. Better to use phpstorm Test Runner.
 ## Release
 
 Versioning is Semantic Versioning.
+BC breaking is controled $compatibleVersion static field somewhat.
+
+- 1 is compatible 1.*
+- 2 is compatible 2.*
+- 999 is latest
+
+### 1.1.0
+
+- [feature] add version control property
+- [feature] add "prefixIs", "suffixIs" alias
+- [feature] support Regex and JSONPath and JMESPath at get/offsetGet
+- [feature] implement "__toString" method
+- [feature] add depended on other constraint
+- [feature] add "FileSizeIs" constraint
+- [change] change "Not" position (e.g. NotFileExists -> FileNotExists)
+  - "notFileExists" can still be used, but will be deleted in the future
+- [change] rename "all*" -> "each*"
+  - "all*" can still be used, but will be deleted in the future
+- [fixbug] normalize directory separator
 
 ### 1.0.0
 
