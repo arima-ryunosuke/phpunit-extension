@@ -151,18 +151,53 @@ Nzxc ');
         $actual = $this->actual(new \ArrayObject([
             'x' => 'X',
             'y' => 'Y',
+            'z' => [
+                ['k' => 'v1'],
+                ['k' => 'v2'],
+                ['k' => 'v3'],
+            ],
         ], \ArrayObject::ARRAY_AS_PROPS));
 
         $actual['x']->isEqual('X');
         $actual->y->isEqual('Y');
 
-        $this->ng(function () use ($actual) {
-            $actual['undefined']->isInt();
-        }, "has the key 'undefined'");
+        $actual->{"$.z.*.k"}->is(['v1', 'v2', 'v3']);
+        $actual['z[].k']->is(['v1', 'v2', 'v3']);
+
+        $actual['z[0].k']->is('v1');
+        $actual->z[0]->k->is('v1');
 
         $this->ng(function () use ($actual) {
             $actual->undefined->isInt();
         }, '$undefined is not defined');
+
+        $this->ng(function () {
+            $this->actual(123)['aaaa'];
+        }, 'must be structure value');
+    }
+
+    function test_accessor_xml()
+    {
+        $actual = $this->actual('<a id="foo">A<b>B<c attr="ATTR1">C1</c><c attr="ATTR2">C2</c></b></a>');
+
+        $actual['/a/b/c']->count(2)[1]->isEqual('C2');
+        $actual['/a/b/c/@attr']->count(2)[1]->isEqual('ATTR2');
+
+        $actual['#foo']->count(1)[0]->isEqual('A');
+        $actual['c[attr]']->count(2)[0]->isEqual('C1');
+    }
+
+    function test_accessor_string()
+    {
+        $actual = $this->actual('hoge fuga piyo');
+        $actual['#(hoge).*(fuga)#']->count(2)->isEqual(['hoge', 'fuga']);
+        $actual['#(?<aaa>fuga)#']->count(1)->isEqual(['aaa' => 'fuga']);
+        $actual['#(?<aaa>hoge) (?<bbb>.*)#']->count(2)->isEqual(['aaa' => 'hoge', 'bbb' => 'fuga piyo']);
+
+        $actual = $this->actual('hoge fuga piyo hoge fuga piyo');
+        $actual['#(hoge).*(fuga)#g']->count(1)[0]->isEqual(['hoge', 'fuga']);
+        $actual['#(?<aaa>fuga)#g']->count(2)[0]->isEqual(['aaa' => 'fuga']);
+        $actual['#(?<aaa>hoge) (?<bbb>.*)#g']->count(1)[0]->isEqual(['aaa' => 'hoge', 'bbb' => 'fuga piyo hoge fuga piyo']);
     }
 
     function test_var()

@@ -2,6 +2,8 @@
 
 namespace ryunosuke\PHPUnit;
 
+use Flow\JSONPath\JSONPath;
+use JmesPath\Env;
 use PHPUnit\Framework\Assert;
 use PHPUnit\Framework\Constraint\Constraint;
 use PHPUnit\Framework\Constraint\GreaterThan;
@@ -18,6 +20,7 @@ use ryunosuke\PHPUnit\Constraint\LogicalNot;
 use ryunosuke\PHPUnit\Constraint\LogicalOr;
 use ryunosuke\PHPUnit\Constraint\OutputMatches;
 use ryunosuke\PHPUnit\Constraint\Throws;
+use Symfony\Component\CssSelector\CssSelectorConverter;
 
 if (!trait_exists(Annotation::class)) {
     trait Annotation
@@ -311,13 +314,45 @@ class Actual implements \ArrayAccess
 
     public function __get($name): Actual
     {
+        if ($name[0] === '$') {
+            return $this->create((new JSONPath($this->actual))->find($name)->data());
+        }
+
+        // for convenience
+        if (is_array($this->actual)) {
+            return $this->create($this->actual[$name]);
+        }
         return $this->create(Util::propertyToValue($this->actual, $name));
     }
 
     public function offsetGet($offset): Actual
     {
-        Assert::assertArrayHasKey($offset, $this->actual);
-        return $this->create($this->actual[$offset]);
+        if (is_int($offset)) {
+            return $this->create($this->actual[$offset]);
+        }
+
+        $actual = Util::stringToStructure($this->actual);
+
+        if ($actual instanceof \SimpleXMLElement) {
+            if ($offset[0] !== '/') {
+                $offset = (new CssSelectorConverter(true))->toXPath($offset);
+            }
+            $value = @$actual->xpath($offset);
+            if ($value === false) {
+                throw new \InvalidArgumentException("'$offset' is not valid xpath or css selector.");
+            }
+        }
+        elseif (is_array($actual) || $actual instanceof \ArrayAccess || $actual instanceof \stdClass) {
+            $value = Env::search($offset, $actual);
+        }
+        elseif (is_string($actual)) {
+            $value = Util::stringMatch($actual, $offset, PREG_SET_ORDER);
+        }
+        else {
+            throw new \DomainException('$this->actual must be structure value given ' . gettype($actual) . ').');
+        }
+
+        return $this->create($value);
     }
 
     public function var(string $propertyname)

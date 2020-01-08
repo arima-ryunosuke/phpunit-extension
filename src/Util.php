@@ -121,6 +121,74 @@ class Util
         return $callname;
     }
 
+    public static function stringMatch($subject, $pattern, $flags = 0, $offset = 0)
+    {
+        $unset = function ($match) {
+            $result = [];
+            $keys = array_keys($match);
+            for ($i = 1; $i < count($keys); $i++) {
+                $key = $keys[$i];
+                if (is_string($key)) {
+                    $result[$key] = $match[$key];
+                    $i++;
+                }
+                else {
+                    $result[] = $match[$key];
+                }
+            }
+            return $result;
+        };
+
+        $endpairs = [
+            '(' => ')',
+            '{' => '}',
+            '[' => ']',
+            '<' => '>',
+        ];
+        $endpos = strrpos($pattern, $endpairs[$pattern[0]] ?? $pattern[0]);
+        $expression = substr($pattern, 0, $endpos);
+        $modifiers = str_split(substr($pattern, $endpos));
+
+        if (($g = array_search('g', $modifiers, true)) !== false) {
+            unset($modifiers[$g]);
+
+            preg_match_all($expression . implode('', $modifiers), $subject, $matches, $flags, $offset);
+            if (($flags & PREG_SET_ORDER) === PREG_SET_ORDER) {
+                return array_map($unset, $matches);
+            }
+            return $unset($matches);
+        }
+        else {
+            $flags = ~PREG_PATTERN_ORDER & ~PREG_SET_ORDER & $flags;
+
+            preg_match($pattern, $subject, $matches, $flags, $offset);
+            return $unset($matches);
+        }
+    }
+
+    public static function stringToStructure($string)
+    {
+        if (!is_string($string)) {
+            return $string;
+        }
+
+        if (file_exists($string)) {
+            $string = file_get_contents($string);
+        }
+
+        $xml = @simplexml_load_string($string);
+        if ($xml !== false) {
+            return $xml;
+        }
+
+        $json = @json_decode($string, true);
+        if ($json !== null || strtolower(trim($string)) === 'null') {
+            return $json;
+        }
+
+        return $string;
+    }
+
     public static function exportVar($value): string
     {
         $INDENT = 4;
