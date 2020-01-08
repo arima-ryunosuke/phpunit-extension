@@ -8,6 +8,38 @@ use ryunosuke\PHPUnit\Constraint\LogicalNot;
 
 class LogicalNotTest extends \ryunosuke\Test\AbstractTestCase
 {
+    function test_export()
+    {
+        $this->assertEquals('IsNot', LogicalNot::export('Is'));
+        $this->assertEquals('isNot', LogicalNot::export('is'));
+        $this->assertEquals('IsNotEqual', LogicalNot::export('IsEqual'));
+        $this->assertEquals('isNotEqual', LogicalNot::export('isEqual'));
+        $this->assertEquals('PrefixIsNot', LogicalNot::export('PrefixIs'));
+        $this->assertEquals('prefixIsNot', LogicalNot::export('prefixIs'));
+        $this->assertEquals('ArrayNotHasKey', LogicalNot::export('ArrayHasKey'));
+        $this->assertEquals('arrayNotHasKey', LogicalNot::export('arrayHasKey'));
+        $this->assertEquals('FileNotEquals', LogicalNot::export('FileEquals'));
+        $this->assertEquals('fileNotEquals', LogicalNot::export('fileEquals'));
+        $this->assertEquals('NotEqualsFile', LogicalNot::export('EqualsFile'));
+        $this->assertEquals('notEqualsFile', LogicalNot::export('equalsFile'));
+    }
+
+    function test_import()
+    {
+        $this->assertEquals('Is', LogicalNot::import('IsNot'));
+        $this->assertEquals('is', LogicalNot::import('isNot'));
+        $this->assertEquals('IsEqual', LogicalNot::import('IsNotEqual'));
+        $this->assertEquals('isEqual', LogicalNot::import('isNotEqual'));
+        $this->assertEquals('PrefixIs', LogicalNot::import('PrefixIsNot'));
+        $this->assertEquals('prefixIs', LogicalNot::import('prefixIsNot'));
+        $this->assertEquals('ArrayHasKey', LogicalNot::import('ArrayNotHasKey'));
+        $this->assertEquals('arrayHasKey', LogicalNot::import('arrayNotHasKey'));
+        $this->assertEquals('FileEquals', LogicalNot::import('FileNotEquals'));
+        $this->assertEquals('fileEquals', LogicalNot::import('fileNotEquals'));
+        $this->assertEquals('EqualsFile', LogicalNot::import('NotEqualsFile'));
+        $this->assertEquals('equalsFile', LogicalNot::import('notEqualsFile'));
+    }
+
     function test()
     {
         $constraint = new LogicalNot(new StringContains('x'));

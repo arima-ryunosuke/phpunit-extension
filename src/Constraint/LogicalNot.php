@@ -10,6 +10,46 @@ class LogicalNot extends AbstractConstraint
     /** @var Constraint */
     private $constraint;
 
+    public static function export($string)
+    {
+        $verbs = [
+            'is',
+            'equals',
+            'exists',
+            'contains',
+            'has',
+            'matches',
+        ];
+        $lower_verbs = implode('|', array_map('lcfirst', $verbs));
+        $upper_verbs = implode('|', array_map('ucfirst', $verbs));
+
+        $regex = implode('|', [
+            "^($lower_verbs|$upper_verbs)([A-Z]|$)",
+            "($upper_verbs)([A-Z]|$)",
+        ]);
+        return preg_replace_callback("#$regex#", function ($matches) {
+            if (isset($matches[3])) {
+                if (strtolower($matches[3]) === 'is') {
+                    return $matches[3] . 'Not' . $matches[4];
+                }
+                return 'Not' . $matches[3] . $matches[4];
+            }
+            else {
+                if (strtolower($matches[1]) === 'is') {
+                    return $matches[1] . 'Not' . $matches[2];
+                }
+                return (ctype_lower($matches[1][0]) ? 'not' : 'Not') . ucfirst($matches[1]) . $matches[2];
+            }
+        }, $string);
+    }
+
+    public static function import($string)
+    {
+        return preg_replace_callback("#([nN])ot([A-Z]|$)#", function ($matches) {
+            return $matches[1] === 'n' ? lcfirst($matches[2]) : $matches[2];
+        }, $string);
+    }
+
     public function __construct($constraint)
     {
         $this->constraint = $constraint;

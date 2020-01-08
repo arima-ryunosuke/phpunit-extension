@@ -137,7 +137,7 @@ class Actual implements \ArrayAccess
 
             $result[$mname] = "$returnType $mname($argstring)";
 
-            $notName = preg_replace('#^notIs#', 'isNot', "not" . ucfirst($mname), 1);
+            $notName = lcfirst(LogicalNot::export($mname));
             $result[$notName] = "$returnType $notName($argstring)";
 
             $requiredCount = array_reduce($parameters, function ($carry, \ReflectionParameter $parameter) use ($defaults) {
@@ -151,9 +151,9 @@ class Actual implements \ArrayAccess
                 }, $requiredParams));
                 $argstring = implode(', ', array_merge(["array \${$firstParam}s"], $optionalParams));
 
-                $anyName = $mname . 'Any';
+                $anyName = lcfirst(LogicalOr::export($mname));
                 $result[$anyName] = "$returnType $anyName($argstring)";
-                $allName = $mname . 'All';
+                $allName = lcfirst(LogicalAnd::export($mname));
                 $result[$allName] = "$returnType $allName($argstring)";
             }
 
@@ -266,14 +266,14 @@ class Actual implements \ArrayAccess
         $callee = preg_replace('#^each#', '', $callee, 1, $count);
         $modes['each'] = !!$count;
 
-        $callee = preg_replace('#^(is)?(Not|not)([A-Z])#', '$1$3', $callee, 1, $count);
-        $modes['not'] = !!$count;
+        $callee = LogicalNot::import($callee2 = $callee);
+        $modes['not'] = $callee2 !== $callee;
 
-        $callee = preg_replace('#Any$#', '', $callee, 1, $count);
-        $modes['any'] = !!$count;
+        $callee = LogicalOr::import($callee2 = $callee);
+        $modes['any'] = $callee2 !== $callee;
 
-        $callee = preg_replace('#All$#', '', $callee, 1, $count);
-        $modes['all'] = !!$count;
+        $callee = LogicalAnd::import($callee2 = $callee);
+        $modes['all'] = $callee2 !== $callee;
 
         $actuals = $modes['each'] ? $this->actual : [$this->actual];
 

@@ -10,6 +10,16 @@ class LogicalAnd extends AbstractConstraint
     /** @var Constraint[] */
     private $constraints;
 
+    public static function export($string)
+    {
+        return $string . 'All';
+    }
+
+    public static function import($string)
+    {
+        return preg_replace('#All$#', '', $string);
+    }
+
     public static function fromConstraints(Constraint ...$constraints): Constraint
     {
         assert(count($constraints) > 0);

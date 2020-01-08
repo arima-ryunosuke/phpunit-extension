@@ -21,7 +21,7 @@ class ActualTest extends \ryunosuke\Test\AbstractTestCase
         $this->assertStringContainsString('isFalse', $annotations);
         $this->assertStringContainsString('isNotFalse', $annotations);
         $this->assertStringContainsString('stringLengthEquals', $annotations);
-        $this->assertStringContainsString('notStringLengthEquals', $annotations);
+        $this->assertStringContainsString('stringLengthNotEquals', $annotations);
         $this->assertStringContainsString(' each', $annotations);
         $this->assertStringContainsString('Any(', $annotations);
         $this->assertStringContainsString('All(', $annotations);
@@ -40,7 +40,7 @@ class ActualTest extends \ryunosuke\Test\AbstractTestCase
             ->stringContains(' N ')
             ->stringStartsWith('qwe')
             ->stringEndsWith('zxc')
-            ->notStringStartsWith('zxc')
+            ->prefixIsNot('zxc')
             ->equalsIgnoreWS('
 qweN
 N
