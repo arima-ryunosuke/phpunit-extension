@@ -490,6 +490,8 @@ Nzxc ');
 
         $this->actual('hoge')->is('hoge');
         $this->actual('hoge')->isSame('hoge');
+        $this->actual('abcxyz')->prefixIs('abc');
+        $this->actual('abcxyz')->suffixIs('xyz');
         $this->actual(['a', 'b'])->equalsCanonicalizing(['b', 'a']);
         $this->actual('hoge')->equalsIgnoreCase('HOGE');
         $this->actual('hoge')->matches('#hoge#');

@@ -13,6 +13,8 @@ use PHPUnit\Framework\Constraint\IsNull;
 use PHPUnit\Framework\Constraint\IsType;
 use PHPUnit\Framework\Constraint\LessThan;
 use PHPUnit\Framework\Constraint\RegularExpression;
+use PHPUnit\Framework\Constraint\StringEndsWith;
+use PHPUnit\Framework\Constraint\StringStartsWith;
 use ryunosuke\PHPUnit\Constraint\IsCType;
 use ryunosuke\PHPUnit\Constraint\IsValid;
 use ryunosuke\PHPUnit\Constraint\LogicalAnd;
@@ -36,6 +38,8 @@ class Actual implements \ArrayAccess
         // alias
         'is'                   => IsEqual::class,
         'isSame'               => IsIdentical::class,
+        'prefixIs'             => StringStartsWith::class,
+        'suffixIs'             => StringEndsWith::class,
         'equalsCanonicalizing' => [IsEqual::class => ['canonicalize' => true]],
         'equalsIgnoreCase'     => [IsEqual::class => [4 => true]],
         'matches'              => RegularExpression::class,
