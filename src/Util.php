@@ -189,6 +189,11 @@ class Util
         return $string;
     }
 
+    public static function isStringy($value): bool
+    {
+        return is_string($value) || (is_object($value) && method_exists($value, '__toString'));
+    }
+
     public static function exportVar($value): string
     {
         $INDENT = 4;
