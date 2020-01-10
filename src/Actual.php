@@ -186,7 +186,7 @@ class Actual implements \ArrayAccess
                 $refclass = new \ReflectionClass($variation);
                 $method = $refclass->getConstructor() ?? $dummyConstructor;
 
-                $via = Util::reflectFile($refclass);
+                $via = strtr(Util::reflectFile($refclass), ['\\' => '/']);
                 $parameters = $method->getParameters();
                 $annotations = array_merge($annotations, [$via => $annotate($name, $parameters, [])]);
                 continue;
