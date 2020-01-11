@@ -178,7 +178,11 @@ Nzxc ');
 
     function test_accessor_xml()
     {
-        $actual = $this->actual('<a id="foo">A<b>B<c attr="ATTR1">C1</c><c attr="ATTR2">C2</c></b></a>');
+        $actual = $this->actual('<a id="foo">A<b id="bar">B<c attr="ATTR1">C1</c><c attr="ATTR2">C2</c></b></a>');
+
+        $actual['id']->is('foo');
+        $actual->b['id']->is('bar');
+        $actual->b->c[0]['attr']->is('ATTR1');
 
         $actual['/a/b/c']->count(2)[1]->isEqual('C2');
         $actual['/a/b/c/@attr']->count(2)[1]->isEqual('ATTR2');

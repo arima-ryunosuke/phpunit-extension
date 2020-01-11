@@ -352,10 +352,11 @@ class Actual implements \ArrayAccess
         }
 
         // for convenience
-        if (is_array($this->actual)) {
-            return $this->create($this->actual[$name]);
+        $actual = Util::stringToStructure($this->actual);
+        if (is_array($actual)) {
+            return $this->create($actual[$name]);
         }
-        return $this->create(Util::propertyToValue($this->actual, $name));
+        return $this->create(Util::propertyToValue($actual, $name));
     }
 
     public function offsetGet($offset): Actual
@@ -366,23 +367,32 @@ class Actual implements \ArrayAccess
         }
         // @codeCoverageIgnoreEnd
 
-        if (is_int($offset)) {
-            return $this->create($this->actual[$offset]);
-        }
-
         $actual = Util::stringToStructure($this->actual);
 
         if ($actual instanceof \SimpleXMLElement) {
-            if ($offset[0] !== '/') {
-                $offset = (new CssSelectorConverter(true))->toXPath($offset);
+            try {
+                if (isset($actual[$offset])) {
+                    throw new \Symfony\Component\CssSelector\Exception\SyntaxErrorException();
+                }
+                if ($offset[0] !== '/') {
+                    $offset = (new CssSelectorConverter(true))->toXPath($offset);
+                }
+                $value = @$actual->xpath($offset);
+                if ($value === false) {
+                    throw new \Symfony\Component\CssSelector\Exception\SyntaxErrorException();
+                }
             }
-            $value = @$actual->xpath($offset);
-            if ($value === false) {
-                throw new \InvalidArgumentException("'$offset' is not valid xpath or css selector.");
+            catch (\Symfony\Component\CssSelector\Exception\SyntaxErrorException $e) {
+                $value = $actual[$offset];
             }
         }
         elseif (is_array($actual) || $actual instanceof \ArrayAccess || $actual instanceof \stdClass) {
-            $value = Env::search($offset, $actual);
+            try {
+                $value = Env::search($offset, $actual);
+            }
+            catch (\JmesPath\SyntaxErrorException $e) {
+                $value = $actual[$offset];
+            }
         }
         elseif (is_string($actual)) {
             $value = Util::stringMatch($actual, $offset, PREG_SET_ORDER);
