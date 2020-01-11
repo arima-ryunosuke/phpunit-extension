@@ -336,6 +336,12 @@ BC breaking is controled $compatibleVersion static field somewhat.
 - 2 is compatible 2.*
 - 999 is latest
 
+### 1.1.1
+
+- [fixbug] get/offsetGet implementation leak
+  - __get: use stringToStructure
+  - offsetGet: access to original offset
+
 ### 1.1.0
 
 - [feature] add version control property
