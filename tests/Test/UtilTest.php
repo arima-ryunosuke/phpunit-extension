@@ -205,8 +205,7 @@ class UtilTest extends \ryunosuke\Test\AbstractTestCase
         'actual'   => 'value',
         'parent'   => '*RECURSION*',
         'autoback' => false,
-        'catch'    => null,
-        'output'   => null,
+        'afters'   => [],
         'message'  => 'message',
     ]),
 ]

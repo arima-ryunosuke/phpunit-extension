@@ -314,25 +314,11 @@ Nzxc ');
         {
             $actual->privateMethod(3)->isEqual(30);
             $actual->do('privateMethod', 5)->isEqual(50);
-            $actual->catch(new \Exception('this is message.', 123))->privateMethod(null);
-            $actual->catch(new \Exception('this is message.', 123))->do('privateMethod', null);
             $actual->isType('object');
-            $this->ng(function () use ($actual) {
-                /** @noinspection PhpUndefinedMethodInspection */
-                $actual->catch(new \Exception('ng message'))->privateMethod(null);
-            }, '::privateMethod(null)');
 
             $actual->publicMethod(3)->isEqual(30);
             $actual->do('publicMethod', 5)->isEqual(50);
-            $actual->catch(new \Exception('this is message.', 123))->publicMethod(null);
-            $actual->catch(new \Exception('this is message.', 123))->do('publicMethod', null);
             $actual->isType('object');
-            $this->ng(function () use ($actual) {
-                /** @noinspection PhpUndefinedMethodInspection */
-                $actual->catch(new \Exception('ng message'))->publicMethod(null);
-            }, '::publicMethod(null)');
-
-            $actual->catch(new \Exception('this is message.', 123))(null);
 
             $actual->hoge(3)->isEqual('hoge30');
             $actual->fuga(4)->isEqual('fuga40');
@@ -355,42 +341,6 @@ Nzxc ');
             $this->actual($thrower)->try(null, 10, 2)->is(5);
             $this->actual($thrower)->try(null, 10, 0)->getMessage()->is('Division by zero');
         }
-    }
-
-    function test_catch()
-    {
-        $thrower = new class()
-        {
-            function throw() { throw new \Exception('actual message', 123); }
-
-            function nothrow() { }
-        };
-
-        /** @noinspection PhpUndefinedMethodInspection */
-        {
-            $this->actual($thrower)->catch('actual message')->throw();
-            $this->actual($thrower)->catch('actual message', 1)->throw();
-            $this->actual($thrower)->catch(123, 'invalid')->throw();
-            $this->actual($thrower)->catch(\RuntimeException::class, \DomainException::class, \Exception::class)->throw();
-        }
-        $this->ng(function () use ($thrower) {
-            /** @noinspection PhpUndefinedMethodInspection */
-            $this->actual($thrower)->catch('actual message')->nothrow();
-        }, "should throw");
-    }
-
-    function test_print()
-    {
-        $printer = new class()
-        {
-            function echo() { echo 'hello world'; }
-
-            function __invoke() { echo 'hello world'; }
-        };
-
-        /** @noinspection PhpUndefinedMethodInspection */
-        $this->actual($printer)->print('#hello#')->echo();
-        $this->actual($printer)->outputMatches('#hello#');
     }
 
     function test_as()

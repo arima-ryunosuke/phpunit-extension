@@ -98,11 +98,8 @@ class Actual implements \ArrayAccess
     /** @var bool */
     private $autoback;
 
-    /** @var Throws */
-    private $catch;
-
-    /** @var OutputMatches */
-    private $output;
+    /** @var Constraint[] */
+    private $afters = [];
 
     /** @var string */
     private $message = '';
@@ -426,16 +423,14 @@ class Actual implements \ArrayAccess
             $callee = Util::methodToCallable($this->actual, $name);
         }
 
-        if ($this->catch) {
-            $catch = $this->catch;
-            $this->catch = null;
-            return $this->assert([array_merge([$callee], $arguments)], $catch);
+        // @codeCoverageIgnoreStart
+        if (version_compare(self::$compatibleVersion, 2) < 0) {
+            foreach ($this->afters as $key => $afterContraint) {
+                unset($this->afters[$key]);
+                return $this->assert([array_merge([$callee], $arguments)], $afterContraint);
+            }
         }
-        if ($this->output) {
-            $output = $this->output;
-            $this->output = null;
-            return $this->assert([array_merge([$callee], $arguments)], $output);
-        }
+        // @codeCoverageIgnoreEnd
         return $this->create($callee(...$arguments));
     }
 
@@ -451,17 +446,16 @@ class Actual implements \ArrayAccess
         return $this->create($return);
     }
 
-    public function catch(...$expected): Actual
-    {
-        $this->catch = new Throws(...$expected);
-        return $this;
-    }
-
-    public function print(string $expected): Actual
-    {
-        $this->output = new OutputMatches($expected);
-        return $this;
-    }
+    // for compatible
+    // @formatter:off
+    // @codecoverageIgnoreStart
+    private function after($name, $constraint) { $this->afters[$name] = $constraint;return $this; }
+    /** @deprecated */
+    public function catch(): Actual { return $this->after(__FUNCTION__, new Throws(...func_get_args())); }
+    /** @deprecated */
+    public function print(): Actual { return $this->after(__FUNCTION__, new OutputMatches(...func_get_args())); }
+    // @codecoverageIgnoreEnd
+    // @formatter:on
 
     public function as(string $message): Actual
     {
