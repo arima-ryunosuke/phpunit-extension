@@ -20,6 +20,8 @@ This package adds phpunit Fluent interface.
 
 ## Usage
 
+### Actual class
+
 Simplified chart:
 
 | method             | description                         | return type
@@ -35,9 +37,10 @@ Simplified chart:
 | try                | call original method no thrown      | actual of method's return or expcetion
 | function           | apply global function               | actual of applied value
 | foreach            | apply global function each element  | actual of applied value
-| return             | returns original                    | original
+| return             | return original                     | original
 | eval               | assert constraint directly          | $this
 | as                 | set assertion message               | $this
+| and                | return latest asserted actual       | actual of latest asserted
 
 ```php
 // e.g. bootstrap.php
@@ -48,7 +51,7 @@ function that($actual, bool $autoback = false)
 }
 
 // example TestCase
-class ExampleTest extends \PHPUnit\Framework\TestCase
+class ActualTest extends \PHPUnit\Framework\TestCase
 {
     function test_fluent()
     {
@@ -143,6 +146,8 @@ class ExampleTest extends \PHPUnit\Framework\TestCase
 
         # "callable" returns original method's callable and actual
         that($object)->callable('count')->isCallable();
+        // "callable"'s arguments mean method arguments
+        that($object)->callable('setIteratorClass', \stdClass::class)->throws('to be a class name derived from Iterator');
 
         # "do" invokes original method and actual
         that($object)->do('count')->isEqual(3);
@@ -207,23 +212,91 @@ class ExampleTest extends \PHPUnit\Framework\TestCase
         that('x')->as('this is failure message')->isEqual('notX');
     }
 
-    function test_exit()
+    function test_and_exit()
     {
-        # "exit" backs to before value (like a jQuery `end`)
-        $object = new \ArrayObject(['x' => 'X', 'y' => 'Y'], \ArrayObject::ARRAY_AS_PROPS);
-        // means: assertThat($object->x, equalTo('X')); assertThat($object->y, equalTo('Y')); assertThat($object, isInstanceOf(\ArrayObject::class));
-        that($object)
-        ['x']->isEqual('X')->exit()
-            ->y->isEqual('Y')->exit()
-            ->isInstanceOf(\ArrayObject::class);
-
-        # constructor's 2nd argument (autoback) means automatically exit() after assertion (exit() is needless)
+        # "and" returns latest actual
+        $object = new \ArrayObject(['x' => 'abcX', 'y' => 'abcY'], \ArrayObject::ARRAY_AS_PROPS);
+        // "and" can call as property also as below
         that($object, true)
-        ['x']->isEqual('X')
-            ->y->isEqual('Y')
-            ->getArrayCopy()->isEqual(['x' => 'X', 'y' => 'Y'])
-            ->getIterator()->isInstanceOf(\ArrayIterator::class)
-            ->count(2);
+            ->x->stringStartsWith('abc')->and->stringLengthEquals(4)
+            ->y->stringStartsWith('abc')->and->stringLengthEquals(4)
+            ->getArrayCopy()->count(2)->and->hasKey('x');
+
+        # but no need to use them as below
+        $that = that($object);
+        $that->getArrayCopy()->count(2)->hasKey('x')->hasKey('y');
+        $that->x->stringStartsWith('abc')->stringLengthEquals(4);
+        $that->y->stringStartsWith('abc')->stringLengthEquals(4);
+    }
+}
+```
+
+### Annotester class
+
+Run test by DocComment.
+
+enable use 2 annotations and run codeblock.
+
+- @that: simply call the method/function
+- @test: exec code block that dependency context
+- ```php ~ ```: exec code block that dependency context
+
+See \ryunosuke\PHPUnit\Annotester and \ryunosuke\Test\AnnotesterTest for details.
+
+```php
+/**
+ * blockstart
+ * that($foo . $bar)->is('foobar');
+ * $this->add(1)->is(11);
+ * $this->concat($foo)->is('10foo');
+ * blockend
+ */
+class Document
+{
+    private $x;
+
+    public function __construct($x)
+    {
+        $this->x = $x;
+    }
+
+    /**
+     * @that(1)->is(11)
+     */
+    public function add($y)
+    {
+        return $this->x + $y;
+    }
+
+    /**
+     * @test {
+     *     $that($foo)->is('10foo');
+     * }
+     */
+    public function concat($y)
+    {
+        return $this->x . $y;
+    }
+}
+
+class DocumentTest extends \PHPUnit\Framework\TestCase
+{
+    private static $annotester; 
+
+    public static function setUpBeforeClass(): void
+    {
+        self::$annotester = new \ryunosuke\PHPUnit\Annotester([
+            Document::class => [10],
+            '$foo'          => 'foo',
+            '$bar'          => 'bar',
+        ], [
+            'doccode' => "#^blockstart(?<phpcode>.*?)^blockend#ums",
+        ]);
+    }
+
+    function test_all()
+    {
+        self::$annotester->test(Document::class);
     }
 }
 ```
@@ -246,6 +319,7 @@ Internals:
 | IsBlank            | assert blank string
 | IsCType            | assert value by ctype_xxx
 | IsFalsy            | assert value like a false
+| IsThrowable        | assert value is Throwable
 | IsTruthy           | assert value like a true
 | IsValid            | assert value by filter_var
 | LengthEquals       | assert string/iterable/file length/count/size
@@ -265,7 +339,7 @@ Alias:
 // Mix. This ables to use: $actual->isNullOrString()
 \ryunosuke\PHPUnit\Actual::$constraintVariations['isNullOrString'] = [IsNull::class, IsType::class => [IsType::TYPE_STRING]];
 // Instance. This ables to use: $actual->lineCount(5)
-\ryunosuke\PHPUnit\Actual::$constraintVariations['lineCount'] = new class(/* this argument is dummy */0) extends \PHPUnit\Framework\Constraint\Constraint {
+\ryunosuke\PHPUnit\Actual::$constraintVariations['lineCount'] = new class(/* argument is used as default */0) extends \PHPUnit\Framework\Constraint\Constraint {
     private $lineCount;
 
     public function __construct(int $lineCount)
@@ -282,6 +356,10 @@ Alias:
     {
         return 'is ' . $this->lineCount . ' lines';
     }
+};
+// Shorthand instance by closure. This is the same as above
+\ryunosuke\PHPUnit\Actual::$constraintVariations['lineCount2'] = function ($other, int $lineCount, string $delimiter = "\\R") {
+    return $lineCount === (preg_match_all("#$delimiter#", $other) + 1);
 };
 ```
 
@@ -336,9 +414,20 @@ But this is very legacy. Better to use phpstorm Test Runner.
 Versioning is Semantic Versioning.
 BC breaking is controled $compatibleVersion static field somewhat.
 
-- 1 is compatible 1.*
-- 2 is compatible 2.*
-- 999 is latest
+- e.g. 1 is compatible 1.0.0
+  - e.g. 1.1 is compatible 1.1.0
+- e.g. 2 is compatible 2.0.0
+- e.g. 999 is latest
+
+### 1.2.0
+
+- [feature] add Annotester class
+- [feature] add shorthand closure alias
+- [feature] add int, float ValidType
+- [feature] add constraint alias mangle argument
+- [feature] add "and" property/method
+- [fixbug] supports static property/method
+- [fixbug] supports minor/patch version of $compatibleVersion
 
 ### 1.1.2
 
