@@ -475,6 +475,11 @@ class Actual implements \ArrayAccess
     // @codecoverageIgnoreEnd
     // @formatter:on
 
+    /**
+     * @param callable $function
+     * @param mixed ...$arguments
+     * @return Actual
+     */
     public function function ($function, ...$arguments): Actual
     {
         [$funcname, $position] = $this->functionArgument($function);
@@ -484,6 +489,11 @@ class Actual implements \ArrayAccess
         return $this->create($funcname(...$arguments));
     }
 
+    /**
+     * @param callable $function
+     * @param mixed ...$arguments
+     * @return Actual
+     */
     public function foreach($function, ...$arguments): Actual
     {
         [$funcname, $position] = $this->functionArgument($function);
