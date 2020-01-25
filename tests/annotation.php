@@ -52,6 +52,12 @@ namespace ryunosuke\PHPUnit;
  * @method \ryunosuke\PHPUnit\Actual hasKeyAny(array $keys)
  * @method \ryunosuke\PHPUnit\Actual hasKeyAll(array $keys)
  *
+ * @see \ryunosuke\PHPUnit\Constraint\InTime
+ * @method \ryunosuke\PHPUnit\Actual eachInTime(float $time)
+ * @method \ryunosuke\PHPUnit\Actual inTime(float $time)
+ * @method \ryunosuke\PHPUnit\Actual inTimeAny(array $times)
+ * @method \ryunosuke\PHPUnit\Actual inTimeAll(array $times)
+ *
  * @see \ryunosuke\PHPUnit\Constraint\IsBetween
  * @method \ryunosuke\PHPUnit\Actual eachIsBetween($min, $max)
  * @method \ryunosuke\PHPUnit\Actual isBetween($min, $max)
@@ -585,7 +591,7 @@ namespace ryunosuke\PHPUnit;
  * @method \ryunosuke\PHPUnit\Actual isValidUrl($flags = 0)
  * @method \ryunosuke\PHPUnit\Actual isNotValidUrl($flags = 0)
  *
- * @see tests/bootstrap.php#9-29
+ * @see tests/bootstrap.php#9-28
  * @method \ryunosuke\PHPUnit\Actual eachLineCount(int $lineCount, string $delimiter = '\\R')
  * @method \ryunosuke\PHPUnit\Actual lineCount(int $lineCount, string $delimiter = '\\R')
  * @method \ryunosuke\PHPUnit\Actual lineCountAny(array $lineCounts, string $delimiter = '\\R')
