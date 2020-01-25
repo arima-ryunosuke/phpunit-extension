@@ -41,7 +41,7 @@ class Throws extends AbstractConstraint
         return $base . ' not thrown';
     }
 
-    public function evaluate($other, $description = '', $returnResult = false)
+    protected function matches($other): bool
     {
         [$callable, $args] = $this->extractCallable($other);
 
@@ -55,12 +55,12 @@ class Throws extends AbstractConstraint
 
             foreach ($this->expected as $expected) {
                 if ($this->compareThrowable($expected)) {
-                    return $returnResult ? true : null;
+                    return true;
                 }
             }
         }
 
-        return $returnResult ? false : $this->fail($other, $description);
+        return false;
     }
 
     public function toString(): string

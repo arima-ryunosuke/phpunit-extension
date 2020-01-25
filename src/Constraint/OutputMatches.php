@@ -2,9 +2,6 @@
 
 namespace ryunosuke\PHPUnit\Constraint;
 
-use PHPUnit\Framework\Constraint\RegularExpression;
-use PHPUnit\Framework\ExpectationFailedException;
-
 class OutputMatches extends AbstractConstraint
 {
     private $expected;
@@ -20,18 +17,14 @@ class OutputMatches extends AbstractConstraint
         return sprintf('%s %s', $string, $this->toString());
     }
 
-    public function evaluate($other, $description = '', $returnResult = false)
+    protected function matches($other): bool
     {
         [$callable, $args] = $this->extractCallable($other);
 
         try {
             ob_start();
             $callable(...$args);
-            $regex = new RegularExpression($this->expected);
-            return $regex->evaluate(ob_get_contents(), $description, $returnResult);
-        }
-        catch (ExpectationFailedException $e) {
-            return $this->fail($other, $description, $e->getComparisonFailure());
+            return preg_match($this->expected, ob_get_contents()) > 0;
         }
         finally {
             ob_end_clean();
