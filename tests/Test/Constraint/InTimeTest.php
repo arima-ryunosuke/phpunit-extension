@@ -14,6 +14,10 @@ class InTimeTest extends \ryunosuke\Test\AbstractTestCase
 
         $this->ng(function () use ($constraint) {
             $constraint->evaluate(function () { usleep(600 * 1000); });
-        }, "less than 0.5 second");
+        }, "less than 0.5 seconds");
+
+        $this->ng(function () use ($constraint) {
+            $constraint->evaluate(function () { throw new \Exception('message', 123); });
+        }, "unable to measure time");
     }
 }

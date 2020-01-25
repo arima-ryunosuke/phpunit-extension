@@ -54,4 +54,13 @@ abstract class AbstractConstraint extends Constraint
 
         return [$callable, $args, "$callname($argstring)"];
     }
+
+    protected function throwableToString(\Throwable $throwable)
+    {
+        return sprintf('\\%s(%s, %s)',
+            get_class($throwable),
+            $this->exporter()->export($throwable->getMessage()),
+            $this->exporter()->export($throwable->getCode())
+        );
+    }
 }

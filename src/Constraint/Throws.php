@@ -72,15 +72,6 @@ class Throws extends AbstractConstraint
         return 'should throw ' . implode(' or ', $expecteds);
     }
 
-    private function throwableToString(\Throwable $throwable)
-    {
-        return sprintf('\\%s(%s, %s)',
-            get_class($throwable),
-            $this->exporter()->export($throwable->getMessage()),
-            $this->exporter()->export($throwable->getCode())
-        );
-    }
-
     private function compareThrowable(\Throwable $expected)
     {
         if (!$this->actual instanceof $expected) {
