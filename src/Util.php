@@ -65,8 +65,7 @@ class Util
             }
             // return $refmethod->getClosure($object); // little information because string conversion is "Closure::__invoke"
             $refmethod->setAccessible(true);
-            return new class($object, $refmethod) implements SelfDescribing
-            {
+            return new class($object, $refmethod) implements SelfDescribing {
                 private $object;
 
                 /** @var \ReflectionMethod */

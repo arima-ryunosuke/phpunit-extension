@@ -58,8 +58,7 @@ class AbstractConstraintTest extends \ryunosuke\Test\AbstractTestCase
         $this->assertEquals([4, 5, 6], $args);
         $this->assertStringContainsString(basename(__FILE__), $string);
 
-        $object = new class()
-        {
+        $object = new class() {
             function method() { }
 
             function __invoke() { }

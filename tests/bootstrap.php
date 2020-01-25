@@ -6,8 +6,7 @@ require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/annotation.php';
 
 \ryunosuke\PHPUnit\Actual::$compatibleVersion = 2;
-\ryunosuke\PHPUnit\Actual::$constraintVariations['lineCount'] = new class(0, "") extends \PHPUnit\Framework\Constraint\Constraint
-{
+\ryunosuke\PHPUnit\Actual::$constraintVariations['lineCount'] = new class(0, "") extends \PHPUnit\Framework\Constraint\Constraint {
     private $lineCount;
     private $delimiter;
 

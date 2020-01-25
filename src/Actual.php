@@ -116,6 +116,7 @@ class Actual implements \ArrayAccess
                 }
                 $type = '';
                 if ($parameter->hasType()) {
+                    /** @noinspection PhpPossiblePolymorphicInvocationInspection */
                     $tname = $parameter->getType()->getName();
                     $tname = (class_exists($tname) ? '\\' : '') . $tname;
                     $type = ($parameter->allowsNull() ? '?' : '') . $tname . ' ';
@@ -166,8 +167,7 @@ class Actual implements \ArrayAccess
             return $result;
         };
 
-        $dummyConstructor = (new \ReflectionClass(new class()
-        {
+        $dummyConstructor = (new \ReflectionClass(new class() {
             public function __construct() { }
         }))->getConstructor();
 
@@ -285,7 +285,7 @@ class Actual implements \ArrayAccess
         // @codeCoverageIgnoreStart
         if (version_compare(self::$compatibleVersion, 2) < 0) {
             $callee = preg_replace('#^(is)?(Not|not)([A-Z])#', '$1$3', $callee, 1, $count);
-            $modes['not'] = $modes['not'] || $modes['not'] || !!$count;
+            $modes['not'] = $modes['not'] || !!$count;
         }
         // @codeCoverageIgnoreEnd
 
@@ -457,12 +457,6 @@ class Actual implements \ArrayAccess
     // @codecoverageIgnoreEnd
     // @formatter:on
 
-    public function as(string $message): Actual
-    {
-        $this->message = $message;
-        return $this;
-    }
-
     public function function ($function, ...$arguments): Actual
     {
         [$funcname, $position] = $this->functionArgument($function);
@@ -499,6 +493,12 @@ class Actual implements \ArrayAccess
     public function eval(Constraint ...$constraints): Actual
     {
         return $this->assert([$this->actual], ...$constraints);
+    }
+
+    public function as(string $message): Actual
+    {
+        $this->message = $message;
+        return $this;
     }
 
     public function exit(int $nest = 1): Actual

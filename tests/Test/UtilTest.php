@@ -30,6 +30,55 @@ class UtilTest extends \ryunosuke\Test\AbstractTestCase
         $this->assertEquals("tests{$DS}Test{$DS}UtilTest.php", Util::reflectFile($ref, '%s'));
     }
 
+    function test_propertyToValue()
+    {
+        $object = new class('testname') extends \ryunosuke\Test\AbstractTestCase {
+            private $privateProperty = 'this is private';
+            public  $publicProperty  = 'this is public';
+
+            public function __get($name)
+            {
+                assert(strlen($this->privateProperty));
+                return "this is magic";
+            }
+        };
+        /** @noinspection PhpUndefinedFieldInspection */
+        $object->dynamicProperty = 'this is dynamic';
+
+        $this->assertEquals("this is private", Util::propertyToValue($object, 'privateProperty'));
+        $this->assertEquals("this is public", Util::propertyToValue($object, 'publicProperty'));
+        $this->assertEquals("this is magic", Util::propertyToValue($object, 'magicProperty'));
+        $this->assertEquals("this is dynamic", Util::propertyToValue($object, 'dynamicProperty'));
+        $this->assertEquals("testname", Util::propertyToValue($object, 'name'));
+
+        $this->expectExceptionMessage('is not defined');
+        Util::propertyToValue(new \stdClass(), 'undefined');
+    }
+
+    function test_methodToCallable()
+    {
+        $class = new class {
+            protected function privateMethod() { return __FUNCTION__; }
+
+            public function publicMethod() { return __FUNCTION__; }
+
+            public function __call($name, $arguments) { return __FUNCTION__; }
+        };
+        $privateMethod = Util::methodToCallable($class, 'privateMethod');
+        /** @noinspection PhpUndefinedMethodInspection */
+        $this->assertEquals('AnonymousClass::privateMethod', $privateMethod->toString());
+        $this->assertEquals('privateMethod', $privateMethod());
+
+        $publicMethod = Util::methodToCallable($class, 'publicMethod');
+        $this->assertEquals('publicMethod', $publicMethod());
+
+        $magicMethod = Util::methodToCallable($class, 'magicMethod');
+        $this->assertEquals('__call', $magicMethod());
+
+        $this->expectExceptionMessage('is not defined');
+        Util::methodToCallable(new \stdClass(), 'undefined');
+    }
+
     function test_callableToString()
     {
         $DS = DIRECTORY_SEPARATOR;
@@ -42,8 +91,7 @@ class UtilTest extends \ryunosuke\Test\AbstractTestCase
         $actual = Util::callableToString(function () { });
         $this->assertStringStartsWith("Closure@tests{$DS}Test{$DS}UtilTest.php#", $actual);
 
-        $object = new class
-        {
+        $object = new class {
             public function __invoke() { }
 
             public function method() { }
@@ -57,8 +105,7 @@ class UtilTest extends \ryunosuke\Test\AbstractTestCase
         $this->assertStringStartsWith("AnonymousClass@tests{$DS}Test{$DS}UtilTest.php#", $actual);
         $this->assertStringEndsWith("::__invoke", $actual);
 
-        $object = new class implements SelfDescribing
-        {
+        $object = new class implements SelfDescribing {
             public function __invoke() { }
 
             public function toString(): string
@@ -170,6 +217,15 @@ class UtilTest extends \ryunosuke\Test\AbstractTestCase
         $this->assertInstanceOf(\SimpleXMLElement::class, Util::stringToStructure('<a></a>'));
         $this->assertSame([], Util::stringToStructure('{}'));
         $this->assertSame(['a' => 'A'], Util::stringToStructure('{"a": "A"}'));
+    }
+
+    function test_isStringy()
+    {
+        $this->assertTrue(Util::isStringy('hoge'));
+        $this->assertTrue(Util::isStringy(new \Exception('hoge')));
+
+        $this->assertFalse(Util::isStringy(new \stdClass()));
+        $this->assertFalse(Util::isStringy(STDOUT));
     }
 
     function test_exportVar()

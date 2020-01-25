@@ -129,8 +129,7 @@ Nzxc ');
 
     function test_accessor()
     {
-        $actual = $this->actual(new class('testname') extends \ryunosuke\Test\AbstractTestCase
-        {
+        $actual = $this->actual(new class('testname') extends \ryunosuke\Test\AbstractTestCase {
             private $privateProperty = 'this is private';
 
             public function __get($name)
@@ -206,8 +205,7 @@ Nzxc ');
 
     function test_var()
     {
-        $object = new class('testname') extends \ryunosuke\Test\AbstractTestCase
-        {
+        $object = new class('testname') extends \ryunosuke\Test\AbstractTestCase {
             private $privateProperty = 'this is private';
             public  $publicProperty  = 'this is public';
 
@@ -228,15 +226,13 @@ Nzxc ');
 
         $actual = $this->actual(new \stdClass());
         $this->ng(function () use ($actual) {
-            /** @noinspection PhpUndefinedMethodInspection */
             $actual->var('undefinedProperty');
         }, '::$undefinedProperty is not defined');
     }
 
     function test_use()
     {
-        $actual = $this->actual(new class
-        {
+        $actual = $this->actual(new class {
             /** @noinspection PhpUnusedPrivateMethodInspection */
             private function privateMethod($x)
             {
@@ -254,15 +250,13 @@ Nzxc ');
 
         $actual = $this->actual(new \stdClass());
         $this->ng(function () use ($actual) {
-            /** @noinspection PhpUndefinedMethodInspection */
             $actual->use('undefinedMethod');
         }, '::undefinedMethod() is not defined');
     }
 
     function test_callable()
     {
-        $actual = $this->actual(new class
-        {
+        $actual = $this->actual(new class {
             /** @noinspection PhpUnusedPrivateMethodInspection */
             private function privateMethod($x)
             {
@@ -284,8 +278,7 @@ Nzxc ');
         $actual = $this->actual('strlen');
         $actual('hoge')->isEqual(4);
 
-        $actual = $this->actual(new class
-        {
+        $actual = $this->actual(new class {
             private function privateMethod($x)
             {
                 if ($x === null) {
@@ -327,8 +320,7 @@ Nzxc ');
 
     function test_try()
     {
-        $thrower = new class()
-        {
+        $thrower = new class() {
             function divide($x, $n) { return $x / $n; }
 
             function __invoke($x, $n) { return $x / $n; }
@@ -341,13 +333,6 @@ Nzxc ');
             $this->actual($thrower)->try(null, 10, 2)->is(5);
             $this->actual($thrower)->try(null, 10, 0)->getMessage()->is('Division by zero');
         }
-    }
-
-    function test_as()
-    {
-        $this->ng(function () {
-            $this->actual(1)->as('this is fail message')->isFalse();
-        }, "this is fail message");
     }
 
     function test_function()
@@ -369,8 +354,7 @@ Nzxc ');
 
     function test_function_foreach()
     {
-        $user = new class()
-        {
+        $user = new class() {
             public $code, $name;
 
             function new($code, $name)
@@ -424,6 +408,13 @@ Nzxc ');
         $this->ng(function () {
             $this->actual('qwe')->eval(new IsEqual('asd'), new IsEqual('zxc'));
         }, "'qwe' is equal to 'asd' or is equal to 'zxc'");
+    }
+
+    function test_as()
+    {
+        $this->ng(function () {
+            $this->actual(1)->as('this is fail message')->isFalse();
+        }, "this is fail message");
     }
 
     function test_exit()
