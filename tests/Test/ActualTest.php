@@ -417,11 +417,11 @@ Nzxc ');
     function test_return()
     {
         $object = new \stdClass();
-        $object->child = new \stdClass();
+        $object->member = new \stdClass();
         $actual = $this->actual($object);
 
         $this->assertSame($actual->return(), $object);
-        $this->assertSame($actual->child->return(), $object->child);
+        $this->assertSame($actual->member->return(), $object->member);
     }
 
     function test_eval()
@@ -441,7 +441,7 @@ Nzxc ');
         }, "this is fail message");
     }
 
-    function test_exit()
+    function test_and_exit()
     {
         $object = new \ArrayObject([
             'x' => 'X',
@@ -452,6 +452,7 @@ Nzxc ');
             ], \ArrayObject::ARRAY_AS_PROPS),
         ], \ArrayObject::ARRAY_AS_PROPS);
 
+        // use exit
         $actual = $this->actual($object);
         $actual['z']->count(2)
             ->a->isEqual('A')->exit()
@@ -461,6 +462,7 @@ Nzxc ');
             ->do('count')->isEqual(3)->exit()
             ->isInstanceOf(\ArrayObject::class);
 
+        // use autoexit
         $actual = $this->actual($object, true);
         $actual
             ->x->isEqual('X')
@@ -471,6 +473,27 @@ Nzxc ');
             ->exit()
             ->do('count')->isEqual(3)
             ->isInstanceOf(\ArrayObject::class);
+
+        // use autoexit and
+        $actual = $this->actual($object, true);
+        $actual['z']->count(2)->and->isInstanceOf(\ArrayObject::class)
+            ->and()
+            ->a->isEqual('A')->and->lengthEquals(1)
+            ->b->isEqual('B')->and->lengthEquals(1)
+            ->exit()
+            ->x->isEqual('X')->and->lengthEquals(1)
+            ->y->isEqual('Y')->and->lengthEquals(1)
+            ->do('count')->isEqual(3)
+            ->isInstanceOf(\ArrayObject::class);
+
+        // standard
+        $actual = $this->actual($object);
+        $actual->isInstanceOf(\ArrayObject::class)->count(3);
+        $actual->x->is('X');
+        $actual->y->is('Y');
+        $z = $actual->z->isInstanceOf(\ArrayObject::class)->count(2);
+        $z->a->is('A');
+        $z->b->is('B');
     }
 
     function test_variation()

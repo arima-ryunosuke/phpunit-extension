@@ -93,7 +93,7 @@ class Actual implements \ArrayAccess
     private $actual;
 
     /** @var Actual */
-    private $parent;
+    private $parent, $child;
 
     /** @var bool */
     private $autoback;
@@ -252,16 +252,17 @@ class Actual implements \ArrayAccess
 
     private function create($actual): Actual
     {
-        $that = new static($actual);
-        $that->parent = $this;
-        $that->autoback = !!$this->autoback;
-        return $that;
+        $this->child = new static($actual);
+        $this->child->parent = $this;
+        $this->child->autoback = !!$this->autoback;
+        return $this->child;
     }
 
     public function __construct($actual, bool $autoback = false)
     {
         $this->actual = $actual;
         $this->parent = $this;
+        $this->child = $this;
         $this->autoback = $autoback;
     }
 
@@ -349,6 +350,10 @@ class Actual implements \ArrayAccess
             return $this->create(Util::propertyToValue($this->actual, $name));
         }
         // @codeCoverageIgnoreEnd
+
+        if (self::compareVersion('1.2.0') >= 0 && $name === 'and') {
+            return $this->and();
+        }
 
         if ($name[0] === '$') {
             return $this->create((new JSONPath($this->actual))->find($name)->data());
@@ -527,6 +532,11 @@ class Actual implements \ArrayAccess
     {
         $this->message = $message;
         return $this;
+    }
+
+    public function and(): Actual
+    {
+        return $this->child;
     }
 
     public function exit(int $nest = 1): Actual
