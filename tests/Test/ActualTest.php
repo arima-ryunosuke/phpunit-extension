@@ -259,6 +259,26 @@ Nzxc ');
         }, '::undefinedMethod() is not defined');
     }
 
+    function test_callable()
+    {
+        $actual = $this->actual(new class
+        {
+            /** @noinspection PhpUnusedPrivateMethodInspection */
+            private function privateMethod($x)
+            {
+                return $x * 10;
+            }
+
+            public function publicMethod($x)
+            {
+                return $x * 20;
+            }
+        });
+
+        $actual->callable('privateMethod')->isCallable();
+        $actual->callable('publicMethod')->isCallable();
+    }
+
     function test_do()
     {
         $actual = $this->actual('strlen');
