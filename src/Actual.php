@@ -34,7 +34,7 @@ class Actual implements \ArrayAccess
 {
     use Annotation;
 
-    public static $compatibleVersion = 1;
+    public static $compatibleVersion = "1.0.0";
 
     public static $constraintVariations = [
         // alias
@@ -104,6 +104,12 @@ class Actual implements \ArrayAccess
     /** @var string */
     private $message = '';
 
+    private static function compareVersion(string $target): int
+    {
+        $version = implode('.', explode('.', (string) self::$compatibleVersion) + [1 => '0', 2 => '0']);
+        return version_compare($version, $target);
+    }
+
     public static function generateAnnotation(bool $rawarray = false)
     {
         $annotate = function ($mname, $parameters, $defaults) {
@@ -133,7 +139,7 @@ class Actual implements \ArrayAccess
             $argstring = implode(', ', $argstrings);
 
             // @codeCoverageIgnoreStart
-            if (version_compare(self::$compatibleVersion, 2) < 0) {
+            if (self::compareVersion('1.1.0') < 0) {
                 $eachName = "all" . ucfirst($mname);
                 $result[$eachName] = "$returnType $eachName($argstring)";
             }
@@ -273,7 +279,7 @@ class Actual implements \ArrayAccess
         $modes['each'] = !!$count;
 
         // @codeCoverageIgnoreStart
-        if (version_compare(self::$compatibleVersion, 2) < 0) {
+        if (self::compareVersion('1.1.0') < 0) {
             $callee = preg_replace('#^all#', '', $callee, 1, $count);
             $modes['each'] = $modes['each'] || !!$count;
         }
@@ -283,7 +289,7 @@ class Actual implements \ArrayAccess
         $modes['not'] = $callee2 !== $callee;
 
         // @codeCoverageIgnoreStart
-        if (version_compare(self::$compatibleVersion, 2) < 0) {
+        if (self::compareVersion('1.1.0') < 0) {
             $callee = preg_replace('#^(is)?(Not|not)([A-Z])#', '$1$3', $callee, 1, $count);
             $modes['not'] = $modes['not'] || !!$count;
         }
@@ -339,7 +345,7 @@ class Actual implements \ArrayAccess
     public function __get($name): Actual
     {
         // @codeCoverageIgnoreStart
-        if (version_compare(self::$compatibleVersion, 2) < 0) {
+        if (self::compareVersion('1.1.0') < 0) {
             return $this->create(Util::propertyToValue($this->actual, $name));
         }
         // @codeCoverageIgnoreEnd
@@ -359,7 +365,7 @@ class Actual implements \ArrayAccess
     public function offsetGet($offset): Actual
     {
         // @codeCoverageIgnoreStart
-        if (version_compare(self::$compatibleVersion, 2) < 0) {
+        if (self::compareVersion('1.1.0') < 0) {
             return $this->create($this->actual[$offset]);
         }
         // @codeCoverageIgnoreEnd
@@ -424,7 +430,7 @@ class Actual implements \ArrayAccess
         }
 
         // @codeCoverageIgnoreStart
-        if (version_compare(self::$compatibleVersion, 2) < 0) {
+        if (self::compareVersion('1.1.2') < 0) {
             foreach ($this->afters as $key => $afterContraint) {
                 unset($this->afters[$key]);
                 return $this->assert([array_merge([$callee], $arguments)], $afterContraint);
