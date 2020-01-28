@@ -206,8 +206,9 @@ Nzxc ');
     function test_var()
     {
         $object = new class('testname') extends \ryunosuke\Test\AbstractTestCase {
-            private $privateProperty = 'this is private';
-            public  $publicProperty  = 'this is public';
+            public static $staticProperty  = 'this is static';
+            private       $privateProperty = 'this is private';
+            public        $publicProperty  = 'this is public';
 
             public function __get($name)
             {
@@ -219,6 +220,8 @@ Nzxc ');
         $object->dynamicProperty = 'this is dynamic';
         $actual = $this->actual($object);
 
+        $this->assertEquals('this is static', $this->actual(get_class($object))->var('staticProperty'));
+        $this->assertEquals('this is static', $actual->var('staticProperty'));
         $this->assertEquals('this is private', $actual->var('privateProperty'));
         $this->assertEquals('this is public', $actual->var('publicProperty'));
         $this->assertEquals('getter is __get property', $actual->var('getter'));
@@ -275,16 +278,18 @@ Nzxc ');
 
     function test_do()
     {
-        $actual = $this->actual('strlen');
-        $actual('hoge')->isEqual(4);
-
-        $actual = $this->actual(new class {
-            private function privateMethod($x)
+        $object = new class {
+            public static function staticMethod($x)
             {
                 if ($x === null) {
                     throw new \Exception('this is message.', 123);
                 }
                 return $x * 10;
+            }
+
+            private function privateMethod($x)
+            {
+                return $this->staticMethod($x);
             }
 
             public function publicMethod($x)
@@ -301,10 +306,21 @@ Nzxc ');
             {
                 return $name . $arguments[0] * 10;
             }
-        });
+        };
 
         /** @noinspection PhpUndefinedMethodInspection */
         {
+            $actual = $this->actual(get_class($object));
+
+            $actual->staticMethod(3)->isEqual(30);
+            $actual->do('staticMethod', 5)->isEqual(50);
+
+            $actual = $this->actual($object);
+
+            $actual->staticMethod(3)->isEqual(30);
+            $actual->do('staticMethod', 5)->isEqual(50);
+            $actual->isType('object');
+
             $actual->privateMethod(3)->isEqual(30);
             $actual->do('privateMethod', 5)->isEqual(50);
             $actual->isType('object');

@@ -32,8 +32,9 @@ class UtilTest extends \ryunosuke\Test\AbstractTestCase
     function test_propertyToValue()
     {
         $object = new class('testname') extends \ryunosuke\Test\AbstractTestCase {
-            private $privateProperty = 'this is private';
-            public  $publicProperty  = 'this is public';
+            public static $staticProperty  = 'this is static';
+            private       $privateProperty = 'this is private';
+            public        $publicProperty  = 'this is public';
 
             public function __get($name)
             {
@@ -44,6 +45,8 @@ class UtilTest extends \ryunosuke\Test\AbstractTestCase
         /** @noinspection PhpUndefinedFieldInspection */
         $object->dynamicProperty = 'this is dynamic';
 
+        $this->assertEquals("this is static", Util::propertyToValue(get_class($object), 'staticProperty'));
+        $this->assertEquals("this is static", Util::propertyToValue($object, 'staticProperty'));
         $this->assertEquals("this is private", Util::propertyToValue($object, 'privateProperty'));
         $this->assertEquals("this is public", Util::propertyToValue($object, 'publicProperty'));
         $this->assertEquals("this is magic", Util::propertyToValue($object, 'magicProperty'));
@@ -57,12 +60,21 @@ class UtilTest extends \ryunosuke\Test\AbstractTestCase
     function test_methodToCallable()
     {
         $class = new class {
+            public static function staticMethod() { return __FUNCTION__; }
+
             protected function privateMethod() { return __FUNCTION__; }
 
             public function publicMethod() { return __FUNCTION__; }
 
             public function __call($name, $arguments) { return __FUNCTION__; }
         };
+
+        $staticMethod = Util::methodToCallable(get_class($class), 'staticMethod');
+        $this->assertEquals('staticMethod', $staticMethod());
+
+        $staticMethod = Util::methodToCallable($class, 'staticMethod');
+        $this->assertEquals('staticMethod', $staticMethod());
+
         $privateMethod = Util::methodToCallable($class, 'privateMethod');
         /** @noinspection PhpUndefinedMethodInspection */
         $this->assertEquals('AnonymousClass::privateMethod', $privateMethod->toString());

@@ -35,9 +35,9 @@ class Util
         );
     }
 
-    public static function propertyToValue(object $object, string $property)
+    public static function propertyToValue($object, string $property)
     {
-        $refclass = new \ReflectionObject($object);
+        $refclass = is_string($object) ? new \ReflectionClass($object) : new \ReflectionObject($object);
         do {
             if ($refclass->hasProperty($property)) {
                 $refproperty = $refclass->getProperty($property);
@@ -53,7 +53,7 @@ class Util
         throw new \DomainException(get_class($object) . '::$' . $property . ' is not defined.');
     }
 
-    public static function methodToCallable(object $object, string $method = null): callable
+    public static function methodToCallable($object, string $method = null): callable
     {
         $refclass = new \ReflectionClass($object);
         $method = $method ?? '__invoke';
@@ -91,7 +91,7 @@ class Util
             };
         }
 
-        if (method_exists($object, '__call')) {
+        if (method_exists($object, '__call') || method_exists($object, '__callStatic')) {
             return [$object, $method];
         }
 

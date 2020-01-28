@@ -424,20 +424,28 @@ class Actual implements \ArrayAccess
 
     public function do($name, ...$arguments): Actual
     {
+        if (!is_object($this->actual) && is_callable($this->actual)) {
+            return $this->create(($this->actual)(...$arguments));
+        }
+
+        if (self::compareVersion('1.2.0') >= 0) {
+            return $this->create((Util::methodToCallable($this->actual, $name))(...$arguments));
+        }
+
+        // @codeCoverageIgnoreStart
         $callee = $this->actual;
         if (is_object($this->actual)) {
             $callee = Util::methodToCallable($this->actual, $name);
         }
 
-        // @codeCoverageIgnoreStart
         if (self::compareVersion('1.1.2') < 0) {
             foreach ($this->afters as $key => $afterContraint) {
                 unset($this->afters[$key]);
                 return $this->assert([array_merge([$callee], $arguments)], $afterContraint);
             }
         }
-        // @codeCoverageIgnoreEnd
         return $this->create($callee(...$arguments));
+        // @codeCoverageIgnoreEnd
     }
 
     public function try($method = null, ...$arguments): Actual
