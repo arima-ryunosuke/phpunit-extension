@@ -21,6 +21,9 @@
     "mtdowling/jmespath.php": "2.*",
     "symfony/css-selector": "5.*"
   },
+  "require-dev": {
+    "ryunosuke/functions": "1.4.5"
+  },
   "bin": [
     "bin/phpunit-current"
   ],
@@ -29,6 +32,7 @@
       "ryunosuke\\PHPUnit\\": "src"
     },
     "files": [
+      "inc/ryunosuke.php",
       "inc/phpunit.php"
     ]
   },

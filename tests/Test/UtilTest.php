@@ -3,7 +3,6 @@
 namespace ryunosuke\Test;
 
 use PHPUnit\Framework\SelfDescribing;
-use ryunosuke\PHPUnit\Actual;
 use ryunosuke\PHPUnit\Util;
 
 class UtilTest extends \ryunosuke\Test\AbstractTestCase
@@ -119,91 +118,6 @@ class UtilTest extends \ryunosuke\Test\AbstractTestCase
         $this->assertStringEndsWith("::fuga", $actual);
     }
 
-    function test_stringMatch()
-    {
-        $this->assertSame([], Util::stringMatch('HelloWorld', '#unmatch#'));
-        $this->assertSame([
-            'letter' => 'H',
-            0        => 'ello'
-        ], Util::stringMatch('HelloWorld', '#(?<letter>[A-Z])([a-z]+)#u'));
-        $this->assertSame([
-            'letter' => ['H', 0],
-            0        => ['ello', 1],
-        ], Util::stringMatch('HelloWorld', '#(?<letter>[A-Z])([a-z]+)#u', PREG_OFFSET_CAPTURE));
-        $this->assertSame([
-            'letter' => ['W', 5],
-            0        => ['orld', 6],
-        ], Util::stringMatch('HelloWorld', '#(?<letter>[A-Z])([a-z]+)#u', PREG_OFFSET_CAPTURE, 5));
-
-        $this->assertSame([], Util::stringMatch('HelloWorld', '#unmatch#g', PREG_PATTERN_ORDER));
-        $this->assertSame([], Util::stringMatch('HelloWorld', '#unmatch#g', PREG_SET_ORDER));
-        $this->assertSame([
-            'letter' => ['H', 'W'],
-            0        => ['ello', 'orld'],
-        ], Util::stringMatch('HelloWorld', '#(?<letter>[A-Z])([a-z]+)#ug', PREG_PATTERN_ORDER));
-        $this->assertSame([
-            [
-                'letter' => 'H',
-                0        => 'ello',
-            ],
-            [
-                'letter' => 'W',
-                0        => 'orld',
-            ],
-        ], Util::stringMatch('HelloWorld', '#(?<letter>[A-Z])([a-z]+)#ug', PREG_SET_ORDER));
-        $this->assertSame([
-            'letter' => [['H', 0], ['W', 5]],
-            0        => [['ello', 1], ['orld', 6]],
-        ], Util::stringMatch('HelloWorld', '#(?<letter>[A-Z])([a-z]+)#ug', PREG_PATTERN_ORDER | PREG_OFFSET_CAPTURE));
-        $this->assertSame([
-            [
-                'letter' => ['H', 0],
-                0        => ['ello', 1],
-            ],
-            [
-                'letter' => ['W', 5],
-                0        => ['orld', 6],
-            ],
-        ], Util::stringMatch('HelloWorld', '#(?<letter>[A-Z])([a-z]+)#ug', PREG_SET_ORDER | PREG_OFFSET_CAPTURE));
-        $this->assertSame([
-            [
-                'letter' => ['W', 5],
-                0        => ['orld', 6],
-            ],
-        ], Util::stringMatch('HelloWorld', '#(?<letter>[A-Z])([a-z]+)#ug', PREG_SET_ORDER | PREG_OFFSET_CAPTURE, 5));
-
-        $this->assertSame([
-            'letter' => ['H', 'T', 'W'],
-            0        => ['e', 'e', 'o',],
-            'second' => ['l', 's', 'r',],
-            1        => ['l', 't', 'l',],
-            'rest'   => ['o', 'ing', 'd',],
-        ], Util::stringMatch('HelloUnitTestingWorld', '#(?<letter>[A-Z])([a-z])(?<second>[a-z])([a-z])(?<rest>[a-z]+)#ug', PREG_PATTERN_ORDER));
-        $this->assertSame([
-            [
-                'letter' => 'H',
-                0        => 'e',
-                'second' => 'l',
-                1        => 'l',
-                'rest'   => 'o',
-            ],
-            [
-                'letter' => 'T',
-                0        => 'e',
-                'second' => 's',
-                1        => 't',
-                'rest'   => 'ing',
-            ],
-            [
-                'letter' => 'W',
-                0        => 'o',
-                'second' => 'r',
-                1        => 'l',
-                'rest'   => 'd',
-            ],
-        ], Util::stringMatch('HelloUnitTestingWorld', '#(?<letter>[A-Z])([a-z])(?<second>[a-z])([a-z])(?<rest>[a-z]+)#ug', PREG_SET_ORDER));
-    }
-
     function test_stringToStructure()
     {
         $this->assertSame($stdclass = new \stdClass(), Util::stringToStructure($stdclass));
@@ -217,56 +131,5 @@ class UtilTest extends \ryunosuke\Test\AbstractTestCase
         $this->assertInstanceOf(\SimpleXMLElement::class, Util::stringToStructure('<a></a>'));
         $this->assertSame([], Util::stringToStructure('{}'));
         $this->assertSame(['a' => 'A'], Util::stringToStructure('{"a": "A"}'));
-    }
-
-    function test_isStringy()
-    {
-        $this->assertTrue(Util::isStringy('hoge'));
-        $this->assertTrue(Util::isStringy(new \Exception('hoge')));
-
-        $this->assertFalse(Util::isStringy(new \stdClass()));
-        $this->assertFalse(Util::isStringy(STDOUT));
-    }
-
-    function test_exportVar()
-    {
-        $value = [
-            'null'   => null,
-            'list'   => ['x', 'y', 'z'],
-            'arrays' => [['x'], ['y'], ['z']],
-            'hash'   => [
-                'b' => [
-                    'k1' => 'v1',
-                    'k2' => 'v2',
-                ],
-            ],
-            'object' => (new Actual('value'))->as('message'),
-        ];
-        $this->assertEquals(<<<CODE
-[
-    'null'   => null,
-    'list'   => ['x', 'y', 'z'],
-    'arrays' => [
-        ['x'],
-        ['y'],
-        ['z'],
-    ],
-    'hash'   => [
-        'b' => [
-            'k1' => 'v1',
-            'k2' => 'v2',
-        ],
-    ],
-    'object' => ryunosuke\PHPUnit\Actual::__set_state([
-        'actual'   => 'value',
-        'parent'   => '*RECURSION*',
-        'autoback' => false,
-        'afters'   => [],
-        'message'  => 'message',
-    ]),
-]
-
-CODE
-            , Util::exportVar($value));
     }
 }

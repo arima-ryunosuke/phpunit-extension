@@ -4,7 +4,7 @@ namespace ryunosuke\PHPUnit\Constraint;
 
 use PHPUnit\Framework\Constraint\Constraint;
 use PHPUnit\Framework\Constraint\Count;
-use ryunosuke\PHPUnit\Util;
+use function ryunosuke\PHPUnit\is_stringable;
 
 class LengthEquals extends Composite
 {
@@ -25,11 +25,11 @@ class LengthEquals extends Composite
             $contraints[] = new Count($this->length);
         }
 
-        if (Util::isStringy($other)) {
+        if (is_stringable($other)) {
             $contraints[] = new StringLengthEquals($this->length);
         }
 
-        if (Util::isStringy($other) && is_readable($other)) {
+        if (is_stringable($other) && is_readable($other)) {
             $contraints[] = new FileSizeIs($this->length);
         }
 

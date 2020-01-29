@@ -6,7 +6,7 @@ use PHPUnit\Framework\Constraint\Constraint;
 use PHPUnit\Framework\Constraint\StringContains;
 use PHPUnit\Framework\Constraint\TraversableContainsEqual;
 use PHPUnit\Framework\Constraint\TraversableContainsIdentical;
-use ryunosuke\PHPUnit\Util;
+use function ryunosuke\PHPUnit\is_stringable;
 
 class Contains extends Composite
 {
@@ -24,11 +24,11 @@ class Contains extends Composite
     {
         $contraints = [];
 
-        if (Util::isStringy($other) && is_readable($other)) {
+        if (is_stringable($other) && is_readable($other)) {
             $contraints[] = new FileContains($this->needle, $this->strict === null ? false : !$this->strict);
         }
 
-        if (Util::isStringy($other)) {
+        if (is_stringable($other)) {
             $contraints[] = new StringContains($this->needle, $this->strict === null ? false : !$this->strict);
         }
 

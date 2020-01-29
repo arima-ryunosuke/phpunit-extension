@@ -120,51 +120,6 @@ class Util
         return $callname;
     }
 
-    public static function stringMatch($subject, $pattern, $flags = 0, $offset = 0)
-    {
-        $unset = function ($match) {
-            $result = [];
-            $keys = array_keys($match);
-            for ($i = 1; $i < count($keys); $i++) {
-                $key = $keys[$i];
-                if (is_string($key)) {
-                    $result[$key] = $match[$key];
-                    $i++;
-                }
-                else {
-                    $result[] = $match[$key];
-                }
-            }
-            return $result;
-        };
-
-        $endpairs = [
-            '(' => ')',
-            '{' => '}',
-            '[' => ']',
-            '<' => '>',
-        ];
-        $endpos = strrpos($pattern, $endpairs[$pattern[0]] ?? $pattern[0]);
-        $expression = substr($pattern, 0, $endpos);
-        $modifiers = str_split(substr($pattern, $endpos));
-
-        if (($g = array_search('g', $modifiers, true)) !== false) {
-            unset($modifiers[$g]);
-
-            preg_match_all($expression . implode('', $modifiers), $subject, $matches, $flags, $offset);
-            if (($flags & PREG_SET_ORDER) === PREG_SET_ORDER) {
-                return array_map($unset, $matches);
-            }
-            return $unset($matches);
-        }
-        else {
-            $flags = ~PREG_PATTERN_ORDER & ~PREG_SET_ORDER & $flags;
-
-            preg_match($pattern, $subject, $matches, $flags, $offset);
-            return $unset($matches);
-        }
-    }
-
     public static function stringToStructure($string)
     {
         if (!is_string($string)) {
@@ -186,75 +141,5 @@ class Util
         }
 
         return $string;
-    }
-
-    public static function isStringy($value): bool
-    {
-        return is_string($value) || (is_object($value) && method_exists($value, '__toString'));
-    }
-
-    public static function exportVar($value): string
-    {
-        $INDENT = 4;
-
-        $export = function ($value, $nest = 0, $parents = []) use (&$export, $INDENT) {
-            foreach ($parents as $parent) {
-                if ($parent === $value) {
-                    return $export('*RECURSION*');
-                }
-            }
-            if (is_array($value)) {
-                $spacer1 = str_repeat(' ', ($nest + 1) * $INDENT);
-                $spacer2 = str_repeat(' ', $nest * $INDENT);
-
-                $hashed = array_values($value) !== $value;
-
-                if ($hashed) {
-                    $keys = array_map($export, array_combine($keys = array_keys($value), $keys));
-                    $maxlen = max(array_map('strlen', $keys));
-                }
-                else {
-                    $primitive = true;
-                    foreach ($value as $k => $v) {
-                        $primitive = $primitive && (is_scalar($v) || is_null($v) || is_resource($v));
-                    }
-                    if ($primitive) {
-                        return '[' . implode(', ', array_map($export, $value)) . ']';
-                    }
-                }
-
-                $kvl = '';
-                $parents[] = $value;
-                foreach ($value as $k => $v) {
-                    /** @noinspection PhpUndefinedVariableInspection */
-                    $keystr = $hashed ? $keys[$k] . str_repeat(' ', $maxlen - strlen($keys[$k])) . ' => ' : '';
-                    $kvl .= $spacer1 . $keystr . $export($v, $nest + 1, $parents) . ",\n";
-                }
-                return "[\n{$kvl}{$spacer2}]";
-            }
-            elseif (is_object($value)) {
-                $refclass = new \ReflectionClass($value);
-                $props = get_object_vars($value);
-                do {
-                    foreach ($refclass->getProperties() as $property) {
-                        if (!$property->isStatic()) {
-                            $property->setAccessible(true);
-                            $props += [$property->getName() => $property->getValue($value)];
-                        }
-                    }
-                } while ($refclass = $refclass->getParentClass());
-
-                $parents[] = $value;
-                return get_class($value) . '::__set_state(' . $export($props, $nest, $parents) . ')';
-            }
-            elseif (is_null($value)) {
-                return 'null';
-            }
-            else {
-                return var_export($value, true);
-            }
-        };
-
-        return $export($value) . "\n";
     }
 }

@@ -261,7 +261,7 @@ class Actual implements \ArrayAccess
 
     public function __toString()
     {
-        return Util::exportVar($this->actual);
+        return var_export2($this->actual, true) . "\n";
     }
 
     public function __call($name, $arguments)
@@ -392,7 +392,7 @@ class Actual implements \ArrayAccess
             }
         }
         elseif (is_string($actual)) {
-            $value = Util::stringMatch($actual, $offset, PREG_SET_ORDER);
+            $value = preg_matches($offset, $actual, PREG_SET_ORDER);
         }
         else {
             throw new \DomainException('$this->actual must be structure value given ' . gettype($actual) . ').');
