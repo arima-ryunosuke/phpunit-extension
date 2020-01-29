@@ -5,6 +5,20 @@ error_reporting(-1);
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/../inc/annotation.php';
 
+$tmpdir = __DIR__ . DIRECTORY_SEPARATOR . 'tmp';
+@mkdir($tmpdir, 0777, true);
+if (DIRECTORY_SEPARATOR === '\\') {
+    putenv("TMP=$tmpdir");
+}
+else {
+    putenv("TMPDIR=$tmpdir");
+}
+
+function that($actual)
+{
+    return new \ryunosuke\PHPUnit\Actual($actual);
+}
+
 file_put_contents(__DIR__ . "/../inc/ryunosuke.php", \ryunosuke\Functions\Transporter::exportNamespace('\\ryunosuke\\PHPUnit'));
 
 \ryunosuke\PHPUnit\Actual::$compatibleVersion = 2;
