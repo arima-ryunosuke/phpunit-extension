@@ -7,6 +7,14 @@ use ryunosuke\PHPUnit\Actual;
 
 class ActualTest extends \ryunosuke\Test\AbstractTestCase
 {
+    public static function setUpBeforeClass(): void
+    {
+        parent::setUpBeforeClass();
+
+        Actual::$constraintVariations['isFoo'] = new IsEqual('foo');
+        Actual::$constraintVariations['isBar'] = function ($other, $expected) { return $other == $expected; };
+    }
+
     function actual($actual, bool $autoback = false)
     {
         return new Actual($actual, $autoback);
@@ -18,6 +26,8 @@ class ActualTest extends \ryunosuke\Test\AbstractTestCase
         $this->assertIsString($annotations);
         $this->assertStringContainsString('@method', $annotations);
         $this->assertStringContainsString('@see', $annotations);
+        $this->assertStringContainsString('isFoo', $annotations);
+        $this->assertStringContainsString('isBar', $annotations);
         $this->assertStringContainsString('isFalse', $annotations);
         $this->assertStringContainsString('isNotFalse', $annotations);
         $this->assertStringContainsString('stringLengthEquals', $annotations);
@@ -34,6 +44,9 @@ class ActualTest extends \ryunosuke\Test\AbstractTestCase
 
     function test_ok()
     {
+        /** @noinspection PhpUndefinedMethodInspection */
+        $this->actual('foo')->isFoo('foo')->isBar('foo');
+
         $this->actual('qweN N Nzxc')
             ->isNullOrString()
             ->matches('#^[a-z\s]+$#i')
@@ -80,6 +93,11 @@ Nzxc ');
 
     function test_ng()
     {
+        $this->ng(function () {
+            /** @noinspection PhpUndefinedMethodInspection */
+            $this->actual('foo')->isFoo('foo')->isBar('dummy');
+        }, '{ return $other == $expected; }');
+
         $this->ng(function () {
             $this->actual('qweN N Nzxc')->stringStartsWith('hoge');
         }, 'starts with "hoge".');

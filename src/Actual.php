@@ -200,6 +200,14 @@ class Actual implements \ArrayAccess
         }
 
         foreach (self::$constraintVariations as $name => $variation) {
+            if ($variation instanceof \Closure) {
+                $method = new \ReflectionFunction($variation);
+
+                $via = strtr(Util::reflectFile($method), ['\\' => '/']);
+                $parameters = array_slice($method->getParameters(), 1);
+                $annotations = array_merge($annotations, [$via => $annotate($name, $parameters, [])]);
+                continue;
+            }
             if ($variation instanceof Constraint) {
                 $refclass = new \ReflectionClass($variation);
                 $method = $refclass->getConstructor() ?? $dummyConstructor;
@@ -307,6 +315,39 @@ class Actual implements \ArrayAccess
         $callee = lcfirst($callee);
         if (isset(self::$constraintVariations[$callee])) {
             $variation = self::$constraintVariations[$callee];
+            if ($variation instanceof \Closure) {
+                $constraint = new class($variation, $arguments) extends Constraint {
+                    private $callback;
+                    private $arguments;
+
+                    public function __construct(callable $callback, array $arguments)
+                    {
+                        $this->callback = $callback;
+                        $this->arguments = $arguments;
+                    }
+
+                    public function toString(): string
+                    {
+                        $args = [];
+                        $ref = new \ReflectionFunction($this->callback);
+                        foreach (array_slice($ref->getParameters(), 1) as $n => $p) {
+                            $args[$p->getName()] = array_key_exists($n, $this->arguments) ? $this->arguments[$n] : $p->getDefaultValue();
+                        }
+                        array_walk_recursive($args, function (&$v) {
+                            if (is_string($v)) {
+                                $v = strtr($v, ["\r\n" => '\r\n', "\r" => '\r', "\n" => '\n']);
+                            }
+                        });
+                        return sprintf('is accepted by function (%s) %s', paml_export($args), callable_code($this->callback)[1]);
+                    }
+
+                    protected function matches($other): bool
+                    {
+                        return ($this->callback)($other, ...$this->arguments);
+                    }
+                };
+                return $this->assert($actuals, $constraint);
+            }
             if ($variation instanceof Constraint) {
                 $refclass = new \ReflectionClass($variation);
                 $constructor = $refclass->getConstructor();
