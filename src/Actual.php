@@ -131,6 +131,9 @@ class Actual implements \ArrayAccess
                 if (array_key_exists($parameter->getPosition(), $defaults)) {
                     $arg .= ' = ' . var_export($defaults[$parameter->getPosition()], true);
                 }
+                elseif (array_key_exists($parameter->getName(), $defaults)) {
+                    $arg .= ' = ' . var_export($defaults[$parameter->getName()], true);
+                }
                 elseif ($parameter->isDefaultValueAvailable()) {
                     $arg .= ' = ' . var_export($parameter->getDefaultValue(), true);
                 }
@@ -208,36 +211,28 @@ class Actual implements \ArrayAccess
                 $annotations = array_merge($annotations, [$via => $annotate($name, $parameters, [])]);
                 continue;
             }
+
             if ($variation instanceof Constraint) {
                 $refclass = new \ReflectionClass($variation);
                 $method = $refclass->getConstructor() ?? $dummyConstructor;
 
                 $via = strtr(Util::reflectFile($refclass), ['\\' => '/']);
                 $parameters = $method->getParameters();
-                $annotations = array_merge($annotations, [$via => $annotate($name, $parameters, [])]);
+                $annotations = array_merge($annotations, [$via => $annotate($name, $parameters, get_object_properties($variation))]);
                 continue;
             }
 
             $via = $parameters = $defaults = [];
-            foreach ((array) $variation as $classname => $args) {
+            foreach ((array) $variation as $classname => $defaults) {
                 if (is_int($classname)) {
-                    $classname = $args;
-                    $args = [];
+                    $classname = $defaults;
+                    $defaults = [];
                 }
                 $refclass = new \ReflectionClass($classname);
                 $method = $refclass->getConstructor() ?? $dummyConstructor;
 
-                $via[] = "\\{$refclass->name}::{$method->name}()" . ($args ? ' ' . json_encode($args) : '');
+                $via[] = "\\{$refclass->name}::{$method->name}()" . ($defaults ? ' ' . json_encode($defaults) : '');
                 $parameters = $method->getParameters();
-                $defaults = array_reduce($parameters, function ($carry, \ReflectionParameter $parameter) use ($args) {
-                    if (array_key_exists($parameter->getName(), $args)) {
-                        $carry[$parameter->getPosition()] = $args[$parameter->getName()];
-                    }
-                    elseif (array_key_exists($parameter->getPosition(), $args)) {
-                        $carry[$parameter->getPosition()] = $args[$parameter->getPosition()];
-                    }
-                    return $carry;
-                }, []);
             }
 
             $annotations = array_merge($annotations, [implode(',', $via) => $annotate($name, $parameters, $defaults)]);
@@ -349,12 +344,12 @@ class Actual implements \ArrayAccess
                 return $this->assert($actuals, $constraint);
             }
             if ($variation instanceof Constraint) {
-                $refclass = new \ReflectionClass($variation);
-                $constructor = $refclass->getConstructor();
-                if ($constructor) {
-                    $constructor->invokeArgs($variation, $arguments);
+                $constraint = clone $variation;
+                if ($arguments) {
+                    $refclass = new \ReflectionClass($constraint);
+                    $refclass->getConstructor()->invokeArgs($constraint, $arguments);
                 }
-                return $this->assert($actuals, $variation);
+                return $this->assert($actuals, $constraint);
             }
 
             $constraints = [];

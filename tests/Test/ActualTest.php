@@ -11,8 +11,8 @@ class ActualTest extends \ryunosuke\Test\AbstractTestCase
     {
         parent::setUpBeforeClass();
 
-        Actual::$constraintVariations['isFoo'] = new IsEqual('foo');
-        Actual::$constraintVariations['isBar'] = function ($other, $expected) { return $other == $expected; };
+        Actual::$constraintVariations['isFoo'] = new IsEqual('foo', 9.9, 99, true);
+        Actual::$constraintVariations['isBar'] = function ($other, $expected = '') { return $other == $expected; };
     }
 
     function actual($actual, bool $autoback = false)
@@ -26,8 +26,9 @@ class ActualTest extends \ryunosuke\Test\AbstractTestCase
         $this->assertIsString($annotations);
         $this->assertStringContainsString('@method', $annotations);
         $this->assertStringContainsString('@see', $annotations);
-        $this->assertStringContainsString('isFoo', $annotations);
-        $this->assertStringContainsString('isBar', $annotations);
+        $this->assertStringContainsString('isFoo($value = \'foo\'', $annotations);
+        $this->assertStringContainsString('isFooAny(array $values', $annotations);
+        $this->assertStringContainsString('isBar($expected = \'\')', $annotations);
         $this->assertStringContainsString('isFalse', $annotations);
         $this->assertStringContainsString('isNotFalse', $annotations);
         $this->assertStringContainsString('stringLengthEquals', $annotations);
@@ -45,7 +46,7 @@ class ActualTest extends \ryunosuke\Test\AbstractTestCase
     function test_ok()
     {
         /** @noinspection PhpUndefinedMethodInspection */
-        $this->actual('foo')->isFoo('foo')->isBar('foo');
+        $this->actual('foo')->isFoo()->isBar('foo');
 
         $this->actual('qweN N Nzxc')
             ->isNullOrString()
@@ -95,7 +96,12 @@ Nzxc ');
     {
         $this->ng(function () {
             /** @noinspection PhpUndefinedMethodInspection */
-            $this->actual('foo')->isFoo('foo')->isBar('dummy');
+            $this->actual('foo')->isFoo('xxx');
+        }, 'two strings are equal');
+
+        $this->ng(function () {
+            /** @noinspection PhpUndefinedMethodInspection */
+            $this->actual('foo')->isBar('xxx');
         }, '{ return $other == $expected; }');
 
         $this->ng(function () {
