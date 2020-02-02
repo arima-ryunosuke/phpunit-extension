@@ -82,6 +82,11 @@ namespace ryunosuke\PHPUnit;
  * @method \ryunosuke\PHPUnit\Actual isFalsy()
  * @method \ryunosuke\PHPUnit\Actual isNotFalsy()
  *
+ * @see \ryunosuke\PHPUnit\Constraint\IsThrowable
+ * @method \ryunosuke\PHPUnit\Actual eachIsThrowable($expected = NULL)
+ * @method \ryunosuke\PHPUnit\Actual isThrowable($expected = NULL)
+ * @method \ryunosuke\PHPUnit\Actual isNotThrowable($expected = NULL)
+ *
  * @see \ryunosuke\PHPUnit\Constraint\IsTruthy
  * @method \ryunosuke\PHPUnit\Actual eachIsTruthy()
  * @method \ryunosuke\PHPUnit\Actual isTruthy()
@@ -116,8 +121,10 @@ namespace ryunosuke\PHPUnit;
  * @method \ryunosuke\PHPUnit\Actual stringLengthEqualsAll(array $lengths, bool $multibyte = false)
  *
  * @see \ryunosuke\PHPUnit\Constraint\Throws
- * @method \ryunosuke\PHPUnit\Actual eachThrows($orValues)
- * @method \ryunosuke\PHPUnit\Actual throws($orValues)
+ * @method \ryunosuke\PHPUnit\Actual eachThrows($expected)
+ * @method \ryunosuke\PHPUnit\Actual throws($expected)
+ * @method \ryunosuke\PHPUnit\Actual throwsAny(array $expecteds)
+ * @method \ryunosuke\PHPUnit\Actual throwsAll(array $expecteds)
  *
  * @see \PHPUnit\Framework\Constraint\ArrayHasKey
  * @method \ryunosuke\PHPUnit\Actual eachArrayHasKey($key)
@@ -561,6 +568,16 @@ namespace ryunosuke\PHPUnit;
  * @method \ryunosuke\PHPUnit\Actual isCtypeXdigit()
  * @method \ryunosuke\PHPUnit\Actual isNotCtypeXdigit()
  *
+ * @see \ryunosuke\PHPUnit\Constraint\IsValid::__construct() ["int"]
+ * @method \ryunosuke\PHPUnit\Actual eachIsValidInt($flags = 0)
+ * @method \ryunosuke\PHPUnit\Actual isValidInt($flags = 0)
+ * @method \ryunosuke\PHPUnit\Actual isNotValidInt($flags = 0)
+ *
+ * @see \ryunosuke\PHPUnit\Constraint\IsValid::__construct() ["float"]
+ * @method \ryunosuke\PHPUnit\Actual eachIsValidFloat($flags = 0)
+ * @method \ryunosuke\PHPUnit\Actual isValidFloat($flags = 0)
+ * @method \ryunosuke\PHPUnit\Actual isNotValidFloat($flags = 0)
+ *
  * @see \ryunosuke\PHPUnit\Constraint\IsValid::__construct() ["email"]
  * @method \ryunosuke\PHPUnit\Actual eachIsValidEmail($flags = 0)
  * @method \ryunosuke\PHPUnit\Actual isValidEmail($flags = 0)
@@ -591,7 +608,7 @@ namespace ryunosuke\PHPUnit;
  * @method \ryunosuke\PHPUnit\Actual isValidUrl($flags = 0)
  * @method \ryunosuke\PHPUnit\Actual isNotValidUrl($flags = 0)
  *
- * @see tests/bootstrap.php#9-28
+ * @see tests/bootstrap.php#25-27
  * @method \ryunosuke\PHPUnit\Actual eachLineCount(int $lineCount, string $delimiter = '\\R')
  * @method \ryunosuke\PHPUnit\Actual lineCount(int $lineCount, string $delimiter = '\\R')
  * @method \ryunosuke\PHPUnit\Actual lineCountAny(array $lineCounts, string $delimiter = '\\R')
