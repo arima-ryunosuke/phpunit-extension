@@ -5,6 +5,7 @@ namespace ryunosuke\PHPUnit\Constraint;
 class OutputMatches extends AbstractConstraint
 {
     private $expected;
+    private $actual;
 
     public function __construct($value)
     {
@@ -14,7 +15,7 @@ class OutputMatches extends AbstractConstraint
     protected function failureDescription($other): string
     {
         [, , $string] = $this->extractCallable($other);
-        return sprintf('%s %s', $string, $this->toString());
+        return sprintf('%s %s (actual %s)', $string, $this->toString(), $this->exporter()->export($this->actual));
     }
 
     protected function matches($other): bool
@@ -22,9 +23,11 @@ class OutputMatches extends AbstractConstraint
         [$callable, $args] = $this->extractCallable($other);
 
         try {
+            $this->actual = null;
             ob_start();
             $callable(...$args);
-            return preg_match($this->expected, ob_get_contents()) > 0;
+            $this->actual = ob_get_contents();
+            return preg_match($this->expected, $this->actual) > 0;
         }
         finally {
             ob_end_clean();
@@ -33,6 +36,6 @@ class OutputMatches extends AbstractConstraint
 
     public function toString(): string
     {
-        return 'output is ' . $this->exporter()->export($this->expected);
+        return 'output matches ' . $this->exporter()->export($this->expected);
     }
 }

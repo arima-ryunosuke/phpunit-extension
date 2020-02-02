@@ -15,6 +15,6 @@ class OutputMatchesTest extends \ryunosuke\Test\AbstractTestCase
 
         $this->ng(function () use ($constraint) {
             $constraint->evaluate(function () { });
-        }, "output is '#hoge#'");
+        }, "output matches '#hoge#'");
     }
 }
