@@ -380,6 +380,7 @@ Nzxc ');
             $this->actual($thrower)->try('divide', 10, 0)->isInstanceOf(\Exception::class)->getMessage()->is('Division by zero');
             $this->actual($thrower)->try(null, 10, 2)->is(5);
             $this->actual($thrower)->try(null, 10, 0)->getMessage()->is('Division by zero');
+            $this->actual($thrower)->try(null, 10, 0)->isThrowable('Division by zero');
         }
     }
 

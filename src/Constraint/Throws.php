@@ -4,30 +4,24 @@ namespace ryunosuke\PHPUnit\Constraint;
 
 class Throws extends AbstractConstraint
 {
-    /** @var \Throwable[] */
+    /** @var \Throwable */
     private $expected;
 
     /** @var \Throwable */
     private $actual;
 
-    public function __construct(...$orValues)
+    public function __construct($expected)
     {
-        $expected = [];
-        foreach ($orValues as $value) {
-            if ($value instanceof \Throwable) {
-                $expected[] = $value;
-            }
-            elseif (class_exists($value)) {
-                $expected[] = (new \ReflectionClass($value))->newInstanceWithoutConstructor();
-            }
-            elseif (is_string($value)) {
-                $expected[] = new \Exception($value, 0);
-            }
-            elseif (is_int($value)) {
-                $expected[] = new \Exception('', $value);
-            }
+        // @codeCoverageIgnoreStart
+        if (func_num_args() > 1) {
+            trigger_error('use anyThrows', E_USER_DEPRECATED);
+            $this->expected = func_get_args();
+            return;
         }
-        $this->expected = $expected;
+        // @codeCoverageIgnoreEnd
+
+        // for compatible
+        $this->expected = [$expected];
     }
 
     protected function failureDescription($other): string
@@ -53,8 +47,10 @@ class Throws extends AbstractConstraint
         catch (\Throwable $actual) {
             $this->actual = $actual;
 
+            // for compatible
             foreach ($this->expected as $expected) {
-                if ($this->compareThrowable($expected)) {
+                $isThrowable = new IsThrowable($expected);
+                if ($isThrowable->evaluate($this->actual, '', true)) {
                     return true;
                 }
             }
@@ -65,29 +61,12 @@ class Throws extends AbstractConstraint
 
     public function toString(): string
     {
+        // for compatible
         $expecteds = [];
         foreach ($this->expected as $expected) {
-            $expecteds[] = $this->throwableToString($expected);
+            $isThrowable = new IsThrowable($expected);
+            $expecteds[] = preg_replace('#to be #', '', $isThrowable->toString());
         }
-        return 'should throw ' . implode(' or ', $expecteds);
-    }
-
-    private function compareThrowable(\Throwable $expected)
-    {
-        if (!$this->actual instanceof $expected) {
-            return false;
-        }
-
-        $expectedCode = $expected->getCode();
-        if ($expectedCode && $expectedCode !== $this->actual->getCode()) {
-            return false;
-        }
-
-        $expectedMessage = $expected->getMessage();
-        if (strlen($expectedMessage) && strpos($this->actual->getMessage(), $expectedMessage) === false) {
-            return false;
-        }
-
-        return true;
+        return 'throw ' . implode(' or ', $expecteds);
     }
 }
