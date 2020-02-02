@@ -417,9 +417,13 @@ class Actual implements \ArrayAccess
         return \Closure::fromCallable(Util::methodToCallable($this->actual, $methodname));
     }
 
-    public function callable(string $methodname): Actual
+    public function callable(string $methodname, ...$bindings): Actual
     {
-        return $this->create(Util::methodToCallable($this->actual, $methodname));
+        $method = Util::methodToCallable($this->actual, $methodname);
+        if ($bindings) {
+            $method = array_merge([$method], $bindings);
+        }
+        return $this->create($method);
     }
 
     public function do($name, ...$arguments): Actual

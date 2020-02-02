@@ -260,20 +260,28 @@ Nzxc ');
     function test_callable()
     {
         $actual = $this->actual(new class {
-            /** @noinspection PhpUnusedPrivateMethodInspection */
             private function privateMethod($x)
             {
-                return $x * 10;
+                if ($x === null) {
+                    throw new \Exception('this is message.', 123);
+                }
+                echo $x * 10;
             }
 
             public function publicMethod($x)
             {
-                return $x * 20;
+                echo $this->privateMethod($x) * 2;
             }
         });
 
         $actual->callable('privateMethod')->isCallable();
         $actual->callable('publicMethod')->isCallable();
+
+        $actual->callable('privateMethod', null)->throws('this is message');
+        $actual->callable('publicMethod', null)->throws('this is message');
+
+        $actual->callable('privateMethod', 1)->outputMatches('#10#');
+        $actual->callable('publicMethod', 2)->outputMatches('#20#');
     }
 
     function test_do()
