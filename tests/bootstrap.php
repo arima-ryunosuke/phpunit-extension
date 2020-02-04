@@ -3,7 +3,7 @@
 error_reporting(-1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
-require_once __DIR__ . '/annotation.php';
+require_once __DIR__ . '/../inc/annotation.php';
 
 \ryunosuke\PHPUnit\Actual::$compatibleVersion = 2;
 \ryunosuke\PHPUnit\Actual::$constraintVariations['lineCount'] = new class(0, "") extends \PHPUnit\Framework\Constraint\Constraint {
@@ -27,7 +27,7 @@ require_once __DIR__ . '/annotation.php';
     }
 };
 
-file_put_contents(__DIR__ . '/annotation.php', "<?php
+file_put_contents(__DIR__ . '/../inc/annotation.php', "<?php
 
 namespace ryunosuke\\PHPUnit;
 
