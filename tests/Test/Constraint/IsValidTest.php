@@ -8,6 +8,20 @@ class IsValidTest extends \ryunosuke\Test\AbstractTestCase
 {
     function test()
     {
+        $constraint = new IsValid(IsValid::VALID_INT);
+        $this->assertFalse($constraint->evaluate(null, '', true));
+        $this->assertFalse($constraint->evaluate('foo', '', true));
+        $this->assertFalse($constraint->evaluate('123foo', '', true));
+        $this->assertFalse($constraint->evaluate(1.23, '', true));
+        $this->assertTrue($constraint->evaluate(123, '', true));
+
+        $constraint = new IsValid(IsValid::VALID_FLOAT);
+        $this->assertFalse($constraint->evaluate(null, '', true));
+        $this->assertFalse($constraint->evaluate('foo', '', true));
+        $this->assertFalse($constraint->evaluate('123foo', '', true));
+        $this->assertTrue($constraint->evaluate(1.23, '', true));
+        $this->assertTrue($constraint->evaluate(123, '', true));
+
         $constraint = new IsValid(IsValid::VALID_IPV4);
         $this->assertFalse($constraint->evaluate(null, '', true));
         $this->assertFalse($constraint->evaluate(123, '', true));

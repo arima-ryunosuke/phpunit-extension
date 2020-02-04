@@ -4,6 +4,8 @@ namespace ryunosuke\PHPUnit\Constraint;
 
 class IsValid extends AbstractConstraint
 {
+    public const VALID_INT   = 'int';
+    public const VALID_FLOAT = 'float';
     public const VALID_EMAIL = 'email';
     public const VALID_IP    = 'ip';
     public const VALID_IPV4  = 'ipv4';
@@ -12,6 +14,12 @@ class IsValid extends AbstractConstraint
     public const VALID_URL   = 'url';
 
     private const KNOWN_TYPES = [
+        self::VALID_INT   => [
+            FILTER_VALIDATE_INT => 0,
+        ],
+        self::VALID_FLOAT => [
+            FILTER_VALIDATE_FLOAT => 0,
+        ],
         self::VALID_EMAIL => [
             FILTER_VALIDATE_EMAIL => 0,
         ],
@@ -49,7 +57,7 @@ class IsValid extends AbstractConstraint
     {
         $result = true;
         foreach (self::KNOWN_TYPES[$this->type] as $filter => $flags) {
-            $result = $result && filter_var($other, $filter, ['flags' => $this->flags | $flags]);
+            $result = $result && filter_var($other, $filter, ['flags' => $this->flags | $flags]) !== false;
         }
         return $result;
     }

@@ -560,6 +560,8 @@ Nzxc ');
         $this->actual("AZ")->isCtypeUpper();
         $this->actual("Ff")->isCtypeXdigit();
 
+        $this->actual("123")->isValidInt();
+        $this->actual("1.23")->isValidFloat();
         $this->actual("hoge@example.com")->isValidEmail();
         $this->actual("127.0.0.1")->isValidIp();
         $this->actual("127.0.0.1")->isValidIpv4();

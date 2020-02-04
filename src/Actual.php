@@ -76,6 +76,8 @@ class Actual implements \ArrayAccess
         'isCtypeUpper'         => [IsCType::class => [IsCType::CTYPE_UPPER]],
         'isCtypeXdigit'        => [IsCType::class => [IsCType::CTYPE_XDIGIT]],
         // via IsValid
+        'isValidInt'           => [IsValid::class => [IsValid::VALID_INT]],
+        'isValidFloat'         => [IsValid::class => [IsValid::VALID_FLOAT]],
         'isValidEmail'         => [IsValid::class => [IsValid::VALID_EMAIL]],
         'isValidIp'            => [IsValid::class => [IsValid::VALID_IP]],
         'isValidIpv4'          => [IsValid::class => [IsValid::VALID_IPV4]],
