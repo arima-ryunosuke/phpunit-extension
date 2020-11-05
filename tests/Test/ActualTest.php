@@ -145,6 +145,21 @@ Nzxc ');
         }, '2 is of type "string"');
     }
 
+    function test_callStatic()
+    {
+        $actual = $this->actual(new class {
+            static function staticMethod()
+            {
+                return func_get_args();
+            }
+        });
+        /** @noinspection PhpUndefinedMethodInspection */
+        {
+            $actual::staticMethod(1, 2, 3)->is([1, 2, 3]);
+            ("$actual")::staticMethod(1, 2, 3)->is([1, 2, 3]);
+        }
+    }
+
     function test_toString()
     {
         $this->assertEquals("null\n", (string) $this->actual(null));

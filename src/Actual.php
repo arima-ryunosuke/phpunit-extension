@@ -91,6 +91,8 @@ class Actual implements \ArrayAccess
         "\\PHPUnit\\Framework\\Constraint\\" => __DIR__ . '/../vendor/phpunit/phpunit/src/Framework/Constraint',
     ];
 
+    private static $object = [];
+
     /** @var mixed testing value */
     private $actual;
 
@@ -263,16 +265,46 @@ class Actual implements \ArrayAccess
         return $this->child;
     }
 
+    public static function __callStatic($name, $arguments)
+    {
+        return new static((static::$object)::$name(...$arguments));
+    }
+
     public function __construct($actual, bool $autoback = false)
     {
         $this->actual = $actual;
         $this->parent = $this;
         $this->child = $this;
         $this->autoback = $autoback;
+
+        if (is_object($actual)) {
+            static::$object = get_class($actual);
+        }
+        elseif (@class_exists($actual)) {
+            static::$object = (string) $actual;
+        }
     }
 
     public function __toString()
     {
+        if (is_object($this->actual)) {
+            $staticCaller = new class(static::class, $this->actual) {
+                public static $static, $class;
+
+                public function __construct($static, $object)
+                {
+                    self::$static = $static;
+                    self::$class = get_class($object);
+                }
+
+                public static function __callStatic($name, $arguments)
+                {
+                    $static = self::$static;
+                    return new $static((self::$class)::$name(...$arguments));
+                }
+            };
+            return get_class($staticCaller);
+        }
         return var_export2($this->actual, true) . "\n";
     }
 
