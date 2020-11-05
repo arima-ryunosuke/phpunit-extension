@@ -373,7 +373,12 @@ class Actual implements \ArrayAccess
             }
         }
 
-        return $this->do($name, ...$arguments);
+        if (self::compareVersion('1.3.0') >= 0) {
+            return $this->try($name, ...$arguments);
+        }
+        else {
+            return $this->do($name, ...$arguments); // @codeCoverageIgnore
+        }
     }
 
     public function __invoke(...$arguments): Actual

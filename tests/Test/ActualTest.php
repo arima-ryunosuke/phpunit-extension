@@ -325,6 +325,26 @@ Nzxc ');
         $actual(1)->is(1);
     }
 
+    function test_call()
+    {
+        $object = new class() {
+            public function method($x)
+            {
+                if ($x === null) {
+                    throw new \Exception('this is message.', 123);
+                }
+                return $x * 10;
+            }
+        };
+
+        /** @noinspection PhpUndefinedMethodInspection */
+        {
+            $this->actual($object)->method(2)->is(20);
+            $this->actual($object)->method(null)->getMessage()->is('this is message.');
+            $this->actual($object)->method(null)->wasThrown('this is message');
+        }
+    }
+
     function test_do()
     {
         $object = new class {
