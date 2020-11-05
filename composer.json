@@ -22,7 +22,7 @@
     "symfony/css-selector": "5.*"
   },
   "require-dev": {
-    "ryunosuke/functions": "1.4.5"
+    "ryunosuke/functions": "1.4.12"
   },
   "bin": [
     "bin/phpunit-current"
