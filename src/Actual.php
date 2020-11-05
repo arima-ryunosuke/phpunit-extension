@@ -16,6 +16,7 @@ use PHPUnit\Framework\Constraint\RegularExpression;
 use PHPUnit\Framework\Constraint\StringEndsWith;
 use PHPUnit\Framework\Constraint\StringStartsWith;
 use ryunosuke\PHPUnit\Constraint\IsCType;
+use ryunosuke\PHPUnit\Constraint\IsThrowable;
 use ryunosuke\PHPUnit\Constraint\IsValid;
 use ryunosuke\PHPUnit\Constraint\LogicalAnd;
 use ryunosuke\PHPUnit\Constraint\LogicalNot;
@@ -50,6 +51,7 @@ class Actual implements \ArrayAccess
         'gte'                  => [IsEqual::class, GreaterThan::class],
         'lte'                  => [IsEqual::class, LessThan::class],
         'isNullOrString'       => [IsNull::class, IsType::class => [IsType::TYPE_STRING]],
+        'wasThrown'            => IsThrowable::class,
         // via IsType
         'isArray'              => [IsType::class => [IsType::TYPE_ARRAY]],
         'isBool'               => [IsType::class => [IsType::TYPE_BOOL]],
