@@ -378,7 +378,16 @@ class Actual implements \ArrayAccess
 
     public function __invoke(...$arguments): Actual
     {
-        return $this->do(null, ...$arguments);
+        if (!($this->actual instanceof \Closure || (!is_object($this->actual) && is_callable($this->actual)))) {
+            array_unshift($arguments, null);
+        }
+
+        if (self::compareVersion('1.3.0') >= 0) {
+            return $this->try(...$arguments);
+        }
+        else {
+            return $this->do(...$arguments); // @codeCoverageIgnore
+        }
     }
 
     public function __get($name): Actual
@@ -471,12 +480,15 @@ class Actual implements \ArrayAccess
 
     public function do($name, ...$arguments): Actual
     {
-        if (!is_object($this->actual) && is_callable($this->actual)) {
-            return $this->create(($this->actual)(...$arguments));
+        if ($this->actual instanceof \Closure || !is_object($this->actual) && is_callable($this->actual)) {
+            if (func_num_args()) {
+                array_unshift($arguments, $name);
+            }
+            return $this->create(($this->actual)(...$arguments), $arguments);
         }
 
         if (self::compareVersion('1.2.0') >= 0) {
-            return $this->create((Util::methodToCallable($this->actual, $name))(...$arguments));
+            return $this->create((Util::methodToCallable($this->actual, $name))(...$arguments), $arguments);
         }
 
         // @codeCoverageIgnoreStart
@@ -497,7 +509,16 @@ class Actual implements \ArrayAccess
 
     public function try($method = null, ...$arguments): Actual
     {
-        $callee = Util::methodToCallable($this->actual, $method);
+        if ($this->actual instanceof \Closure || (!is_object($this->actual) && is_callable($this->actual))) {
+            if (func_num_args()) {
+                array_unshift($arguments, $method);
+            }
+            $callee = $this->actual;
+        }
+        else {
+            $callee = Util::methodToCallable($this->actual, $method);
+        }
+
         try {
             $return = $callee(...$arguments);
         }

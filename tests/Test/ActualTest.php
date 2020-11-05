@@ -308,6 +308,23 @@ Nzxc ');
         $actual->callable('publicMethod', 2)->outputMatches('#20#');
     }
 
+    function test_invoke()
+    {
+        $thrower = new class() {
+            function __invoke($x) { return $x; }
+        };
+
+        $actual = $this->actual($thrower);
+        $actual(1)->is(1);
+
+        $thrower = function ($x) {
+            return $x;
+        };
+
+        $actual = $this->actual($thrower);
+        $actual(1)->is(1);
+    }
+
     function test_do()
     {
         $object = new class {
@@ -364,6 +381,12 @@ Nzxc ');
             $actual->hoge(3)->isEqual('hoge30');
             $actual->fuga(4)->isEqual('fuga40');
         }
+
+        $callee = function ($x) {
+            return $x * 10;
+        };
+
+        $this->actual($callee)->do(2)->is(20);
     }
 
     function test_try()
@@ -380,7 +403,20 @@ Nzxc ');
             $this->actual($thrower)->try('divide', 10, 0)->isInstanceOf(\Exception::class)->getMessage()->is('Division by zero');
             $this->actual($thrower)->try(null, 10, 2)->is(5);
             $this->actual($thrower)->try(null, 10, 0)->getMessage()->is('Division by zero');
-            $this->actual($thrower)->try(null, 10, 0)->isThrowable('Division by zero');
+            $this->actual($thrower)->try(null, 10, 0)->wasThrown('Division by zero');
+        }
+
+        $thrower = function ($x, $n) {
+            return $x / $n;
+        };
+
+        /** @noinspection PhpUndefinedMethodInspection */
+        {
+            $this->actual($thrower)->try(10, 2)->is(5);
+            $this->actual($thrower)->try(10, 0)->isInstanceOf(\Exception::class)->getMessage()->is('Division by zero');
+            $this->actual($thrower)->try(10, 2)->is(5);
+            $this->actual($thrower)->try(10, 0)->getMessage()->is('Division by zero');
+            $this->actual($thrower)->try(10, 0)->wasThrown('Division by zero');
         }
     }
 
