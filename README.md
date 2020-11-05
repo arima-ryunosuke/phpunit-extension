@@ -26,7 +26,7 @@ Simplified chart:
 
 | method             | description                         | return type
 | :---               | :---                                | :---
-| __call             | call original method                | actual of method's return
+| __call             | call original method no thrown      | actual of method's return or expcetion
 | __invoke           | call original __invoke              | actual of __invoke's return
 | __get              | get original property               | actual of property
 | offsetGet          | get ArrayAccess by key              | actual of key's value
@@ -45,9 +45,9 @@ Simplified chart:
 ```php
 // e.g. bootstrap.php
 \ryunosuke\PHPUnit\Actual::$compatibleVersion = 2; // see below
-function that($actual, bool $autoback = false)
+function that($actual)
 {
-    return new \ryunosuke\PHPUnit\Actual($actual, $autoback);
+    return new \ryunosuke\PHPUnit\Actual($actual);
 }
 
 // example TestCase
@@ -217,9 +217,9 @@ class ActualTest extends \PHPUnit\Framework\TestCase
         # "and" returns latest actual
         $object = new \ArrayObject(['x' => 'abcX', 'y' => 'abcY'], \ArrayObject::ARRAY_AS_PROPS);
         // "and" can call as property also as below
-        that($object, true)
-            ->x->stringStartsWith('abc')->and->stringLengthEquals(4)
-            ->y->stringStartsWith('abc')->and->stringLengthEquals(4)
+        that($object)
+            ->x->stringStartsWith('abc')->and->stringLengthEquals(4)->exit()
+            ->y->stringStartsWith('abc')->and->stringLengthEquals(4)->exit()
             ->getArrayCopy()->count(2)->and->hasKey('x');
 
         # but no need to use them as below
@@ -248,7 +248,7 @@ See \ryunosuke\PHPUnit\Annotester and \ryunosuke\Test\AnnotesterTest for details
  * blockstart
  * that($foo . $bar)->is('foobar');
  * $this->add(1)->is(11);
- * $this->concat($foo)->is('10foo');
+ * $this->append($foo)->is('10foo');
  * blockend
  */
 class Document
@@ -273,7 +273,7 @@ class Document
      *     $that($foo)->is('10foo');
      * }
      */
-    public function concat($y)
+    public function append($y)
     {
         return $this->x . $y;
     }
@@ -418,6 +418,10 @@ BC breaking is controled $compatibleVersion static field somewhat.
   - e.g. 1.1 is compatible 1.1.0
 - e.g. 2 is compatible 2.0.0
 - e.g. 999 is latest
+
+### 2.0.0
+
+- [*change] see log
 
 ### 1.2.0
 
