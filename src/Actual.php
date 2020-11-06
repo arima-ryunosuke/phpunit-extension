@@ -457,6 +457,16 @@ class Actual implements \ArrayAccess
         return $this->create(Util::propertyToValue($actual, $name));
     }
 
+    public function __set($name, $value)
+    {
+        $this->actual->$name = $value;
+    }
+
+    public function __unset($name)
+    {
+        unset($this->actual->$name);
+    }
+
     public function offsetGet($offset): Actual
     {
         // @codeCoverageIgnoreStart
@@ -500,6 +510,16 @@ class Actual implements \ArrayAccess
         }
 
         return $this->create($value);
+    }
+
+    public function offsetSet($offset, $value)
+    {
+        $this->actual[$offset] = $value;
+    }
+
+    public function offsetUnset($offset)
+    {
+        unset($this->actual[$offset]);
     }
 
     public function var(string $propertyname)
@@ -719,13 +739,5 @@ class Actual implements \ArrayAccess
 
     public function __isset($name) { throw new \DomainException(__FUNCTION__ . ' is not supported.'); }
 
-    public function __unset($name) { throw new \DomainException(__FUNCTION__ . ' is not supported.'); }
-
-    public function __set($name, $value) { throw new \DomainException(__FUNCTION__ . ' is not supported.'); }
-
     public function offsetExists($offset) { throw new \DomainException(__FUNCTION__ . ' is not supported.'); }
-
-    public function offsetUnset($offset) { throw new \DomainException(__FUNCTION__ . ' is not supported.'); }
-
-    public function offsetSet($offset, $value) { throw new \DomainException(__FUNCTION__ . ' is not supported.'); }
 }

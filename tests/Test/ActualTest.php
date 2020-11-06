@@ -242,6 +242,26 @@ Nzxc ');
         $actual['#(?<aaa>hoge) (?<bbb>.*)#g']->count(1)[0]->isEqual(['aaa' => 'hoge', 'bbb' => 'fuga piyo hoge fuga piyo']);
     }
 
+    function test_mutator()
+    {
+        $actual = $this->actual(new \ArrayObject(['a' => null, 'x' => null], \ArrayObject::ARRAY_AS_PROPS));
+
+        $actual['a']->isNull();
+        $actual->x->isNull();
+
+        $actual['a'] = 'a';
+        $actual->x = 'x';
+
+        $actual->hasKeyAll(['a', 'x']);
+        $actual['a']->is('a');
+        $actual->x->is('x');
+
+        unset($actual['a']);
+        unset($actual->x);
+
+        $actual->notHasKeyAll(['a', 'x']);
+    }
+
     function test_var()
     {
         $object = new class('testname') extends \ryunosuke\Test\AbstractTestCase {
@@ -255,7 +275,6 @@ Nzxc ');
                 return "$name is __get property";
             }
         };
-        /** @noinspection PhpUndefinedFieldInspection */
         $object->dynamicProperty = 'this is dynamic';
         $actual = $this->actual($object);
 
