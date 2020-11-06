@@ -406,6 +406,12 @@ class Actual implements \ArrayAccess
         }
 
         if (self::compareVersion('1.3.0') >= 0) {
+            if ($this->functionArgument($name) !== null) {
+                return $this->function($name, ...$arguments);
+            }
+        }
+
+        if (self::compareVersion('1.3.0') >= 0) {
             return $this->try($name, ...$arguments);
         }
         else {
@@ -583,11 +589,7 @@ class Actual implements \ArrayAccess
      */
     public function function ($function, ...$arguments): Actual
     {
-        [$funcname, $position] = $this->functionArgument($function);
-        assert($position !== null, 'please use "do" method.');
-
-        array_splice($arguments, $position, 0, [$this->actual]);
-        return $this->create($funcname(...$arguments));
+        return $this->create(chain($this->actual)->$function(...$arguments)(), $arguments);
     }
 
     /**
@@ -597,21 +599,20 @@ class Actual implements \ArrayAccess
      */
     public function foreach($function, ...$arguments): Actual
     {
-        [$funcname, $position] = $this->functionArgument($function);
+        $methodMode = is_string($function) && (strpos($function, '->') === 0 || strpos($function, '::') === 0);
+        $function = $this->functionArgument($function);
 
         $actuals = [];
         foreach ($this->actual as $k => $actual) {
-            if ($position === null) {
-                $method = Util::methodToCallable($actual, $funcname);
+            if ($methodMode) {
+                $method = Util::methodToCallable($actual, $function);
                 $actuals[$k] = $method(...$arguments);
             }
             else {
-                $original = $arguments;
-                array_splice($original, $position, 0, [$actual]);
-                $actuals[$k] = $funcname(...$original);
+                $actuals[$k] = chain($actual)->$function(...$arguments)();
             }
         }
-        return $this->create($actuals);
+        return $this->create($actuals, $arguments);
     }
 
     public function return()
@@ -656,21 +657,23 @@ class Actual implements \ArrayAccess
         return $this;
     }
 
-    private function functionArgument($function): array
+    private function functionArgument($function): ?string
     {
-        if (is_callable($function)) {
-            return [$function, 0];
+        foreach ([$function, __NAMESPACE__ . "\\$function"] as $fname) {
+            if (is_callable($fname)) {
+                return $fname;
+            }
+
+            if (preg_match('#(.+?)(\d)$#', $fname, $match) && is_callable($match[1])) {
+                return $fname;
+            }
+
+            if (strpos($fname, '->') === 0 || strpos($fname, '::') === 0) {
+                return substr($fname, 2);
+            }
         }
 
-        if (preg_match('#(.+?)(\d+)$#', $function, $match) && is_callable($match[1])) {
-            return [$match[1], (int) $match[2]];
-        }
-
-        if (strpos($function, '->') === 0 || strpos($function, '::') === 0) {
-            return [substr($function, 2), null];
-        }
-
-        throw new \BadFunctionCallException("$function is not callable.");
+        return null;
     }
 
     private function newConstraint(string $constraintClass, array $arguments, array $modes): Constraint

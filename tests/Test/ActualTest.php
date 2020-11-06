@@ -358,6 +358,10 @@ Nzxc ');
             $this->actual($object)->method(null)->getMessage()->is('this is message.');
             $this->actual($object)->method(null)->wasThrown('this is message');
         }
+
+        $array = [1, 2, 3];
+        $this->actual($array)->maximum()->is(3);
+        $this->actual($array)->implode1(',')->is('1,2,3');
     }
 
     function test_do()
@@ -463,7 +467,7 @@ Nzxc ');
 
         $this->ng(function () {
             $this->actual('qwe')->function('undefined');
-        }, "undefined is not callable");
+        }, "undefined is not defined");
     }
 
     function test_foreach()
@@ -505,7 +509,6 @@ Nzxc ');
         $this->actual($users, true)
             ->function('array_column', 'code')->isEqual([1, 2, 3])
             ->function('array_column', 'name')->foreach('strtoupper')->isEqual(['HOGE', 'FUGA', 'PIYO'])->exit()
-            ->foreach(function ($user) { return $user->code; })->isEqual([1 => 1, 2 => 2, 3 => 3])
             ->foreach('->privateCodeName')->isEqual([1 => '1:hoge', 2 => '2:fuga', 3 => '3:piyo'])
             ->foreach('::publicCodeName')->isEqual([1 => '1:hoge', 2 => '2:fuga', 3 => '3:piyo']);
     }
