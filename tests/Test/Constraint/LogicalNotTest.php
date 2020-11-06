@@ -22,6 +22,8 @@ class LogicalNotTest extends \ryunosuke\Test\AbstractTestCase
         $this->assertEquals('fileNotEquals', LogicalNot::export('fileEquals'));
         $this->assertEquals('NotEqualsFile', LogicalNot::export('EqualsFile'));
         $this->assertEquals('notEqualsFile', LogicalNot::export('equalsFile'));
+        $this->assertEquals('notInTime', LogicalNot::export('inTime'));
+        $this->assertEquals('NotInTime', LogicalNot::export('InTime'));
     }
 
     function test_import()
@@ -38,6 +40,8 @@ class LogicalNotTest extends \ryunosuke\Test\AbstractTestCase
         $this->assertEquals('fileEquals', LogicalNot::import('fileNotEquals'));
         $this->assertEquals('EqualsFile', LogicalNot::import('NotEqualsFile'));
         $this->assertEquals('equalsFile', LogicalNot::import('notEqualsFile'));
+        $this->assertEquals('inTime', LogicalNot::import('notInTime'));
+        $this->assertEquals('InTime', LogicalNot::import('NotInTime'));
     }
 
     function test()

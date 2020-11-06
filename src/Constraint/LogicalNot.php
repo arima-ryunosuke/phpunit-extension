@@ -27,6 +27,9 @@ class LogicalNot extends AbstractConstraint
             "^($lower_verbs|$upper_verbs)([A-Z]|$)",
             "($upper_verbs)([A-Z]|$)",
         ]);
+        if (!preg_match("#$regex#", $string)) {
+            return (ctype_lower($string[0]) ? 'not' : 'Not') . ucfirst($string);
+        }
         return preg_replace_callback("#$regex#", function ($matches) {
             if (isset($matches[3])) {
                 if (strtolower($matches[3]) === 'is') {
