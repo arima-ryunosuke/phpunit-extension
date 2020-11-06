@@ -62,6 +62,8 @@ class UtilTest extends \ryunosuke\Test\AbstractTestCase
         $class = new class {
             public static function staticMethod() { return __FUNCTION__; }
 
+            private static function privateStaticMethod() { return __FUNCTION__; }
+
             protected function privateMethod() { return __FUNCTION__; }
 
             public function publicMethod() { return __FUNCTION__; }
@@ -71,6 +73,9 @@ class UtilTest extends \ryunosuke\Test\AbstractTestCase
 
         $staticMethod = Util::methodToCallable(get_class($class), 'staticMethod');
         $this->assertEquals('staticMethod', $staticMethod());
+
+        $staticMethod = Util::methodToCallable(get_class($class), 'privateStaticMethod');
+        $this->assertEquals('privateStaticMethod', $staticMethod());
 
         $staticMethod = Util::methodToCallable($class, 'staticMethod');
         $this->assertEquals('staticMethod', $staticMethod());

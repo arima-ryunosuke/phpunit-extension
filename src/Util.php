@@ -79,7 +79,8 @@ class Util
 
                 public function __invoke()
                 {
-                    return $this->method->invokeArgs($this->object, func_get_args());
+                    $object = $this->method->isStatic() ? null : $this->object;
+                    return $this->method->invokeArgs($object, func_get_args());
                 }
 
                 public function toString(): string
