@@ -102,6 +102,9 @@ class Actual implements \ArrayAccess
     /** @var bool */
     private $autoback;
 
+    /** @var array */
+    private $arguments = [];
+
     /** @var Constraint[] */
     private $afters = [];
 
@@ -257,11 +260,12 @@ class Actual implements \ArrayAccess
         return "/**\n" . implode("\n", $result) . "\n */";
     }
 
-    private function create($actual): Actual
+    private function create($actual, $arguments = []): Actual
     {
         $this->child = new static($actual);
         $this->child->parent = $this;
         $this->child->autoback = !!$this->autoback;
+        $this->child->arguments = $arguments;
         return $this->child;
     }
 
@@ -588,7 +592,15 @@ class Actual implements \ArrayAccess
         catch (\Throwable $t) {
             $return = $t;
         }
-        return $this->create($return);
+        return $this->create($return, $arguments);
+    }
+
+    public function list($index = null): Actual
+    {
+        if ($index === null) {
+            return $this->create($this->arguments);
+        }
+        return $this->create($this->arguments[$index]);
     }
 
     // for compatible

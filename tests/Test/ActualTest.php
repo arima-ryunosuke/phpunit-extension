@@ -478,6 +478,18 @@ Nzxc ');
         }
     }
 
+    function test_list()
+    {
+        $actual = $this->actual(function ($x, &$y, $z) {
+            $x = 1;
+            $y = 2;
+            $z = 3;
+            return $x + $y + $z;
+        });
+        $actual(0, 0, 0)->list(0)->is(0)->exit()->list(1)->is(2)->exit()->list(2)->is(0);
+        $actual(0, 0, 0)->list()->is([0, 2, 0]);
+    }
+
     function test_function()
     {
         $this->actual(' qwe ')->function('trim')->isEqual('qwe');
