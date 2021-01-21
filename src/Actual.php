@@ -21,8 +21,6 @@ use ryunosuke\PHPUnit\Constraint\IsValid;
 use ryunosuke\PHPUnit\Constraint\LogicalAnd;
 use ryunosuke\PHPUnit\Constraint\LogicalNot;
 use ryunosuke\PHPUnit\Constraint\LogicalOr;
-use ryunosuke\PHPUnit\Constraint\OutputMatches;
-use ryunosuke\PHPUnit\Constraint\Throws;
 use Symfony\Component\CssSelector\CssSelectorConverter;
 
 if (!trait_exists(Annotation::class)) {
@@ -35,7 +33,7 @@ class Actual implements \ArrayAccess
 {
     use Annotation;
 
-    public static $compatibleVersion = "1.0.0";
+    public static $compatibleVersion = "2.0.0";
 
     public static $constraintVariations = [
         // alias
@@ -107,9 +105,6 @@ class Actual implements \ArrayAccess
     /** @var array */
     private $arguments = [];
 
-    /** @var Constraint[] */
-    private $afters = [];
-
     /** @var string */
     private $message = '';
 
@@ -149,13 +144,6 @@ class Actual implements \ArrayAccess
                 return $arg;
             }, $parameters), function ($v) { return $v !== null; });
             $argstring = implode(', ', $argstrings);
-
-            // @codeCoverageIgnoreStart
-            if (self::compareVersion('1.1.0') < 0) {
-                $eachName = "all" . ucfirst($mname);
-                $result[$eachName] = "$returnType $eachName($argstring)";
-            }
-            // @codeCoverageIgnoreEnd
 
             $eachName = "each" . ucfirst($mname);
             $result[$eachName] = "$returnType $eachName($argstring)";
@@ -361,22 +349,8 @@ class Actual implements \ArrayAccess
         $callee = preg_replace('#^each#', '', $callee, 1, $count);
         $modes['each'] = !!$count;
 
-        // @codeCoverageIgnoreStart
-        if (self::compareVersion('1.1.0') < 0) {
-            $callee = preg_replace('#^all#', '', $callee, 1, $count);
-            $modes['each'] = $modes['each'] || !!$count;
-        }
-        // @codeCoverageIgnoreEnd
-
         $callee = LogicalNot::import($callee2 = $callee);
         $modes['not'] = $callee2 !== $callee;
-
-        // @codeCoverageIgnoreStart
-        if (self::compareVersion('1.1.0') < 0) {
-            $callee = preg_replace('#^(is)?(Not|not)([A-Z])#', '$1$3', $callee, 1, $count);
-            $modes['not'] = $modes['not'] || !!$count;
-        }
-        // @codeCoverageIgnoreEnd
 
         $callee = LogicalOr::import($callee2 = $callee);
         $modes['any'] = $callee2 !== $callee;
@@ -450,18 +424,11 @@ class Actual implements \ArrayAccess
             }
         }
 
-        if (self::compareVersion('1.3.0') >= 0) {
-            if ($this->functionArgument($name) !== null) {
-                return $this->function($name, ...$arguments);
-            }
+        if ($this->functionArgument($name) !== null) {
+            return $this->function($name, ...$arguments);
         }
 
-        if (self::compareVersion('1.3.0') >= 0) {
-            return $this->try($name, ...$arguments);
-        }
-        else {
-            return $this->do($name, ...$arguments); // @codeCoverageIgnore
-        }
+        return $this->try($name, ...$arguments);
     }
 
     public function __invoke(...$arguments): Actual
@@ -470,23 +437,12 @@ class Actual implements \ArrayAccess
             array_unshift($arguments, null);
         }
 
-        if (self::compareVersion('1.3.0') >= 0) {
-            return $this->try(...$arguments);
-        }
-        else {
-            return $this->do(...$arguments); // @codeCoverageIgnore
-        }
+        return $this->try(...$arguments);
     }
 
     public function __get($name): Actual
     {
-        // @codeCoverageIgnoreStart
-        if (self::compareVersion('1.1.0') < 0) {
-            return $this->create(Util::propertyToValue($this->actual, $name));
-        }
-        // @codeCoverageIgnoreEnd
-
-        if (self::compareVersion('1.2.0') >= 0 && $name === 'and') {
+        if ($name === 'and') {
             return $this->and();
         }
 
@@ -514,12 +470,6 @@ class Actual implements \ArrayAccess
 
     public function offsetGet($offset): Actual
     {
-        // @codeCoverageIgnoreStart
-        if (self::compareVersion('1.1.0') < 0) {
-            return $this->create($this->actual[$offset]);
-        }
-        // @codeCoverageIgnoreEnd
-
         $actual = Util::stringToStructure($this->actual);
 
         if ($actual instanceof \SimpleXMLElement) {
@@ -595,24 +545,7 @@ class Actual implements \ArrayAccess
             return $this->create(($this->actual)(...$arguments), $arguments);
         }
 
-        if (self::compareVersion('1.2.0') >= 0) {
-            return $this->create((Util::methodToCallable($this->actual, $name))(...$arguments), $arguments);
-        }
-
-        // @codeCoverageIgnoreStart
-        $callee = $this->actual;
-        if (is_object($this->actual)) {
-            $callee = Util::methodToCallable($this->actual, $name);
-        }
-
-        if (self::compareVersion('1.1.2') < 0) {
-            foreach ($this->afters as $key => $afterContraint) {
-                unset($this->afters[$key]);
-                return $this->assert([array_merge([$callee], $arguments)], $afterContraint);
-            }
-        }
-        return $this->create($callee(...$arguments));
-        // @codeCoverageIgnoreEnd
+        return $this->create((Util::methodToCallable($this->actual, $name))(...$arguments), $arguments);
     }
 
     public function try($method = null, ...$arguments): Actual
@@ -643,17 +576,6 @@ class Actual implements \ArrayAccess
         }
         return $this->create($this->arguments[$index]);
     }
-
-    // for compatible
-    // @formatter:off
-    // @codecoverageIgnoreStart
-    private function after($name, $constraint) { $this->afters[$name] = $constraint;return $this; }
-    /** @deprecated */
-    public function catch(): Actual { return $this->after(__FUNCTION__, new Throws(...func_get_args())); }
-    /** @deprecated */
-    public function print(): Actual { return $this->after(__FUNCTION__, new OutputMatches(...func_get_args())); }
-    // @codecoverageIgnoreEnd
-    // @formatter:on
 
     /**
      * @param callable $function
