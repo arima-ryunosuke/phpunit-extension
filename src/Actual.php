@@ -97,10 +97,7 @@ class Actual implements \ArrayAccess
     private $actual;
 
     /** @var Actual */
-    private $parent, $child;
-
-    /** @var bool */
-    private $autoback;
+    private $parent;
 
     /** @var array */
     private $arguments = [];
@@ -291,11 +288,10 @@ class Actual implements \ArrayAccess
 
     private function create($actual, $arguments = []): Actual
     {
-        $this->child = new static($actual);
-        $this->child->parent = $this;
-        $this->child->autoback = !!$this->autoback;
-        $this->child->arguments = $arguments;
-        return $this->child;
+        $that = new static($actual);
+        $that->parent = $this;
+        $that->arguments = $arguments;
+        return $that;
     }
 
     public static function __callStatic($name, $arguments)
@@ -303,12 +299,10 @@ class Actual implements \ArrayAccess
         return new static((static::$object)::$name(...$arguments));
     }
 
-    public function __construct($actual, bool $autoback = false)
+    public function __construct($actual)
     {
         $this->actual = $actual;
         $this->parent = $this;
-        $this->child = $this;
-        $this->autoback = $autoback;
 
         if (is_object($actual)) {
             static::$object = get_class($actual);
@@ -628,7 +622,7 @@ class Actual implements \ArrayAccess
 
     public function and(): Actual
     {
-        return $this->child;
+        return $this;
     }
 
     public function exit(int $nest = 1): Actual
@@ -645,9 +639,6 @@ class Actual implements \ArrayAccess
         $constraint = LogicalOr::fromConstraints(...$constraints);
         foreach ($actuals as $actual) {
             Assert::assertThat($actual, $constraint, $this->message);
-        }
-        if ($this->autoback) {
-            return $this->exit();
         }
         return $this;
     }

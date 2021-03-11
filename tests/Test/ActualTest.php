@@ -15,9 +15,9 @@ class ActualTest extends \ryunosuke\Test\AbstractTestCase
         Actual::$constraintVariations['isBar'] = function ($other, $expected = '') { return $other == $expected; };
     }
 
-    function actual($actual, bool $autoback = false)
+    function actual($actual)
     {
-        return new Actual($actual, $autoback);
+        return new Actual($actual);
     }
 
     function test_generateAnnotation()
@@ -537,10 +537,10 @@ Nzxc ');
             3 => $user->new(3, 'piyo'),
         ];
 
-        $this->actual($users, true)
-            ->function('array_column', 'code')->isEqual([1, 2, 3])
-            ->function('array_column', 'name')->foreach('strtoupper')->isEqual(['HOGE', 'FUGA', 'PIYO'])->exit()
-            ->foreach('->privateCodeName')->isEqual([1 => '1:hoge', 2 => '2:fuga', 3 => '3:piyo'])
+        $this->actual($users)
+            ->function('array_column', 'code')->isEqual([1, 2, 3])->exit()
+            ->function('array_column', 'name')->foreach('strtoupper')->isEqual(['HOGE', 'FUGA', 'PIYO'])->exit()->exit()
+            ->foreach('->privateCodeName')->isEqual([1 => '1:hoge', 2 => '2:fuga', 3 => '3:piyo'])->exit()
             ->foreach('::publicCodeName')->isEqual([1 => '1:hoge', 2 => '2:fuga', 3 => '3:piyo']);
     }
 
@@ -592,28 +592,14 @@ Nzxc ');
             ->do('count')->isEqual(3)->exit()
             ->isInstanceOf(\ArrayObject::class);
 
-        // use autoexit
-        $actual = $this->actual($object, true);
-        $actual
-            ->x->isEqual('X')
-            ->y->isEqual('Y')
-        ['z']
-            ->a->isEqual('A')
-            ->b->isEqual('B')
-            ->exit()
-            ->do('count')->isEqual(3)
-            ->isInstanceOf(\ArrayObject::class);
-
         // use autoexit and
-        $actual = $this->actual($object, true);
+        $actual = $this->actual($object);
         $actual['z']->count(2)->and->isInstanceOf(\ArrayObject::class)
-            ->and()
-            ->a->isEqual('A')->and->lengthEquals(1)
-            ->b->isEqual('B')->and->lengthEquals(1)
-            ->exit()
-            ->x->isEqual('X')->and->lengthEquals(1)
-            ->y->isEqual('Y')->and->lengthEquals(1)
-            ->do('count')->isEqual(3)
+            ->a->isEqual('A')->and->lengthEquals(1)->exit()
+            ->b->isEqual('B')->and->lengthEquals(1)->exit()->exit()
+            ->x->isEqual('X')->and->lengthEquals(1)->exit()
+            ->y->isEqual('Y')->and->lengthEquals(1)->exit()->exit()
+            ->do('count')->isEqual(3)->exit()
             ->isInstanceOf(\ArrayObject::class);
 
         // standard
