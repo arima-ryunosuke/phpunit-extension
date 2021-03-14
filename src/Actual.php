@@ -111,7 +111,7 @@ class Actual implements \ArrayAccess
         return version_compare($version, $target);
     }
 
-    public static function generateAnnotation(bool $rawarray = false)
+    public static function generateAnnotation($types = [])
     {
         $annotate = function ($mname, $parameters, $defaults) {
             $result = [];
@@ -180,99 +180,107 @@ class Actual implements \ArrayAccess
 
         $annotations = [];
 
-        foreach (self::$constraintNamespaces as $namespace => $directory) {
-            foreach (glob("$directory/*.php") as $file) {
-                $refclass = new \ReflectionClass('\\' . trim($namespace, '\\') . '\\' . basename($file, '.php'));
-                if (false
-                    || $refclass->isAbstract()
-                    || strpos($refclass->getShortName(), 'Logical') === 0
-                    || !is_subclass_of($refclass->name, Constraint::class)
-                ) {
-                    continue;
-                }
-                $method = $refclass->getConstructor() ?? $dummyConstructor;
+        $types += [
+            'constraint' => true,
+            'variation'  => true,
+            'function'   => false,
+        ];
 
-                $via = "\\{$refclass->name}";
-                $name = lcfirst($refclass->getShortName());
-                $parameters = $method->getParameters();
-
-                $annotations = array_merge($annotations, [$via => $annotate($name, $parameters, [])]);
-            }
-        }
-
-        foreach (self::$constraintVariations as $name => $variation) {
-            if ($variation instanceof \Closure) {
-                $method = new \ReflectionFunction($variation);
-
-                $via = strtr(Util::reflectFile($method), ['\\' => '/']);
-                $parameters = array_slice($method->getParameters(), 1);
-                $annotations = array_merge($annotations, [$via => $annotate($name, $parameters, [])]);
-                continue;
-            }
-
-            if ($variation instanceof Constraint) {
-                $refclass = new \ReflectionClass($variation);
-                $method = $refclass->getConstructor() ?? $dummyConstructor;
-
-                $via = strtr(Util::reflectFile($refclass), ['\\' => '/']);
-                $parameters = $method->getParameters();
-                $annotations = array_merge($annotations, [$via => $annotate($name, $parameters, get_object_properties($variation))]);
-                continue;
-            }
-
-            $via = $parameters = $defaults = [];
-            foreach ((array) $variation as $classname => $defaults) {
-                if (is_int($classname)) {
-                    $classname = $defaults;
-                    $defaults = [];
-                }
-                $refclass = new \ReflectionClass($classname);
-                $method = $refclass->getConstructor() ?? $dummyConstructor;
-
-                $via[] = "\\{$refclass->name}::{$method->name}()" . ($defaults ? ' ' . json_encode($defaults) : '');
-                $parameters = $method->getParameters();
-            }
-
-            $annotations = array_merge($annotations, [implode(',', $via) => $annotate($name, $parameters, $defaults)]);
-        }
-
-        foreach (get_defined_functions(true) as $type => $functions) {
-            foreach ($functions as $funcname) {
-                $reffunc = new \ReflectionFunction($funcname);
-
-                if (!in_array((string) $reffunc->getExtensionName(), ['Core', 'date', 'hash', 'pcre', 'standard', 'mbstring', ''])) {
-                    continue;
-                }
-                if ($reffunc->isUserDefined() && stripos($funcname, __NAMESPACE__) === false) {
-                    continue;
-                }
-                if ($reffunc->getNumberOfParameters() === 0) {
-                    continue;
-                }
-                foreach ($reffunc->getParameters() as $p) {
-                    if ($p->isPassedByReference()) {
-                        continue 2;
+        if ($types['constraint']) {
+            foreach (self::$constraintNamespaces as $namespace => $directory) {
+                foreach (glob("$directory/*.php") as $file) {
+                    $refclass = new \ReflectionClass('\\' . trim($namespace, '\\') . '\\' . basename($file, '.php'));
+                    if (false
+                        || $refclass->isAbstract()
+                        || strpos($refclass->getShortName(), 'Logical') === 0
+                        || !is_subclass_of($refclass->name, Constraint::class)
+                    ) {
+                        continue;
                     }
-                }
+                    $method = $refclass->getConstructor() ?? $dummyConstructor;
 
-                $variation = [];
-                $parameters = $reffunc->getParameters();
-                $paramargs = function_parameter($reffunc);
-                foreach (range(0, $reffunc->getNumberOfParameters() - 1) as $n) {
-                    $params = $paramargs;
-                    unset($params['$' . $parameters[$n]->getName()]);
-                    $variation[] = '\\' . __CLASS__ . ' ' . $reffunc->getShortName() . ($n ? $n : '') . "(" . implode(', ', $params) . ")";
-                }
+                    $via = "\\{$refclass->name}";
+                    $name = lcfirst($refclass->getShortName());
+                    $parameters = $method->getParameters();
 
-                $via = $reffunc->isInternal()
-                    ? "https://www.php.net/manual/function." . strtr($reffunc->getShortName(), ['_' => '-']) . ".php"
-                    : strtr(Util::reflectFile($reffunc), ['\\' => '/']);
-                $annotations = array_merge($annotations, [$via => $variation]);
+                    $annotations = array_merge($annotations, [$via => $annotate($name, $parameters, [])]);
+                }
             }
         }
 
-        if ($rawarray) {
-            return $annotations;
+        if ($types['variation']) {
+            foreach (self::$constraintVariations as $name => $variation) {
+                if ($variation instanceof \Closure) {
+                    $method = new \ReflectionFunction($variation);
+
+                    $via = strtr(Util::reflectFile($method), ['\\' => '/']);
+                    $parameters = array_slice($method->getParameters(), 1);
+                    $annotations = array_merge($annotations, [$via => $annotate($name, $parameters, [])]);
+                    continue;
+                }
+
+                if ($variation instanceof Constraint) {
+                    $refclass = new \ReflectionClass($variation);
+                    $method = $refclass->getConstructor() ?? $dummyConstructor;
+
+                    $via = strtr(Util::reflectFile($refclass), ['\\' => '/']);
+                    $parameters = $method->getParameters();
+                    $annotations = array_merge($annotations, [$via => $annotate($name, $parameters, get_object_properties($variation))]);
+                    continue;
+                }
+
+                $via = $parameters = $defaults = [];
+                foreach ((array) $variation as $classname => $defaults) {
+                    if (is_int($classname)) {
+                        $classname = $defaults;
+                        $defaults = [];
+                    }
+                    $refclass = new \ReflectionClass($classname);
+                    $method = $refclass->getConstructor() ?? $dummyConstructor;
+
+                    $via[] = "\\{$refclass->name}::{$method->name}()" . ($defaults ? ' ' . json_encode($defaults) : '');
+                    $parameters = $method->getParameters();
+                }
+
+                $annotations = array_merge($annotations, [implode(',', $via) => $annotate($name, $parameters, $defaults)]);
+            }
+        }
+
+        if ($types['function']) {
+            foreach (get_defined_functions(true) as $type => $functions) {
+                foreach ($functions as $funcname) {
+                    $reffunc = new \ReflectionFunction($funcname);
+
+                    if (!in_array((string) $reffunc->getExtensionName(), ['Core', 'date', 'hash', 'pcre', 'standard', 'mbstring', ''])) {
+                        continue;
+                    }
+                    if ($reffunc->isUserDefined() && stripos($funcname, __NAMESPACE__) === false) {
+                        continue;
+                    }
+                    if ($reffunc->getNumberOfParameters() === 0) {
+                        continue;
+                    }
+                    foreach ($reffunc->getParameters() as $p) {
+                        if ($p->isPassedByReference()) {
+                            continue 2;
+                        }
+                    }
+
+                    $variation = [];
+                    $parameters = $reffunc->getParameters();
+                    $paramargs = function_parameter($reffunc);
+                    foreach (range(0, $reffunc->getNumberOfParameters() - 1) as $n) {
+                        $params = $paramargs;
+                        unset($params['$' . $parameters[$n]->getName()]);
+                        $variation[] = '\\' . __CLASS__ . ' ' . $reffunc->getShortName() . ($n ? $n : '') . "(" . implode(', ', $params) . ")";
+                    }
+
+                    $via = $reffunc->isInternal()
+                        ? "https://www.php.net/manual/function." . strtr($reffunc->getShortName(), ['_' => '-']) . ".php"
+                        : strtr(Util::reflectFile($reffunc), ['\\' => '/']);
+                    $annotations = array_merge($annotations, [$via => $variation]);
+                }
+            }
         }
 
         $result = [];

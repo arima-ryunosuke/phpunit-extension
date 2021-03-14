@@ -22,7 +22,7 @@ class ActualTest extends \ryunosuke\Test\AbstractTestCase
 
     function test_generateAnnotation()
     {
-        $annotations = Actual::generateAnnotation(false);
+        $annotations = Actual::generateAnnotation();
         $this->assertIsString($annotations);
         $this->assertStringContainsString('@method', $annotations);
         $this->assertStringContainsString('@see', $annotations);
@@ -39,8 +39,6 @@ class ActualTest extends \ryunosuke\Test\AbstractTestCase
         $this->assertStringContainsString('isNullOrString()', $annotations);
         $this->assertStringContainsString('gte($value)', $annotations);
         $this->assertStringContainsString('equalsCanonicalizing($value, float $delta = 0.0, int $maxDepth = 10, bool $canonicalize = true, bool $ignoreCase = false)', $annotations);
-
-        $this->assertIsArray(Actual::generateAnnotation(true));
     }
 
     function test_ok()

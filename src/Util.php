@@ -37,6 +37,11 @@ class Util
 
     public static function propertyToValue($object, string $property)
     {
+        $properties = get_object_properties($object);
+        if (array_key_exists($property, $properties)) {
+            return $properties[$property];
+        }
+
         $refclass = is_string($object) ? new \ReflectionClass($object) : new \ReflectionObject($object);
         do {
             if ($refclass->hasProperty($property)) {
