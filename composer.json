@@ -22,7 +22,7 @@
     "symfony/css-selector": "5.*"
   },
   "require-dev": {
-    "ryunosuke/functions": "1.4.12"
+    "ryunosuke/functions": "1.4.15"
   },
   "bin": [
     "bin/phpunit-current"
@@ -32,18 +32,21 @@
       "ryunosuke\\PHPUnit\\": "src"
     },
     "files": [
-      "inc/ryunosuke.php",
-      "inc/phpunit.php"
+      "inc/phpunit.php",
+      "inc/ryunosuke.stub"
     ]
   },
   "autoload-dev": {
     "psr-4": {
       "ryunosuke\\Test\\": "tests/Test"
-    }
+    },
+    "files": [
+      "tests/ryunosuke.php"
+    ]
   },
   "scripts": {
     "build": [
-      "@composer test"
+      "@test"
     ],
     "test": [
       "vendor/bin/phpunit --configuration=tests/phpunit.xml"
