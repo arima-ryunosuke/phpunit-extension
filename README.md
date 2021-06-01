@@ -419,6 +419,10 @@ BC breaking is controled $compatibleVersion static field somewhat.
 - e.g. 2 is compatible 2.0.0
 - e.g. 999 is latest
 
+### 2.0.1
+
+- [feature] support php8
+
 ### 2.0.0
 
 - [*change] see log
