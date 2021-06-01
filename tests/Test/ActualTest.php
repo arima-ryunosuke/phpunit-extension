@@ -184,7 +184,7 @@ Nzxc ');
         ]);
         $actual->x->isEqual('X');
 
-        $actual = $this->actual(new \ArrayObject([
+        $actual = $this->actual([
             'x' => 'X',
             'y' => 'Y',
             'z' => [
@@ -192,7 +192,7 @@ Nzxc ');
                 ['k' => 'v2'],
                 ['k' => 'v3'],
             ],
-        ], \ArrayObject::ARRAY_AS_PROPS));
+        ]);
 
         $actual['x']->isEqual('X');
         $actual->y->isEqual('Y');
@@ -205,7 +205,7 @@ Nzxc ');
 
         $this->ng(function () use ($actual) {
             $actual->undefined->isInt();
-        }, '$undefined is not defined');
+        }, 'undefined');
 
         $this->ng(function () {
             $this->actual(123)['aaaa'];
@@ -456,7 +456,7 @@ Nzxc ');
         /** @noinspection PhpUndefinedMethodInspection */
         {
             $this->actual($thrower)->try('divide', 10, 2)->is(5);
-            $this->actual($thrower)->try('divide', 10, 0)->isInstanceOf(\Exception::class)->getMessage()->is('Division by zero');
+            $this->actual($thrower)->try('divide', 10, 0)->isInstanceOf(\Throwable::class)->getMessage()->is('Division by zero');
             $this->actual($thrower)->try(null, 10, 2)->is(5);
             $this->actual($thrower)->try(null, 10, 0)->getMessage()->is('Division by zero');
             $this->actual($thrower)->try(null, 10, 0)->wasThrown('Division by zero');
@@ -469,7 +469,7 @@ Nzxc ');
         /** @noinspection PhpUndefinedMethodInspection */
         {
             $this->actual($thrower)->try(10, 2)->is(5);
-            $this->actual($thrower)->try(10, 0)->isInstanceOf(\Exception::class)->getMessage()->is('Division by zero');
+            $this->actual($thrower)->try(10, 0)->isInstanceOf(\Throwable::class)->getMessage()->is('Division by zero');
             $this->actual($thrower)->try(10, 2)->is(5);
             $this->actual($thrower)->try(10, 0)->getMessage()->is('Division by zero');
             $this->actual($thrower)->try(10, 0)->wasThrown('Division by zero');

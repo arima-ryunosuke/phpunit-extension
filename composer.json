@@ -1,7 +1,7 @@
 {
   "config": {
     "platform": {
-      "php": "7.2.11"
+      "php": "7.4"
     }
   },
   "name": "ryunosuke/phpunit-extension",
@@ -22,7 +22,7 @@
     "symfony/css-selector": "5.*"
   },
   "require-dev": {
-    "ryunosuke/functions": "1.4.15"
+    "ryunosuke/functions": "1.4.18"
   },
   "bin": [
     "bin/phpunit-current"

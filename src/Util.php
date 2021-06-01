@@ -113,7 +113,7 @@ class Util
             return sprintf('Closure@%s', self::reflectFile(new \ReflectionFunction($object)));
         }
 
-        if (strpos($callname, 'class@anonymous') !== false) {
+        if (strpos($callname, '@anonymous') !== false) {
             if ($object instanceof SelfDescribing) {
                 [$class, $method] = explode('::', $object->toString(), 2);
             }

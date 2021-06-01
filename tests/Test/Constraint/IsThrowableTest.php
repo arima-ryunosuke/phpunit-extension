@@ -12,7 +12,7 @@ class IsThrowableTest extends \ryunosuke\Test\AbstractTestCase
         $this->assertTrue($constraint->evaluate(new \DomainException(), '', true));
         $this->assertTrue($constraint->evaluate(new \DomainException('message'), '', true));
         $this->assertTrue($constraint->evaluate(new \DomainException('', 123), '', true));
-        $this->assertFalse($constraint->evaluate(new \Error(), '', true));
+        $this->assertTrue($constraint->evaluate(new \Error(), '', true));
 
         $constraint = new IsThrowable('message');
         $this->assertFalse($constraint->evaluate(new \DomainException(), '', true));

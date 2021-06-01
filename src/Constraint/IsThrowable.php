@@ -4,24 +4,26 @@ namespace ryunosuke\PHPUnit\Constraint;
 
 class IsThrowable extends AbstractConstraint
 {
-    /** @var \Throwable */
-    private $expected;
+    private $expectedClass = null;
+    private $expectedMessage = '';
+    private $expectedCode = 0;
 
     public function __construct($expected = null)
     {
-        if (class_exists($expected)) {
-            $expected = (new \ReflectionClass($expected))->newInstanceWithoutConstructor();
+        if ($expected instanceof \Throwable) {
+            $this->expectedClass = get_class($expected);
+            $this->expectedMessage = $expected->getMessage();
+            $this->expectedCode = $expected->getCode();
         }
-        elseif (is_null($expected)) {
-            $expected = new \Exception();
+        elseif (class_exists($expected)) {
+            $this->expectedClass = $expected;
         }
         elseif (is_string($expected)) {
-            $expected = new \Exception($expected, 0);
+            $this->expectedMessage = $expected;
         }
         elseif (is_int($expected)) {
-            $expected = new \Exception('', $expected);
+            $this->expectedCode = $expected;
         }
-        $this->expected = $expected;
     }
 
     protected function failureDescription($other): string
@@ -31,17 +33,15 @@ class IsThrowable extends AbstractConstraint
 
     protected function matches($other): bool
     {
-        if (!$other instanceof $this->expected) {
+        if ($this->expectedClass && !$other instanceof $this->expectedClass) {
             return false;
         }
 
-        $expectedCode = $this->expected->getCode();
-        if ($expectedCode && $expectedCode !== $other->getCode()) {
+        if ($this->expectedCode && $this->expectedCode !== $other->getCode()) {
             return false;
         }
 
-        $expectedMessage = $this->expected->getMessage();
-        if (strlen($expectedMessage) && strpos($other->getMessage(), $expectedMessage) === false) {
+        if (strlen($this->expectedMessage) && strpos($other->getMessage(), $this->expectedMessage) === false) {
             return false;
         }
 
@@ -50,6 +50,10 @@ class IsThrowable extends AbstractConstraint
 
     public function toString(): string
     {
-        return 'to be ' . $this->throwableToString($this->expected);
+        return 'to be ' . sprintf('\\%s(%s, %s)',
+                $this->expectedClass ? $this->expectedClass : \Throwable::class,
+                $this->exporter()->export($this->expectedMessage),
+                $this->exporter()->export($this->expectedCode)
+            );
     }
 }

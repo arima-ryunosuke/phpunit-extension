@@ -315,7 +315,7 @@ class Actual implements \ArrayAccess
         if (is_object($actual)) {
             static::$object = get_class($actual);
         }
-        elseif (@class_exists($actual)) {
+        elseif (is_string($actual) && @class_exists($actual)) {
             static::$object = (string) $actual;
         }
     }

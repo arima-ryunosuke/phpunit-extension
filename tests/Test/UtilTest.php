@@ -131,7 +131,7 @@ class UtilTest extends \ryunosuke\Test\AbstractTestCase
         };
 
         $actual = Util::callableToString($object);
-        $this->assertStringStartsWith("Hoge@tests{$DS}Test{$DS}UtilTest.php#", $actual);
+        $this->assertStringContainsString("tests{$DS}Test{$DS}UtilTest.php", $actual);
         $this->assertStringEndsWith("::fuga", $actual);
     }
 
