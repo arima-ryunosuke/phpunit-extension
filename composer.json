@@ -15,24 +15,17 @@
     }
   ],
   "require": {
-    "php": ">=7.2",
-    "phpunit/phpunit": "8.*",
-    "flow/jsonpath": "0.5.*",
-    "mtdowling/jmespath.php": "2.*",
-    "symfony/css-selector": "5.*"
+    "php": ">=7.4",
+    "phpunit/phpunit": "9.*"
   },
   "require-dev": {
-    "ryunosuke/functions": "1.4.18"
+    "ryunosuke/functions": "1.4.*"
   },
-  "bin": [
-    "bin/phpunit-current"
-  ],
   "autoload": {
     "psr-4": {
       "ryunosuke\\PHPUnit\\": "src"
     },
     "files": [
-      "inc/phpunit.php",
       "inc/ryunosuke.stub"
     ]
   },
