@@ -125,27 +125,4 @@ class Util
 
         return $callname;
     }
-
-    public static function stringToStructure($string)
-    {
-        if (!is_string($string)) {
-            return $string;
-        }
-
-        if (file_exists($string)) {
-            $string = file_get_contents($string);
-        }
-
-        $xml = @simplexml_load_string($string);
-        if ($xml !== false) {
-            return $xml;
-        }
-
-        $json = @json_decode($string, true);
-        if ($json !== null || strtolower(trim($string)) === 'null') {
-            return $json;
-        }
-
-        return $string;
-    }
 }

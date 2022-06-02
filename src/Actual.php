@@ -2,8 +2,7 @@
 
 namespace ryunosuke\PHPUnit;
 
-use Flow\JSONPath\JSONPath;
-use JmesPath\Env;
+use ArrayAccess;
 use PHPUnit\Framework\Assert;
 use PHPUnit\Framework\Constraint\Constraint;
 use PHPUnit\Framework\Constraint\GreaterThan;
@@ -21,7 +20,6 @@ use ryunosuke\PHPUnit\Constraint\IsValid;
 use ryunosuke\PHPUnit\Constraint\LogicalAnd;
 use ryunosuke\PHPUnit\Constraint\LogicalNot;
 use ryunosuke\PHPUnit\Constraint\LogicalOr;
-use Symfony\Component\CssSelector\CssSelectorConverter;
 
 if (!trait_exists(Annotation::class)) {
     trait Annotation
@@ -448,65 +446,38 @@ class Actual implements \ArrayAccess
             return $this->and();
         }
 
-        if ($name[0] === '$') {
-            return $this->create((new JSONPath($this->actual))->find($name)->data());
+        if (is_array($this->actual)) {
+            return $this->create($this->actual[$name]);
         }
 
-        // for convenience
-        $actual = Util::stringToStructure($this->actual);
-        if (is_array($actual)) {
-            return $this->create($actual[$name]);
-        }
-        return $this->create(Util::propertyToValue($actual, $name));
+        return $this->create(Util::propertyToValue($this->actual, $name));
     }
 
     public function __set($name, $value)
     {
+        if (is_array($this->actual)) {
+            $this->actual[$name] = $value;
+            return;
+        }
         $this->actual->$name = $value;
     }
 
     public function __unset($name)
     {
+        if (is_array($this->actual)) {
+            unset($this->actual[$name]);
+            return;
+        }
         unset($this->actual->$name);
     }
 
     public function offsetGet($offset): Actual
     {
-        $actual = Util::stringToStructure($this->actual);
-
-        if ($actual instanceof \SimpleXMLElement) {
-            try {
-                if (isset($actual[$offset])) {
-                    throw new \Symfony\Component\CssSelector\Exception\SyntaxErrorException();
-                }
-                if ($offset[0] !== '/') {
-                    $offset = (new CssSelectorConverter(true))->toXPath($offset);
-                }
-                $value = @$actual->xpath($offset);
-                if ($value === false) {
-                    throw new \Symfony\Component\CssSelector\Exception\SyntaxErrorException();
-                }
-            }
-            catch (\Symfony\Component\CssSelector\Exception\SyntaxErrorException $e) {
-                $value = $actual[$offset];
-            }
-        }
-        elseif (is_array($actual) || $actual instanceof \ArrayAccess || $actual instanceof \stdClass) {
-            try {
-                $value = Env::search($offset, $actual);
-            }
-            catch (\JmesPath\SyntaxErrorException $e) {
-                $value = $actual[$offset];
-            }
-        }
-        elseif (is_string($actual)) {
-            $value = preg_matches($offset, $actual, PREG_SET_ORDER);
-        }
-        else {
-            throw new \DomainException('$this->actual must be structure value given ' . gettype($actual) . ').');
+        if (is_array($this->actual) || $this->actual instanceof ArrayAccess) {
+            return $this->create($this->actual[$offset]);
         }
 
-        return $this->create($value);
+        throw new \DomainException('$this->actual must be structure value given ' . gettype($this->actual) . ').');
     }
 
     public function offsetSet($offset, $value)

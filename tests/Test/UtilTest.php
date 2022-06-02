@@ -134,19 +134,4 @@ class UtilTest extends \ryunosuke\Test\AbstractTestCase
         $this->assertStringContainsString("tests{$DS}Test{$DS}UtilTest.php", $actual);
         $this->assertStringEndsWith("::fuga", $actual);
     }
-
-    function test_stringToStructure()
-    {
-        $this->assertSame($stdclass = new \stdClass(), Util::stringToStructure($stdclass));
-        $this->assertSame('', Util::stringToStructure(''));
-        $this->assertSame('hoge', Util::stringToStructure('hoge'));
-        $this->assertSame(null, Util::stringToStructure('null'));
-        $this->assertSame(true, Util::stringToStructure('true'));
-        $this->assertSame(false, Util::stringToStructure('false'));
-        $this->assertSame(file_get_contents(__FILE__), Util::stringToStructure(__FILE__));
-        $this->assertInstanceOf(\SimpleXMLElement::class, Util::stringToStructure(__DIR__ . '/../phpunit.xml.dist'));
-        $this->assertInstanceOf(\SimpleXMLElement::class, Util::stringToStructure('<a></a>'));
-        $this->assertSame([], Util::stringToStructure('{}'));
-        $this->assertSame(['a' => 'A'], Util::stringToStructure('{"a": "A"}'));
-    }
 }

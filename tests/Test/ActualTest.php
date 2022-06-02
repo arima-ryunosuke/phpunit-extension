@@ -197,10 +197,6 @@ Nzxc ');
         $actual['x']->isEqual('X');
         $actual->y->isEqual('Y');
 
-        $actual->{"$.z.*.k"}->is(['v1', 'v2', 'v3']);
-        $actual['z[].k']->is(['v1', 'v2', 'v3']);
-
-        $actual['z[0].k']->is('v1');
         $actual->z[0]->k->is('v1');
 
         $this->ng(function () use ($actual) {
@@ -212,52 +208,28 @@ Nzxc ');
         }, 'must be structure value');
     }
 
-    function test_accessor_xml()
-    {
-        $actual = $this->actual('<a id="foo">A<b id="bar">B<c attr="ATTR1">C1</c><c attr="ATTR2">C2</c></b></a>');
-
-        $actual['id']->is('foo');
-        $actual->b['id']->is('bar');
-        $actual->b->c[0]['attr']->is('ATTR1');
-
-        $actual['/a/b/c']->count(2)[1]->isEqual('C2');
-        $actual['/a/b/c/@attr']->count(2)[1]->isEqual('ATTR2');
-
-        $actual['#foo']->count(1)[0]->isEqual('A');
-        $actual['c[attr]']->count(2)[0]->isEqual('C1');
-    }
-
-    function test_accessor_string()
-    {
-        $actual = $this->actual('hoge fuga piyo');
-        $actual['#(hoge).*(fuga)#']->count(2)->isEqual(['hoge', 'fuga']);
-        $actual['#(?<aaa>fuga)#']->count(1)->isEqual(['aaa' => 'fuga']);
-        $actual['#(?<aaa>hoge) (?<bbb>.*)#']->count(2)->isEqual(['aaa' => 'hoge', 'bbb' => 'fuga piyo']);
-
-        $actual = $this->actual('hoge fuga piyo hoge fuga piyo');
-        $actual['#(hoge).*(fuga)#g']->count(1)[0]->isEqual(['hoge', 'fuga']);
-        $actual['#(?<aaa>fuga)#g']->count(2)[0]->isEqual(['aaa' => 'fuga']);
-        $actual['#(?<aaa>hoge) (?<bbb>.*)#g']->count(1)[0]->isEqual(['aaa' => 'hoge', 'bbb' => 'fuga piyo hoge fuga piyo']);
-    }
-
     function test_mutator()
     {
-        $actual = $this->actual(new \ArrayObject(['a' => null, 'x' => null], \ArrayObject::ARRAY_AS_PROPS));
+        $actuals = [
+            $this->actual(['a' => null, 'x' => null]),
+            $this->actual(new \ArrayObject(['a' => null, 'x' => null], \ArrayObject::ARRAY_AS_PROPS)),
+        ];
+        foreach ($actuals as $actual) {
+            $actual['a']->isNull();
+            $actual->x->isNull();
 
-        $actual['a']->isNull();
-        $actual->x->isNull();
+            $actual['a'] = 'a';
+            $actual->x = 'x';
 
-        $actual['a'] = 'a';
-        $actual->x = 'x';
+            $actual->hasKeyAll(['a', 'x']);
+            $actual['a']->is('a');
+            $actual->x->is('x');
 
-        $actual->hasKeyAll(['a', 'x']);
-        $actual['a']->is('a');
-        $actual->x->is('x');
+            unset($actual['a']);
+            unset($actual->x);
 
-        unset($actual['a']);
-        unset($actual->x);
-
-        $actual->notHasKeyAll(['a', 'x']);
+            $actual->notHasKeyAll(['a', 'x']);
+        }
     }
 
     function test_var()
