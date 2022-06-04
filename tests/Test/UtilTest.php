@@ -59,6 +59,10 @@ class UtilTest extends \ryunosuke\Test\AbstractTestCase
 
     function test_methodToCallable()
     {
+        $method = Util::methodToCallable($this, 'setUp');
+        /** @noinspection PhpUndefinedMethodInspection */
+        $this->assertEquals('PHPUnit\\Framework\\TestCase::setUp', $method->toString());
+
         $class = new class {
             public static function staticMethod() { return __FUNCTION__; }
 
@@ -82,7 +86,7 @@ class UtilTest extends \ryunosuke\Test\AbstractTestCase
 
         $privateMethod = Util::methodToCallable($class, 'privateMethod');
         /** @noinspection PhpUndefinedMethodInspection */
-        $this->assertEquals('AnonymousClass::privateMethod', $privateMethod->toString());
+        $this->assertEquals("AnonymousClass@" . Util::reflectFile(new \ReflectionClass($class)) . "::privateMethod", $privateMethod->toString());
         $this->assertEquals('privateMethod', $privateMethod());
 
         $publicMethod = Util::methodToCallable($class, 'publicMethod');
@@ -126,12 +130,10 @@ class UtilTest extends \ryunosuke\Test\AbstractTestCase
 
             public function toString(): string
             {
-                return 'Hoge::fuga';
+                return 'CustomString';
             }
         };
 
-        $actual = Util::callableToString($object);
-        $this->assertStringContainsString("tests{$DS}Test{$DS}UtilTest.php", $actual);
-        $this->assertStringEndsWith("::fuga", $actual);
+        $this->assertEquals('CustomString', Util::callableToString($object));
     }
 }

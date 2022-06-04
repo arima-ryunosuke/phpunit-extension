@@ -2,6 +2,8 @@
 
 namespace ryunosuke\PHPUnit\Constraint;
 
+use ryunosuke\PHPUnit\Util;
+
 class InTime extends AbstractConstraint
 {
     private $time;
@@ -14,7 +16,7 @@ class InTime extends AbstractConstraint
 
     protected function failureDescription($other): string
     {
-        [, , $string] = $this->extractCallable($other);
+        $string = Util::callableToString($other);
         if ($this->actual instanceof \Throwable) {
             return sprintf('%s is unable to measure time because %s thrown', $string, $this->throwableToString($this->actual));
         }
@@ -23,12 +25,10 @@ class InTime extends AbstractConstraint
 
     protected function matches($other): bool
     {
-        [$callable, $args] = $this->extractCallable($other);
-
         try {
             $this->actual = null;
             $mtime = microtime(true);
-            $callable(...$args);
+            $other();
             $this->actual = microtime(true) - $mtime;
             return $this->actual < $this->time;
         }

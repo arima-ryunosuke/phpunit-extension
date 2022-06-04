@@ -38,43 +38,6 @@ class AbstractConstraintTest extends \ryunosuke\Test\AbstractTestCase
             $this->assertStringNotContainsString('description', $actual->getMessage());
         }
     }
-
-    function test_extractCallable()
-    {
-        $constraint = new ConcreteConstraint();
-
-        [$callable, $args, $string] = $constraint->extractCallable([$callee = 'strlen', new \stdClass()]);
-        $this->assertSame('strlen', $callable);
-        $this->assertEquals([new \stdClass()], $args);
-        $this->assertEquals('strlen(\\stdClass)', $string);
-
-        [$callable, $args, $string] = $constraint->extractCallable([$callee = [$this, 'getName'], 1, 2, 3]);
-        $this->assertSame($callee, $callable);
-        $this->assertEquals([1, 2, 3], $args);
-        $this->assertEquals(__CLASS__ . '::getName(1, 2, 3)', $string);
-
-        [$callable, $args, $string] = $constraint->extractCallable([$callee = function () { }, 4, 5, 6]);
-        $this->assertSame($callee, $callable);
-        $this->assertEquals([4, 5, 6], $args);
-        $this->assertStringContainsString(basename(__FILE__), $string);
-
-        $object = new class() {
-            function method() { }
-
-            function __invoke() { }
-        };
-        [$callable, $args, $string] = $constraint->extractCallable([$callee = [$object, 'method'], 7, 8, 9]);
-        $this->assertSame($callee, $callable);
-        $this->assertEquals([7, 8, 9], $args);
-        $this->assertStringContainsString(basename(__FILE__), $string);
-        $this->assertStringContainsString('::method', $string);
-
-        [$callable, $args, $string] = $constraint->extractCallable([$callee = $object, 7, 8, 9]);
-        $this->assertSame($callee, $callable);
-        $this->assertEquals([7, 8, 9], $args);
-        $this->assertStringContainsString(basename(__FILE__), $string);
-        $this->assertStringContainsString('__invoke', $string);
-    }
 }
 
 class ConcreteConstraint extends AbstractConstraint
@@ -82,10 +45,5 @@ class ConcreteConstraint extends AbstractConstraint
     public function failLogically(Constraint $failed, $other, $description, ExpectationFailedException $prev = null)
     {
         return parent::failLogically(...func_get_args());
-    }
-
-    public function extractCallable($other): array
-    {
-        return parent::extractCallable(...func_get_args());
     }
 }

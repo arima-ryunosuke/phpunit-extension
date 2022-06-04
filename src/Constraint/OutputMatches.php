@@ -2,6 +2,8 @@
 
 namespace ryunosuke\PHPUnit\Constraint;
 
+use ryunosuke\PHPUnit\Util;
+
 class OutputMatches extends AbstractConstraint
 {
     private $expected;
@@ -14,18 +16,16 @@ class OutputMatches extends AbstractConstraint
 
     protected function failureDescription($other): string
     {
-        [, , $string] = $this->extractCallable($other);
+        $string = Util::callableToString($other);
         return sprintf('%s %s (actual %s)', $string, $this->toString(), $this->exporter()->export($this->actual));
     }
 
     protected function matches($other): bool
     {
-        [$callable, $args] = $this->extractCallable($other);
-
         try {
             $this->actual = null;
             ob_start();
-            $callable(...$args);
+            $other();
             $this->actual = ob_get_contents();
             return preg_match($this->expected, $this->actual) > 0;
         }

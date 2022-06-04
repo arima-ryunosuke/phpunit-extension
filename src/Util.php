@@ -91,7 +91,12 @@ class Util
                 public function toString(): string
                 {
                     $decclass = $this->method->getDeclaringClass();
-                    $class = $decclass->isAnonymous() ? 'AnonymousClass' : $decclass->name;
+                    if ($decclass->isAnonymous()) {
+                        $class = 'AnonymousClass@' . Util::reflectFile(new \ReflectionClass($this->object));
+                    }
+                    else {
+                        $class = $decclass->name;
+                    }
                     return $class . '::' . $this->method->name;
                 }
             };
@@ -115,12 +120,11 @@ class Util
 
         if (strpos($callname, '@anonymous') !== false) {
             if ($object instanceof SelfDescribing) {
-                [$class, $method] = explode('::', $object->toString(), 2);
+                return $object->toString();
             }
             else {
-                $class = 'AnonymousClass';
+                return sprintf('AnonymousClass@%s::%s', self::reflectFile(new \ReflectionClass($object)), $method);
             }
-            return sprintf('%s@%s::%s', $class, self::reflectFile(new \ReflectionClass($object)), $method);
         }
 
         return $callname;

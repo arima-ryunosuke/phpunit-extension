@@ -4,9 +4,9 @@ namespace ryunosuke\PHPUnit\Constraint;
 
 class IsThrowable extends AbstractConstraint
 {
-    private $expectedClass = null;
+    private $expectedClass   = null;
     private $expectedMessage = '';
-    private $expectedCode = 0;
+    private $expectedCode    = 0;
 
     public function __construct($expected = null)
     {
@@ -28,11 +28,15 @@ class IsThrowable extends AbstractConstraint
 
     protected function failureDescription($other): string
     {
-        return sprintf('%s %s', $this->throwableToString($other), $this->toString());
+        return sprintf('%s %s', $other instanceof \Throwable ? $this->throwableToString($other) : 'not thrown', $this->toString());
     }
 
     protected function matches($other): bool
     {
+        if (!$other instanceof \Throwable) {
+            return false;
+        }
+
         if ($this->expectedClass && !$other instanceof $this->expectedClass) {
             return false;
         }

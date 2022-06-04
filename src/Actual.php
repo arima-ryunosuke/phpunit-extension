@@ -14,6 +14,7 @@ use PHPUnit\Framework\Constraint\LessThan;
 use PHPUnit\Framework\Constraint\RegularExpression;
 use PHPUnit\Framework\Constraint\StringEndsWith;
 use PHPUnit\Framework\Constraint\StringStartsWith;
+use PHPUnit\Framework\SelfDescribing;
 use ryunosuke\PHPUnit\Constraint\IsCType;
 use ryunosuke\PHPUnit\Constraint\IsThrowable;
 use ryunosuke\PHPUnit\Constraint\IsValid;
@@ -89,7 +90,7 @@ class Actual implements \ArrayAccess
         "\\PHPUnit\\Framework\\Constraint\\" => __DIR__ . '/../vendor/phpunit/phpunit/src/Framework/Constraint',
     ];
 
-    private static $object = [];
+    private static ?string $object = null;
 
     /** @var mixed testing value */
     private $actual;
@@ -300,9 +301,9 @@ class Actual implements \ArrayAccess
         return $that;
     }
 
-    public static function __callStatic($name, $arguments)
+    public static function __callStatic($methodname, $arguments)
     {
-        return new static((static::$object)::$name(...$arguments));
+        return new static(Util::methodToCallable(static::$object, $methodname)(...$arguments));
     }
 
     public function __construct($actual)
@@ -433,11 +434,7 @@ class Actual implements \ArrayAccess
 
     public function __invoke(...$arguments): Actual
     {
-        if (!($this->actual instanceof \Closure || (!is_object($this->actual) && is_callable($this->actual)))) {
-            array_unshift($arguments, null);
-        }
-
-        return $this->try(...$arguments);
+        return $this->try(null, ...$arguments);
     }
 
     public function __get($name): Actual
@@ -450,7 +447,7 @@ class Actual implements \ArrayAccess
             return $this->create($this->actual[$name]);
         }
 
-        return $this->create(Util::propertyToValue($this->actual, $name));
+        return $this->create($this->var($name));
     }
 
     public function __set($name, $value)
@@ -495,46 +492,48 @@ class Actual implements \ArrayAccess
         return Util::propertyToValue($this->actual, $propertyname);
     }
 
-    public function use(string $methodname): \Closure
+    public function use(?string $methodname): callable
     {
-        return \Closure::fromCallable(Util::methodToCallable($this->actual, $methodname));
+        return Util::methodToCallable($this->actual, $methodname);
     }
 
-    public function callable(string $methodname, ...$bindings): Actual
+    public function callable(?string $methodname = null, ...$bindings): Actual
     {
-        $method = Util::methodToCallable($this->actual, $methodname);
+        $callable = $this->use($methodname);
         if ($bindings) {
-            $method = array_merge([$method], $bindings);
+            $callable = new class($callable, $bindings) implements SelfDescribing {
+                private $callable;
+                private $bindings;
+
+                public function __construct($callable, $bindings)
+                {
+                    $this->callable = $callable;
+                    $this->bindings = $bindings;
+                }
+
+                public function __invoke()
+                {
+                    return ($this->callable)(...(func_get_args() + $this->bindings));
+                }
+
+                public function toString(): string
+                {
+                    return Util::callableToString($this->callable);
+                }
+            };
         }
-        return $this->create($method);
+        return $this->create($callable);
     }
 
-    public function do($name, ...$arguments): Actual
+    public function do(?string $methodname, ...$arguments): Actual
     {
-        if ($this->actual instanceof \Closure || !is_object($this->actual) && is_callable($this->actual)) {
-            if (func_num_args()) {
-                array_unshift($arguments, $name);
-            }
-            return $this->create(($this->actual)(...$arguments), $arguments);
-        }
-
-        return $this->create((Util::methodToCallable($this->actual, $name))(...$arguments), $arguments);
+        return $this->create($this->use($methodname)(...$arguments));
     }
 
-    public function try($method = null, ...$arguments): Actual
+    public function try(?string $methodname, ...$arguments): Actual
     {
-        if ($this->actual instanceof \Closure || (!is_object($this->actual) && is_callable($this->actual))) {
-            if (func_num_args()) {
-                array_unshift($arguments, $method);
-            }
-            $callee = $this->actual;
-        }
-        else {
-            $callee = Util::methodToCallable($this->actual, $method);
-        }
-
         try {
-            $return = $callee(...$arguments);
+            $return = $this->use($methodname)(...$arguments);
         }
         catch (\Throwable $t) {
             $return = $t;

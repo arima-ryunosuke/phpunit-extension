@@ -4,6 +4,7 @@ namespace ryunosuke\Test;
 
 use PHPUnit\Framework\Constraint\IsEqual;
 use ryunosuke\PHPUnit\Actual;
+use ryunosuke\PHPUnit\Util;
 
 class ActualTest extends \ryunosuke\Test\AbstractTestCase
 {
@@ -310,6 +311,10 @@ Nzxc ');
 
         $actual->callable('privateMethod', 1)->outputMatches('#10#');
         $actual->callable('publicMethod', 2)->outputMatches('#20#');
+
+        $this->ng(function () use ($actual) {
+            $actual->callable('privateMethod', 0)->outputMatches('#x#');
+        }, 'AnonymousClass@' . Util::reflectFile(new \ReflectionClass($actual->return())) . '::privateMethod');
     }
 
     function test_invoke()
@@ -414,7 +419,7 @@ Nzxc ');
             return $x * 10;
         };
 
-        $this->actual($callee)->do(2)->is(20);
+        $this->actual($callee)->do(null, 2)->is(20);
     }
 
     function test_try()
@@ -440,11 +445,11 @@ Nzxc ');
 
         /** @noinspection PhpUndefinedMethodInspection */
         {
-            $this->actual($thrower)->try(10, 2)->is(5);
-            $this->actual($thrower)->try(10, 0)->isInstanceOf(\Throwable::class)->getMessage()->is('Division by zero');
-            $this->actual($thrower)->try(10, 2)->is(5);
-            $this->actual($thrower)->try(10, 0)->getMessage()->is('Division by zero');
-            $this->actual($thrower)->try(10, 0)->wasThrown('Division by zero');
+            $this->actual($thrower)(10, 2)->is(5);
+            $this->actual($thrower)(10, 0)->isInstanceOf(\Throwable::class)->getMessage()->is('Division by zero');
+            $this->actual($thrower)(10, 2)->is(5);
+            $this->actual($thrower)(10, 0)->getMessage()->is('Division by zero');
+            $this->actual($thrower)(10, 0)->wasThrown('Division by zero');
         }
     }
 
