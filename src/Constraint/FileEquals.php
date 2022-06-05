@@ -8,7 +8,7 @@ class FileEquals extends Composite
 {
     public function __construct($value, bool $ignoreCase = false)
     {
-        parent::__construct(new IsEqual($value, 0.0, 10, false, $ignoreCase));
+        parent::__construct(new IsEqual($value, 0.0, 10, $ignoreCase));
     }
 
     protected function filter($other)

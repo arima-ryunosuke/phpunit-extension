@@ -17,7 +17,7 @@ abstract class Composite extends AbstractConstraint
         $this->dynamicConstraint = null;
     }
 
-    public function evaluate($other, string $description = '', bool $returnResult = false)
+    public function evaluate($other, string $description = '', bool $returnResult = false): ?bool
     {
         $this->dynamicConstraint = null;
 
@@ -26,7 +26,7 @@ abstract class Composite extends AbstractConstraint
             return $this->innerConstraint($other)->evaluate($filtered_other, $description, $returnResult);
         }
         catch (ExpectationFailedException $e) {
-            return $this->fail($filtered_other, $description, $e->getComparisonFailure());
+            $this->fail($filtered_other, $description, $e->getComparisonFailure());
         }
     }
 

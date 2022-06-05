@@ -32,7 +32,7 @@ class LogicalAnd extends AbstractConstraint
         return $constraint;
     }
 
-    public function evaluate($other, string $description = '', bool $returnResult = false)
+    public function evaluate($other, string $description = '', bool $returnResult = false): ?bool
     {
         foreach ($this->constraints as $constraint) {
             try {

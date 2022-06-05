@@ -22,7 +22,7 @@ class LogicalXor extends AbstractConstraint
         return $constraint;
     }
 
-    public function evaluate($other, string $description = '', bool $returnResult = false)
+    public function evaluate($other, string $description = '', bool $returnResult = false): ?bool
     {
         $lastResult = null;
         $e = null;

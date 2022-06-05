@@ -15,6 +15,7 @@ class ActualTest extends \ryunosuke\Test\AbstractTestCase
 
         Actual::$constraintVariations['isFoo'] = new IsEqual('foo', 9.9, 99, true);
         Actual::$constraintVariations['isBar'] = function ($other, $expected = '') { return $other == $expected; };
+        Actual::$constraintVariations['isBaz'] = [IsEqual::class => [1 => 1.0]];
     }
 
     function actual($actual)
@@ -31,6 +32,7 @@ class ActualTest extends \ryunosuke\Test\AbstractTestCase
         $this->assertStringContainsString('isFoo($value = \'foo\'', $annotations);
         $this->assertStringContainsString('isFooAny(array $values', $annotations);
         $this->assertStringContainsString('isBar($expected = \'\')', $annotations);
+        $this->assertStringContainsString('isBaz($value, float $delta = 1.0', $annotations);
         $this->assertStringContainsString('isFalse', $annotations);
         $this->assertStringContainsString('isNotFalse', $annotations);
         $this->assertStringContainsString('stringLengthEquals', $annotations);
@@ -40,7 +42,7 @@ class ActualTest extends \ryunosuke\Test\AbstractTestCase
         $this->assertStringContainsString('All(', $annotations);
         $this->assertStringContainsString('isNullOrString()', $annotations);
         $this->assertStringContainsString('gte($value)', $annotations);
-        $this->assertStringContainsString('equalsCanonicalizing($value, float $delta = 0.0, int $maxDepth = 10, bool $canonicalize = true, bool $ignoreCase = false)', $annotations);
+        $this->assertStringContainsString('equalsCanonicalizing($value, float $delta = 0.0, bool $canonicalize = true, bool $ignoreCase = false)', $annotations);
     }
 
     function test_generateStub()
@@ -94,7 +96,7 @@ Nzxc ');
         $this->actual('qwe')
             ->stringLengthEqualsAny([1, 2, 3])
             ->isEqualAny(['qwe', 'asd'])
-            ->isEqualAny(['QWE', 'asd'], 0, 10, false, true);
+            ->isEqualAny(['QWE', 'asd'], 0, 10, true);
 
         $this->actual(['a' => 'A', 'b' => 'B', 'c' => 'C'])
             ->arrayHasKeyAll(['a', 'b', 'c']);

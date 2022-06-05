@@ -58,7 +58,7 @@ class LogicalNot extends AbstractConstraint
         $this->constraint = $constraint;
     }
 
-    public function evaluate($other, string $description = '', bool $returnResult = false)
+    public function evaluate($other, string $description = '', bool $returnResult = false): ?bool
     {
         $success = !$this->constraint->evaluate($other, $description, true);
 
@@ -67,8 +67,9 @@ class LogicalNot extends AbstractConstraint
         }
 
         if (!$success) {
-            return $this->fail($other, $description);
+            $this->fail($other, $description);
         }
+        return null;
     }
 
     public function count(): int

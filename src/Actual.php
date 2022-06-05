@@ -41,7 +41,7 @@ class Actual implements \ArrayAccess
         'prefixIs'             => StringStartsWith::class,
         'suffixIs'             => StringEndsWith::class,
         'equalsCanonicalizing' => [IsEqual::class => ['canonicalize' => true]],
-        'equalsIgnoreCase'     => [IsEqual::class => [4 => true]],
+        'equalsIgnoreCase'     => [IsEqual::class => ['ignoreCase' => true]],
         'matches'              => RegularExpression::class,
         'gt'                   => GreaterThan::class,
         'lt'                   => LessThan::class,
@@ -187,7 +187,7 @@ class Actual implements \ArrayAccess
 
         if ($types['constraint']) {
             foreach (self::$constraintNamespaces as $namespace => $directory) {
-                foreach (glob("$directory/*.php") as $file) {
+                foreach (file_list($directory, ['extension' => 'php']) as $file) {
                     $refclass = new \ReflectionClass('\\' . trim($namespace, '\\') . '\\' . basename($file, '.php'));
                     if (false
                         || $refclass->isAbstract()
