@@ -22,10 +22,8 @@ use ryunosuke\PHPUnit\Constraint\LogicalAnd;
 use ryunosuke\PHPUnit\Constraint\LogicalNot;
 use ryunosuke\PHPUnit\Constraint\LogicalOr;
 
-if (!trait_exists(Annotation::class)) {
-    trait Annotation
-    {
-    }
+if (!trait_exists(Annotation::class)) { // @codeCoverageIgnore
+    trait Annotation { }
 }
 
 class Actual implements \ArrayAccess
@@ -90,17 +88,13 @@ class Actual implements \ArrayAccess
 
     private static ?string $object = null;
 
-    /** @var mixed testing value */
     private $actual;
 
-    /** @var Actual */
-    private $parent;
+    private Actual $parent;
 
-    /** @var array */
-    private $arguments = [];
+    private array $arguments = [];
 
-    /** @var string */
-    private $message = '';
+    private string $message = '';
 
     public static function generateAnnotation($types = [])
     {
@@ -114,7 +108,6 @@ class Actual implements \ArrayAccess
                 }
                 $type = '';
                 if ($parameter->hasType()) {
-                    /** @noinspection PhpPossiblePolymorphicInvocationInspection */
                     $tname = $parameter->getType()->getName();
                     $tname = (class_exists($tname) ? '\\' : '') . $tname;
                     $type = ($parameter->allowsNull() ? '?' : '') . $tname . ' ';
@@ -238,7 +231,7 @@ class Actual implements \ArrayAccess
         }
 
         if ($types['function']) {
-            foreach (get_defined_functions(true) as $type => $functions) {
+            foreach (get_defined_functions(true) as $functions) {
                 foreach ($functions as $funcname) {
                     $reffunc = new \ReflectionFunction($funcname);
 

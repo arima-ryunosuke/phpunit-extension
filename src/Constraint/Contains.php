@@ -25,11 +25,11 @@ class Contains extends Composite
         $contraints = [];
 
         if (is_stringable($other) && is_readable($other)) {
-            $contraints[] = new FileContains($this->needle, $this->strict === null ? false : !$this->strict);
+            $contraints[] = new FileContains($this->needle, !($this->strict === null) && !$this->strict);
         }
 
         if (is_stringable($other)) {
-            $contraints[] = new StringContains($this->needle, $this->strict === null ? false : !$this->strict);
+            $contraints[] = new StringContains($this->needle, !($this->strict === null) && !$this->strict);
         }
 
         if (is_iterable($other)) {

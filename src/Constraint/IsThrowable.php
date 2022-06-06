@@ -54,10 +54,10 @@ class IsThrowable extends AbstractConstraint
 
     public function toString(): string
     {
-        return 'to be ' . sprintf('\\%s(%s, %s)',
-                $this->expectedClass ? $this->expectedClass : \Throwable::class,
-                $this->exporter()->export($this->expectedMessage),
-                $this->exporter()->export($this->expectedCode)
-            );
+        return sprintf('to be \\%s(%s, %s)',
+            $this->expectedClass ? $this->expectedClass : \Throwable::class,
+            $this->exporter()->export($this->expectedMessage),
+            $this->exporter()->export($this->expectedCode)
+        );
     }
 }

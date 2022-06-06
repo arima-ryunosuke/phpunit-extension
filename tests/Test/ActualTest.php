@@ -18,6 +18,11 @@ class ActualTest extends \ryunosuke\Test\AbstractTestCase
         Actual::$constraintVariations['isBaz'] = [IsEqual::class => [1 => 1.0]];
     }
 
+    /**
+     * @template T
+     * @param T $actual
+     * @return Actual|T
+     */
     function actual($actual)
     {
         return new Actual($actual);

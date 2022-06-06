@@ -24,10 +24,10 @@ class IsValid extends AbstractConstraint
             FILTER_VALIDATE_EMAIL => 0,
         ],
         self::VALID_IP    => [
-            FILTER_VALIDATE_IP => 0
+            FILTER_VALIDATE_IP => 0,
         ],
         self::VALID_IPV4  => [
-            FILTER_VALIDATE_IP => FILTER_FLAG_IPV4
+            FILTER_VALIDATE_IP => FILTER_FLAG_IPV4,
         ],
         self::VALID_IPV6  => [
             FILTER_VALIDATE_IP => FILTER_FLAG_IPV6,

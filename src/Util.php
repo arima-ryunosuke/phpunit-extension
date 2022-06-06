@@ -27,7 +27,7 @@ class Util
 
     public static function reflectFile(\Reflector $reflector, string $format = '%s#%d-%d'): string
     {
-        assert(method_exists($reflector, 'getFilename'));
+        assert(method_exists($reflector, 'getFilename') && method_exists($reflector, 'getStartLine') && method_exists($reflector, 'getEndLine'));
         return sprintf($format,
             self::relativizeFile($reflector->getFileName(), 'vendor'),
             $reflector->getStartLine(),
@@ -43,19 +43,19 @@ class Util
         }
 
         $refclass = is_string($object) ? new \ReflectionClass($object) : new \ReflectionObject($object);
-        do {
-            if ($refclass->hasProperty($property)) {
-                $refproperty = $refclass->getProperty($property);
+        for ($class = $refclass; $class; $class = $class->getParentClass()) {
+            if ($class->hasProperty($property)) {
+                $refproperty = $class->getProperty($property);
                 $refproperty->setAccessible(true);
                 return $refproperty->isStatic() ? $refproperty->getValue() : $refproperty->getValue($object);
             }
-        } while ($refclass = $refclass->getParentClass());
+        }
 
         if (method_exists($object, '__get')) {
             return $object->$property;
         }
 
-        throw new \DomainException(get_class($object) . '::$' . $property . ' is not defined.');
+        throw new \DomainException($refclass->name . '::$' . $property . ' is not defined.');
     }
 
     public static function methodToCallable($object, string $method = null): callable

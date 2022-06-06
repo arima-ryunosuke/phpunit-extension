@@ -42,7 +42,6 @@ class UtilTest extends \ryunosuke\Test\AbstractTestCase
                 return "this is magic";
             }
         };
-        /** @noinspection PhpUndefinedFieldInspection */
         $object->dynamicProperty = 'this is dynamic';
 
         $this->assertEquals("this is static", Util::propertyToValue(get_class($object), 'staticProperty'));
@@ -66,6 +65,7 @@ class UtilTest extends \ryunosuke\Test\AbstractTestCase
         $class = new class {
             public static function staticMethod() { return __FUNCTION__; }
 
+            /** @noinspection PhpUnusedPrivateMethodInspection */
             private static function privateStaticMethod() { return __FUNCTION__; }
 
             protected function privateMethod() { return __FUNCTION__; }

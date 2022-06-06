@@ -16,6 +16,11 @@ else {
 
 ryunosuke\PHPUnit\Exporter\Exporter::insteadOf();
 
+/**
+ * @template T
+ * @param T $actual
+ * @return \ryunosuke\PHPUnit\Actual|T
+ */
 function that($actual)
 {
     return new \ryunosuke\PHPUnit\Actual($actual);
