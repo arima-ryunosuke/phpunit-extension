@@ -32,8 +32,6 @@ class Actual implements \ArrayAccess
 {
     use Annotation;
 
-    public static $compatibleVersion = "2.0.0";
-
     public static $constraintVariations = [
         // alias
         'is'                   => IsEqual::class,
@@ -103,12 +101,6 @@ class Actual implements \ArrayAccess
 
     /** @var string */
     private $message = '';
-
-    private static function compareVersion(string $target): int
-    {
-        $version = implode('.', explode('.', (string) self::$compatibleVersion) + [1 => '0', 2 => '0']);
-        return version_compare($version, $target);
-    }
 
     public static function generateAnnotation($types = [])
     {

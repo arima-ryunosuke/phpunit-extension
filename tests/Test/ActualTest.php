@@ -25,7 +25,7 @@ class ActualTest extends \ryunosuke\Test\AbstractTestCase
 
     function test_generateAnnotation()
     {
-        $annotations = Actual::generateAnnotation();
+        $annotations = Actual::generateAnnotation(['function' => true]);
         $this->assertIsString($annotations);
         $this->assertStringContainsString('@method', $annotations);
         $this->assertStringContainsString('@see', $annotations);
@@ -221,6 +221,14 @@ Nzxc ');
         $this->ng(function () {
             $this->actual(123)['aaaa'];
         }, 'must be structure value');
+
+        $this->ng(function () {
+            isset($this->actual([])->undefined);
+        }, '__isset is not supported');
+
+        $this->ng(function () {
+            isset($this->actual([])['undefined']);
+        }, 'offsetExists is not supported');
     }
 
     function test_mutator()

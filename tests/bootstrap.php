@@ -14,6 +14,8 @@ else {
     putenv("TMPDIR=$tmpdir");
 }
 
+ryunosuke\PHPUnit\Exporter\Exporter::insteadOf();
+
 function that($actual)
 {
     return new \ryunosuke\PHPUnit\Actual($actual);
@@ -22,7 +24,6 @@ function that($actual)
 file_put_contents(__DIR__ . "/../inc/ryunosuke.stub", \ryunosuke\Functions\Transporter::exportNamespace('\\ryunosuke\\PHPUnit'));
 file_put_contents(__DIR__ . "/../tests/ryunosuke.php", \ryunosuke\Functions\Transporter::exportNamespace('\\ryunosuke\\PHPUnit'));
 
-\ryunosuke\PHPUnit\Actual::$compatibleVersion = 2;
 \ryunosuke\PHPUnit\Actual::$constraintVariations['lineCount'] = function ($other, int $lineCount, string $delimiter = "\\R") {
     return $lineCount === (preg_match_all("#$delimiter#", $other) + 1);
 };
