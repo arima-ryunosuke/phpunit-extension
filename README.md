@@ -1,8 +1,8 @@
-# PHPUnit Fluent Assertions
+# PHPUnit Extension
 
 ## Description
 
-This package adds phpunit Fluent interface. 
+This package adds Fluent interface. and provides Custom assertion.
 
 - e.g. `that('xxx')->isEqual('xxx')`
 - e.g. `that(1)->isInt()->isBetween(1, 9)`
@@ -27,11 +27,11 @@ Simplified chart:
 | method             | description                         | return type
 | :---               | :---                                | :---
 | __call             | call original method no thrown      | actual of method's return or expcetion
-| __invoke           | call original __invoke              | actual of __invoke's return
+| __invoke           | call original __invoke              | actual of __invoke's return or expcetion
 | __get              | get original property               | actual of property
 | offsetGet          | get ArrayAccess by key              | actual of key's value
 | var                | get property                        | original property
-| use                | get original method's callable      | original method
+| use                | get original method's callable      | original method as Closure
 | callable           | get original method's callable      | actual of method's callable
 | do                 | call original method                | actual of method's return
 | try                | call original method no thrown      | actual of method's return or expcetion
@@ -42,9 +42,14 @@ Simplified chart:
 | as                 | set assertion message               | $this
 | and                | return latest asserted actual       | actual of latest asserted
 
-```php
-// e.g. bootstrap.php
-\ryunosuke\PHPUnit\Actual::$compatibleVersion = 2; // see below
+```PHP
+# e.g. bootstrap.php
+
+/**
+ * @template T
+ * @param T $actual
+ * @return \ryunosuke\PHPUnit\Actual|T
+ */
 function that($actual)
 {
     return new \ryunosuke\PHPUnit\Actual($actual);
@@ -95,28 +100,10 @@ class ActualTest extends \PHPUnit\Framework\TestCase
 
     function test_arrayAccess()
     {
-        # array access returns array's value by JMESPath and actual
+        # array access returns array's value and actual
         $array = ['x' => ['y' => ['z' => [1, 2, 3]]]];
         // means: assertThat($array['x']['y']['z'], equalTo([1, 2, 3]));
-        that($array)['x']['y']['z']->isEqual([1, 2, 3]); // simple access
-        that($array)['x.y.z']->isEqual([1, 2, 3]);       // JMESPath access
-
-        # if value is string then argument behaves RegularExpression
-        # no return 0 (full pattern matches) and unset numeric key of named pattern and sequential array
-        $string = 'Hello World';
-        that($string)['#(?<first>[A-Z])([a-z]+)#']->is(['first' => 'H', 'ello']);
-
-        # if pattern contains g flag then pattern behaves preg_match_all (like a javascript) 
-        $string = 'Hello World';
-        that($string)['#(?<first>[A-Z])([a-z]+)#g']->is([
-            ['first' => 'H', 'ello'],
-            ['first' => 'W', 'orld'],
-        ]);
-
-        # if value is SimpleXmlElement or like a XmlString then argument behaves xpath(prefix is "/") or css selector(prefix is not "/")
-        $xml = '<a><b><c>C</c></b></a>';
-        that($xml)['/a/b/c'][0]->is('C'); // case xpath
-        that($xml)['a b c'][0]->is('C');  // case css selector
+        that($array)['x']['y']['z']->isEqual([1, 2, 3]);
     }
 
     function test_propertyAccess()
@@ -125,11 +112,6 @@ class ActualTest extends \PHPUnit\Framework\TestCase
         $object = (object) ['x' => 'X'];
         // means: assertThat($object->x, equalTo('X'));
         that($object)->x->isEqual('X');
-
-        # if prefix is "$" then argument behaves JSONPath
-        $object = (object) ['x' => (object) ['y' => (object) ['z' => [1, 2, 3]]]];
-        // means: assertThat($object->x->y->z, equalTo([1, 2, 3]));
-        that($object)->{'$.x.y.z.*'}->is([1, 2, 3]);
     }
 
     function test_methodCall()
@@ -147,7 +129,7 @@ class ActualTest extends \PHPUnit\Framework\TestCase
         # "callable" returns original method's callable and actual
         that($object)->callable('count')->isCallable();
         // "callable"'s arguments mean method arguments
-        that($object)->callable('setIteratorClass', \stdClass::class)->throws('to be a class name derived from Iterator');
+        that($object)->callable('setIteratorClass', \stdClass::class)->throws('to be a class name derived from ArrayIterator');
 
         # "do" invokes original method and actual
         that($object)->do('count')->isEqual(3);
@@ -231,76 +213,6 @@ class ActualTest extends \PHPUnit\Framework\TestCase
 }
 ```
 
-### Annotester class
-
-Run test by DocComment.
-
-enable use 2 annotations and run codeblock.
-
-- @that: simply call the method/function
-- @test: exec code block that dependency context
-- ```php ~ ```: exec code block that dependency context
-
-See \ryunosuke\PHPUnit\Annotester and \ryunosuke\Test\AnnotesterTest for details.
-
-```php
-/**
- * blockstart
- * that($foo . $bar)->is('foobar');
- * $this->add(1)->is(11);
- * $this->append($foo)->is('10foo');
- * blockend
- */
-class Document
-{
-    private $x;
-
-    public function __construct($x)
-    {
-        $this->x = $x;
-    }
-
-    /**
-     * @that(1)->is(11)
-     */
-    public function add($y)
-    {
-        return $this->x + $y;
-    }
-
-    /**
-     * @test {
-     *     $that($foo)->is('10foo');
-     * }
-     */
-    public function append($y)
-    {
-        return $this->x . $y;
-    }
-}
-
-class DocumentTest extends \PHPUnit\Framework\TestCase
-{
-    private static $annotester; 
-
-    public static function setUpBeforeClass(): void
-    {
-        self::$annotester = new \ryunosuke\PHPUnit\Annotester([
-            Document::class => [10],
-            '$foo'          => 'foo',
-            '$bar'          => 'bar',
-        ], [
-            'doccode' => "#^blockstart(?<phpcode>.*?)^blockend#ums",
-        ]);
-    }
-
-    function test_all()
-    {
-        self::$annotester->test(Document::class);
-    }
-}
-```
-
 ### Custom constraints
 
 Internals:
@@ -314,6 +226,7 @@ Internals:
 | FileEquals         | assert file equals string
 | FileSizeIs         | assert file size
 | HasKey             | assert array/object has key/property
+| HtmlMatchesArray   | assert html string by array
 | InTime             | assert processing in time
 | IsBetween          | assert range of number
 | IsBlank            | assert blank string
@@ -322,9 +235,12 @@ Internals:
 | IsThrowable        | assert value is Throwable
 | IsTruthy           | assert value like a true
 | IsValid            | assert value by filter_var
+| JsonMatchesArray   | assert json string based on array
 | LengthEquals       | assert string/iterable/file length/count/size
 | OutputMatches      | assert output of STDOUT
 | StringLengthEquals | assert length of string
+| SubsetEquals       | assert array by subarray
+| SubsetMatches      | assert array at preg_match
 | Throws             | assert callable should throw exception
 
 Alias:
@@ -398,26 +314,39 @@ That ables to use `$actual->isH(oge)` completion and `$actual->isF(uga)` method.
 Or call `\ryunosuke\PHPUnit\Actual::generateAnnotation`.
 This method returns annotation via `$constraintVariations` and `$constraintNamespaces`.
 
-### IDE helper
 
-`bin/phpunit-current` is IDE helper. See [bin/phpunit-current](bin/phpunit-current).
+### Custom printer
 
-- Run test project context (php verion, phpunit version, configuration etc)
-- Run test editing class/method
-- Run latest test
-- Switching coverage
+This package provides Progress Printer.
+This printer outputs only in case of failure. It will not output on success.
 
-But this is very legacy. Better to use phpstorm Test Runner.
+```xml
+<phpunit printerClass="\ryunosuke\PHPUnit\Printer\ProgressPrinter">
+</phpunit>
+```
+
+### Custom exporter
+
+This package provides Custom Exporter.
+This Exporter changes on the following.
+
+- Extended maximum character width for strings
+- Changed binary string to quoted string
+- Changed to not insert tagged newline characters
+- Changed object identifier from hash to id
+
+```php
+# e.g. bootstrap.php
+ryunosuke\PHPUnit\Exporter\Exporter::insteadOf();
+```
 
 ## Release
 
 Versioning is Semantic Versioning.
-BC breaking is controled $compatibleVersion static field somewhat.
 
-- e.g. 1 is compatible 1.0.0
-  - e.g. 1.1 is compatible 1.1.0
-- e.g. 2 is compatible 2.0.0
-- e.g. 999 is latest
+### 3.0.0
+
+- [*change] see log
 
 ### 2.0.1
 
