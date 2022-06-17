@@ -293,6 +293,59 @@ class Actual implements \ArrayAccess
         return "/**\n" . implode("\n", $result) . "\n */";
     }
 
+    public static function generateStub(string $inputdir, string $outputdir)
+    {
+        @mkdir($outputdir, 0777, true);
+
+        $v = fn($v) => $v;
+        $namespace = __NAMESPACE__;
+        $classname = Actual::class;
+
+        foreach (file_list($inputdir, ['extension' => 'php']) as $file) {
+            $current = get_declared_classes();
+            ob_start();
+            require_once $file;
+            ob_end_clean();
+            $classes = array_diff(get_declared_classes(), $current);
+
+            foreach ($classes as $class) {
+                $refclass = new \ReflectionClass($class);
+                if ($refclass->isAnonymous()) {
+                    continue;
+                }
+                $properties = [];
+                foreach ($refclass->getProperties() as $property) {
+                    $properties[] = "/** @see \\$refclass->name::$property->name */";
+                    $properties[] = "public {$v($property->isStatic() ? 'static ' : '')}\\$classname $$property->name;";
+                }
+
+                $methods = [];
+                foreach ($refclass->getMethods() as $method) {
+                    if (substr($method->name, 0, 2) === '__') {
+                        continue;
+                    }
+                    $methods[] = "/** @see \\$refclass->name::$method->name() */";
+                    $methods[] = "public {$v($method->isStatic() ? 'static ' : '')}function $method->name(): \\$classname { }";
+                }
+
+                file_put_contents("$outputdir/" . strtr($refclass->name, ['\\' => '-']) . '.php', <<<PHP
+                <?php
+                
+                namespace $namespace;
+                
+                trait Annotation
+                {
+                    {$v(implode("\n    ", $properties))}
+
+                    {$v(implode("\n    ", $methods))}
+                }
+
+                PHP
+                );
+            }
+        }
+    }
+
     private function create($actual, $arguments = []): Actual
     {
         $that = new static($actual);

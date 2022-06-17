@@ -5,6 +5,7 @@ namespace ryunosuke\Test;
 use PHPUnit\Framework\Constraint\IsEqual;
 use ryunosuke\PHPUnit\Actual;
 use ryunosuke\PHPUnit\Util;
+use function ryunosuke\PHPUnit\rm_rf;
 
 class ActualTest extends \ryunosuke\Test\AbstractTestCase
 {
@@ -40,6 +41,17 @@ class ActualTest extends \ryunosuke\Test\AbstractTestCase
         $this->assertStringContainsString('isNullOrString()', $annotations);
         $this->assertStringContainsString('gte($value)', $annotations);
         $this->assertStringContainsString('equalsCanonicalizing($value, float $delta = 0.0, int $maxDepth = 10, bool $canonicalize = true, bool $ignoreCase = false)', $annotations);
+    }
+
+    function test_generateStub()
+    {
+        $input = __DIR__ . '/../tmp/inpuut';
+        $output = __DIR__ . '/../tmp/output';
+        rm_rf($output);
+
+        Actual::generateStub($input, $output);
+        $this->assertFileExists("$output/stub-A.php");
+        $this->assertFileExists("$output/stub-X.php");
     }
 
     function test_ok()
