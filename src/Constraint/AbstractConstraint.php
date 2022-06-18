@@ -4,6 +4,7 @@ namespace ryunosuke\PHPUnit\Constraint;
 
 use PHPUnit\Framework\Constraint\Constraint;
 use PHPUnit\Framework\ExpectationFailedException;
+use function ryunosuke\PHPUnit\get_object_properties;
 
 abstract class AbstractConstraint extends Constraint
 {
@@ -35,5 +36,26 @@ abstract class AbstractConstraint extends Constraint
             $this->exporter()->export($throwable->getMessage()),
             $this->exporter()->export($throwable->getCode())
         );
+    }
+
+    protected function toArray($other): array
+    {
+        if (is_array($other)) {
+            return $other;
+        }
+
+        if ($other instanceof \ArrayObject) {
+            return $other->getArrayCopy();
+        }
+
+        if ($other instanceof \Traversable) {
+            return iterator_to_array($other);
+        }
+
+        if (is_object($other)) {
+            return get_object_properties($other);
+        }
+
+        return (array) $other;
     }
 }

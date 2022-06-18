@@ -21,11 +21,12 @@ abstract class Composite extends AbstractConstraint
     {
         $this->dynamicConstraint = null;
 
+        $filtered_other = $this->filter($other);
         try {
-            return $this->innerConstraint($other)->evaluate($this->filter($other), $description, $returnResult);
+            return $this->innerConstraint($other)->evaluate($filtered_other, $description, $returnResult);
         }
         catch (ExpectationFailedException $e) {
-            return $this->fail($other, $description, $e->getComparisonFailure());
+            return $this->fail($filtered_other, $description, $e->getComparisonFailure());
         }
     }
 
