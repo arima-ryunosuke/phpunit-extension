@@ -83,7 +83,10 @@ class Actual implements \ArrayAccess
 
     public static $constraintNamespaces = [
         "\\ryunosuke\\PHPUnit\\Constraint\\" => __DIR__ . '/Constraint',
-        "\\PHPUnit\\Framework\\Constraint\\" => __DIR__ . '/../vendor/phpunit/phpunit/src/Framework/Constraint',
+        "\\PHPUnit\\Framework\\Constraint\\" => [
+            __DIR__ . '/../../../phpunit/phpunit/src/Framework/Constraint',
+            __DIR__ . '/../vendor/phpunit/phpunit/src/Framework/Constraint',
+        ],
     ];
 
     private static ?string $object = null;
@@ -171,23 +174,25 @@ class Actual implements \ArrayAccess
         ];
 
         if ($types['constraint']) {
-            foreach (self::$constraintNamespaces as $namespace => $directory) {
-                foreach (file_list($directory, ['extension' => 'php']) as $file) {
-                    $refclass = new \ReflectionClass('\\' . trim($namespace, '\\') . '\\' . basename($file, '.php'));
-                    if (false
-                        || $refclass->isAbstract()
-                        || strpos($refclass->getShortName(), 'Logical') === 0
-                        || !is_subclass_of($refclass->name, Constraint::class)
-                    ) {
-                        continue;
+            foreach (self::$constraintNamespaces as $namespace => $directories) {
+                foreach ((array) $directories as $directory) {
+                    foreach (file_list($directory, ['extension' => 'php']) ?: [] as $file) {
+                        $refclass = new \ReflectionClass('\\' . trim($namespace, '\\') . '\\' . basename($file, '.php'));
+                        if (false
+                            || $refclass->isAbstract()
+                            || strpos($refclass->getShortName(), 'Logical') === 0
+                            || !is_subclass_of($refclass->name, Constraint::class)
+                        ) {
+                            continue;
+                        }
+                        $method = $refclass->getConstructor() ?? $dummyConstructor;
+
+                        $via = "\\{$refclass->name}";
+                        $name = lcfirst($refclass->getShortName());
+                        $parameters = $method->getParameters();
+
+                        $annotations = array_merge($annotations, [$via => $annotate($name, $parameters, [])]);
                     }
-                    $method = $refclass->getConstructor() ?? $dummyConstructor;
-
-                    $via = "\\{$refclass->name}";
-                    $name = lcfirst($refclass->getShortName());
-                    $parameters = $method->getParameters();
-
-                    $annotations = array_merge($annotations, [$via => $annotate($name, $parameters, [])]);
                 }
             }
         }
