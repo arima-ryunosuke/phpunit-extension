@@ -344,6 +344,11 @@ ryunosuke\PHPUnit\Exporter\Exporter::insteadOf();
 
 Versioning is Semantic Versioning.
 
+### 3.0.1
+
+- [fixbug] vendor directories have difference during development and release
+- [fixbug] callable that not closure/object throws exception
+
 ### 3.0.0
 
 - [*change] see log
