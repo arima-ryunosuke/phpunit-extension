@@ -532,6 +532,9 @@ class Actual implements \ArrayAccess
 
     public function use(?string $methodname): callable
     {
+        if ($methodname === null && !is_object($this->actual) && is_callable($this->actual)) {
+            return \Closure::fromCallable($this->actual);
+        }
         return Util::methodToCallable($this->actual, $methodname);
     }
 

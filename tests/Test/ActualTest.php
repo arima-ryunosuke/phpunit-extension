@@ -307,6 +307,9 @@ Nzxc ');
         $this->assertEquals(10, $actual->use('privateMethod')(1));
         $this->assertEquals(20, $actual->use('publicMethod')(1));
 
+        $actual = $this->actual('strtoupper');
+        $this->assertEquals('HOGE', $actual->use(null)('hoge'));
+
         $actual = $this->actual(new \stdClass());
         $this->ng(function () use ($actual) {
             $actual->use('undefinedMethod');
