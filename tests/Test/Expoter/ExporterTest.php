@@ -130,7 +130,7 @@ class ExporterTest extends \ryunosuke\Test\AbstractTestCase
         $this->assertArrayHasKey('file', $actual);
         $this->assertArrayHasKey('line', $actual);
         unset($actual['file'], $actual['line']);
-        $this->assertSame([
+        $this->assertEquals([
             'privatePorperty' => 123,
             'message'         => '',
             'string'          => '',

@@ -10,7 +10,10 @@ class IsThrowable extends AbstractConstraint
 
     public function __construct($expected = null)
     {
-        if ($expected instanceof \Throwable) {
+        if ($expected === null) {
+            assert($expected === null);
+        }
+        elseif ($expected instanceof \Throwable) {
             $this->expectedClass = get_class($expected);
             $this->expectedMessage = $expected->getMessage();
             $this->expectedCode = $expected->getCode();

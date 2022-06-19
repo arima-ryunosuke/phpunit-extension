@@ -520,12 +520,12 @@ class Actual implements \ArrayAccess
         throw new \DomainException('$this->actual must be structure value given ' . gettype($this->actual) . ').');
     }
 
-    public function offsetSet($offset, $value)
+    public function offsetSet($offset, $value): void
     {
         $this->actual[$offset] = $value;
     }
 
-    public function offsetUnset($offset)
+    public function offsetUnset($offset): void
     {
         unset($this->actual[$offset]);
     }
@@ -729,5 +729,5 @@ class Actual implements \ArrayAccess
 
     public function __isset($name) { throw new \DomainException(__FUNCTION__ . ' is not supported.'); }
 
-    public function offsetExists($offset) { throw new \DomainException(__FUNCTION__ . ' is not supported.'); }
+    public function offsetExists($offset): bool { throw new \DomainException(__FUNCTION__ . ' is not supported.'); }
 }

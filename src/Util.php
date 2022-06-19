@@ -111,7 +111,7 @@ class Util
 
     public static function callableToString(callable $callable): string
     {
-        is_callable($callable, null, $callname);
+        is_callable($callable, false, $callname);
         [$object, $method] = is_array($callable) ? $callable : [$callable, '__invoke'];
 
         if ($callname === 'Closure::__invoke') {

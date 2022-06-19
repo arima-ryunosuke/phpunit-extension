@@ -29,21 +29,6 @@ class SubsetEqualsTest extends \ryunosuke\Test\AbstractTestCase
             'x' => 'X',
         ], '', true));
 
-        $loose = [
-            'x' => 'X',
-            'c' => [
-                'x' => 'X',
-                'e' => '2',
-                'd' => '1',
-            ],
-            'b' => 'B',
-            'a' => 'A',
-        ];
-        $constraint = new SubsetEquals($subset, false);
-        $this->assertTrue($constraint->evaluate($loose, '', true));
-        $constraint = new SubsetEquals($subset, true);
-        $this->assertFalse($constraint->evaluate($loose, '', true));
-
         $this->ng(function () use ($constraint) {
             $constraint->evaluate([]);
         }, 'an array has the subset');
