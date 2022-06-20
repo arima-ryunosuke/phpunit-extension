@@ -100,6 +100,8 @@ class Actual implements \ArrayAccess
 
     private string $message = '';
 
+    private ?array $results = null;
+
     public static function generateAnnotation($types = [])
     {
         $annotate = function ($mname, $parameters, $defaults) {
@@ -645,12 +647,39 @@ class Actual implements \ArrayAccess
         return $that;
     }
 
+    public function final(string $mode = ''): Actual
+    {
+        assert(is_array($this->results), 'Assert has not been called yet.');
+        return $this->create($this->results[$mode] ?? $this->results);
+    }
+
     private function assert($actuals, Constraint ...$constraints): Actual
     {
         $constraint = LogicalOr::fromConstraints(...$constraints);
+
+        // memory_reset_peak_usage(); // Not implemented yet
+        $memory = memory_get_usage();
+        $assertionCount = Assert::getCount();
+        $time = microtime(true);
+        $before = getrusage();
+
         foreach ($actuals as $actual) {
             Assert::assertThat($actual, $constraint, $this->message);
         }
+
+        $after = getrusage();
+        $elapsed = microtime(true) - $time;
+        $cpu_usr = $after['ru_utime.tv_sec'] - $before['ru_utime.tv_sec'] + ($after['ru_utime.tv_usec'] - $before['ru_utime.tv_usec']) / 1000 / 1000;
+        $cpu_sys = $after['ru_stime.tv_sec'] - $before['ru_stime.tv_sec'] + ($after['ru_stime.tv_usec'] - $before['ru_stime.tv_usec']) / 1000 / 1000;
+        $this->results = [
+            'time'           => $elapsed,
+            'cpu'            => ($cpu_usr + $cpu_sys) / $elapsed,
+            'cpuUser'        => $cpu_usr / $elapsed,
+            'cpuSystem'      => $cpu_sys / $elapsed,
+            'memory'         => memory_get_peak_usage() - $memory,
+            'assertionCount' => Assert::getCount() - $assertionCount,
+        ];
+
         return $this;
     }
 

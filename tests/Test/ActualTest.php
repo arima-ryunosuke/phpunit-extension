@@ -641,6 +641,13 @@ Nzxc ');
         $z->b->is('B');
     }
 
+    function test_final()
+    {
+        $this->actual(fn() => usleep(1000 * 100))->inTime(120)->final('time')->greaterThan(0.1);
+        $this->actual(fn() => usleep(1000 * 100))->inTime(120)->final('cpu')->lessThan(0.1);
+        $this->actual(123)->isInt()->isBetween(100, 200)->final('assertionCount')->is(4);
+    }
+
     function test_variation()
     {
         $this->actual('hoge')->isHoge();
