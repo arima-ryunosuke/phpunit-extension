@@ -150,13 +150,13 @@ namespace ryunosuke\PHPUnit;
  * @method \ryunosuke\PHPUnit\Actual lengthNotEqualsAll(array $lengths)
  *
  * @see \ryunosuke\PHPUnit\Constraint\OutputMatches
- * @method \ryunosuke\PHPUnit\Actual eachOutputMatches($value)
- * @method \ryunosuke\PHPUnit\Actual outputMatches($value)
- * @method \ryunosuke\PHPUnit\Actual outputNotMatches($value)
- * @method \ryunosuke\PHPUnit\Actual outputMatchesAny(array $values)
- * @method \ryunosuke\PHPUnit\Actual outputMatchesAll(array $values)
- * @method \ryunosuke\PHPUnit\Actual outputNotMatchesAny(array $values)
- * @method \ryunosuke\PHPUnit\Actual outputNotMatchesAll(array $values)
+ * @method \ryunosuke\PHPUnit\Actual eachOutputMatches($value, $raw = false)
+ * @method \ryunosuke\PHPUnit\Actual outputMatches($value, $raw = false)
+ * @method \ryunosuke\PHPUnit\Actual outputNotMatches($value, $raw = false)
+ * @method \ryunosuke\PHPUnit\Actual outputMatchesAny(array $values, $raw = false)
+ * @method \ryunosuke\PHPUnit\Actual outputMatchesAll(array $values, $raw = false)
+ * @method \ryunosuke\PHPUnit\Actual outputNotMatchesAny(array $values, $raw = false)
+ * @method \ryunosuke\PHPUnit\Actual outputNotMatchesAll(array $values, $raw = false)
  *
  * @see \ryunosuke\PHPUnit\Constraint\StringLengthEquals
  * @method \ryunosuke\PHPUnit\Actual eachStringLengthEquals(int $length, bool $multibyte = false)
@@ -628,6 +628,15 @@ namespace ryunosuke\PHPUnit;
  * @method \ryunosuke\PHPUnit\Actual eachIsNullOrString()
  * @method \ryunosuke\PHPUnit\Actual isNullOrString()
  * @method \ryunosuke\PHPUnit\Actual isNotNullOrString()
+ *
+ * @see \ryunosuke\PHPUnit\Constraint\OutputMatches::__construct() {"raw":true}
+ * @method \ryunosuke\PHPUnit\Actual eachOutputContains($value, $raw = true)
+ * @method \ryunosuke\PHPUnit\Actual outputContains($value, $raw = true)
+ * @method \ryunosuke\PHPUnit\Actual outputNotContains($value, $raw = true)
+ * @method \ryunosuke\PHPUnit\Actual outputContainsAny(array $values, $raw = true)
+ * @method \ryunosuke\PHPUnit\Actual outputContainsAll(array $values, $raw = true)
+ * @method \ryunosuke\PHPUnit\Actual outputNotContainsAny(array $values, $raw = true)
+ * @method \ryunosuke\PHPUnit\Actual outputNotContainsAll(array $values, $raw = true)
  *
  * @see \ryunosuke\PHPUnit\Constraint\IsThrowable::__construct()
  * @method \ryunosuke\PHPUnit\Actual eachWasThrown($expected = NULL)
