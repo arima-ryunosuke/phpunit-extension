@@ -20,6 +20,7 @@ use ryunosuke\PHPUnit\Constraint\IsValid;
 use ryunosuke\PHPUnit\Constraint\LogicalAnd;
 use ryunosuke\PHPUnit\Constraint\LogicalNot;
 use ryunosuke\PHPUnit\Constraint\LogicalOr;
+use ryunosuke\PHPUnit\Constraint\OutputMatches;
 
 if (!trait_exists(Annotation::class)) { // @codeCoverageIgnore
     trait Annotation { }
@@ -43,6 +44,7 @@ class Actual implements \ArrayAccess
         'gte'                  => [IsEqual::class, GreaterThan::class],
         'lte'                  => [IsEqual::class, LessThan::class],
         'isNullOrString'       => [IsNull::class, IsType::class => [IsType::TYPE_STRING]],
+        'outputContains'       => [OutputMatches::class => ['raw' => true]],
         'wasThrown'            => IsThrowable::class,
         // via IsType
         'isArray'              => [IsType::class => [IsType::TYPE_ARRAY]],

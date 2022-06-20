@@ -8,6 +8,10 @@ class OutputMatchesTest extends \ryunosuke\Test\AbstractTestCase
 {
     function test()
     {
+        $constraint = new OutputMatches('ho*ge', true);
+        $this->assertFalse($constraint->evaluate(function () { echo 'xyz'; }, '', true));
+        $this->assertTrue($constraint->evaluate(function () { echo 'ho*gera'; }, '', true));
+
         $constraint = new OutputMatches('#hoge#');
         $this->assertFalse($constraint->evaluate(function () { }, '', true));
         $this->assertFalse($constraint->evaluate(function () { echo 'xyz'; }, '', true));

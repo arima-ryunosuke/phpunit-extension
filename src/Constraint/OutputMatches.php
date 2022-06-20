@@ -9,9 +9,9 @@ class OutputMatches extends AbstractConstraint
     private $expected;
     private $actual;
 
-    public function __construct($value)
+    public function __construct($value, $raw = false)
     {
-        $this->expected = $value;
+        $this->expected = $raw ? '#' . preg_quote($value, '#') . '#u' : $value;
     }
 
     protected function failureDescription($other): string
