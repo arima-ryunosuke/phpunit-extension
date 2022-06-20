@@ -347,6 +347,30 @@ Nzxc ');
         }, 'AnonymousClass@' . Util::reflectFile(new \ReflectionClass($actual->return())) . '::privateMethod');
     }
 
+    function test_fn()
+    {
+        $actual = $this->actual(new class {
+            public function __invoke($x, $y)
+            {
+                return $x / $y;
+            }
+        });
+
+        $actual->fn(1, 1)->isCallable()()->is(1);
+        $actual->fn(2, 1)()->is(2);
+        $actual->fn()(3, 1)->is(3);
+        if (version_compare(PHP_VERSION, 8.0) >= 0) {
+            $actual->fn(...['y' => 1])(4)->is(4);
+        }
+
+        $actual->fn(1, 0)->throws('Division by zero');
+        $actual->fn()(1, 0)->wasThrown('Division by zero');
+
+        $this->ng(function () use ($actual) {
+            $actual->fn(1, 0)->throws('hoge');
+        }, 'AnonymousClass@' . Util::reflectFile(new \ReflectionClass($actual->return())) . '::__invoke');
+    }
+
     function test_invoke()
     {
         $thrower = new class() {

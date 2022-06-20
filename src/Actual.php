@@ -551,6 +551,11 @@ class Actual implements \ArrayAccess
         return $this->create($callable);
     }
 
+    public function fn(...$bindings): Actual
+    {
+        return $this->callable(null, ...$bindings);
+    }
+
     public function do(?string $methodname, ...$arguments): Actual
     {
         return $this->create($this->use($methodname)(...$arguments));
