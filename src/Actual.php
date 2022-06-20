@@ -14,7 +14,6 @@ use PHPUnit\Framework\Constraint\LessThan;
 use PHPUnit\Framework\Constraint\RegularExpression;
 use PHPUnit\Framework\Constraint\StringEndsWith;
 use PHPUnit\Framework\Constraint\StringStartsWith;
-use PHPUnit\Framework\SelfDescribing;
 use ryunosuke\PHPUnit\Constraint\IsCType;
 use ryunosuke\PHPUnit\Constraint\IsThrowable;
 use ryunosuke\PHPUnit\Constraint\IsValid;
@@ -547,26 +546,7 @@ class Actual implements \ArrayAccess
     {
         $callable = $this->use($methodname);
         if ($bindings) {
-            $callable = new class($callable, $bindings) implements SelfDescribing {
-                private $callable;
-                private $bindings;
-
-                public function __construct($callable, $bindings)
-                {
-                    $this->callable = $callable;
-                    $this->bindings = $bindings;
-                }
-
-                public function __invoke()
-                {
-                    return ($this->callable)(...(func_get_args() + $this->bindings));
-                }
-
-                public function toString(): string
-                {
-                    return Util::callableToString($this->callable);
-                }
-            };
+            $callable = Util::selfDescribingCallable(fn(...$args) => $callable(...($args + $bindings)), Util::callableToString($callable));
         }
         return $this->create($callable);
     }

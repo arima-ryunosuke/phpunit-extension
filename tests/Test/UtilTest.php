@@ -60,7 +60,7 @@ class UtilTest extends \ryunosuke\Test\AbstractTestCase
     {
         $method = Util::methodToCallable($this, 'setUp');
         /** @noinspection PhpUndefinedMethodInspection */
-        $this->assertEquals('PHPUnit\\Framework\\TestCase::setUp', $method->toString());
+        $this->assertEquals('ryunosuke\\Test\\UtilTest::setUp', $method->toString());
 
         $class = new class {
             public static function staticMethod() { return __FUNCTION__; }

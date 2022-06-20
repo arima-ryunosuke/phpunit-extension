@@ -37,9 +37,11 @@ class Util
 
     public static function propertyToValue($object, string $property)
     {
-        $properties = get_object_properties($object);
-        if (array_key_exists($property, $properties)) {
-            return $properties[$property];
+        if (is_object($object)) {
+            $properties = get_object_properties($object);
+            if (array_key_exists($property, $properties)) {
+                return $properties[$property];
+            }
         }
 
         $refclass = is_string($object) ? new \ReflectionClass($object) : new \ReflectionObject($object);
@@ -68,38 +70,10 @@ class Util
             if ($refmethod->isPublic()) {
                 return [$object, $method];
             }
-            // return $refmethod->getClosure($object); // little information because string conversion is "Closure::__invoke"
             $refmethod->setAccessible(true);
-            return new class($object, $refmethod) implements SelfDescribing {
-                private $object;
-
-                /** @var \ReflectionMethod */
-                private $method;
-
-                public function __construct($object, $method)
-                {
-                    $this->object = $object;
-                    $this->method = $method;
-                }
-
-                public function __invoke()
-                {
-                    $object = $this->method->isStatic() ? null : $this->object;
-                    return $this->method->invokeArgs($object, func_get_args());
-                }
-
-                public function toString(): string
-                {
-                    $decclass = $this->method->getDeclaringClass();
-                    if ($decclass->isAnonymous()) {
-                        $class = 'AnonymousClass@' . Util::reflectFile(new \ReflectionClass($this->object));
-                    }
-                    else {
-                        $class = $decclass->name;
-                    }
-                    return $class . '::' . $this->method->name;
-                }
-            };
+            $callable = fn() => $refmethod->invokeArgs($refmethod->isStatic() ? null : $object, func_get_args());
+            $describe = ($refclass->isAnonymous() ? 'AnonymousClass@' . self::reflectFile($refclass) : $refclass->name) . '::' . $refmethod->name;
+            return self::selfDescribingCallable($callable, $describe);
         }
 
         if (method_exists($object, '__call') || method_exists($object, '__callStatic')) {
@@ -107,6 +81,30 @@ class Util
         }
 
         throw new \DomainException(get_class($object) . '::' . $method . '() is not defined.');
+    }
+
+    public static function selfDescribingCallable(callable $callable, string $describing): callable
+    {
+        return new class($callable, $describing) implements SelfDescribing {
+            private $callable;
+            private $describe;
+
+            public function __construct($callable, $describe)
+            {
+                $this->callable = $callable;
+                $this->describe = $describe;
+            }
+
+            public function __invoke()
+            {
+                return ($this->callable)(...(func_get_args()));
+            }
+
+            public function toString(): string
+            {
+                return $this->describe;
+            }
+        };
     }
 
     public static function callableToString(callable $callable): string
