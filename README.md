@@ -33,6 +33,7 @@ Simplified chart:
 | var                | get property                        | original property
 | use                | get original method's callable      | original method as Closure
 | callable           | get original method's callable      | actual of method's callable
+| fn                 | get original invoke's callable      | actual of invoke's callable
 | do                 | call original method                | actual of method's return
 | try                | call original method no thrown      | actual of method's return or expcetion
 | function           | apply global function               | actual of applied value
@@ -41,6 +42,7 @@ Simplified chart:
 | eval               | assert constraint directly          | $this
 | as                 | set assertion message               | $this
 | and                | return latest asserted actual       | actual of latest asserted
+| final              | return assertion statistic          | actual of assertion statistic
 
 ```PHP
 # e.g. bootstrap.php
@@ -343,6 +345,13 @@ ryunosuke\PHPUnit\Exporter\Exporter::insteadOf();
 ## Release
 
 Versioning is Semantic Versioning.
+
+### 3.1.0
+
+- [feature] add final method for assertion statistic
+- [feature] add raw flag to OutputMatches constraint
+- [feature] add fn method for no-method callable
+- [refactor] Establish self describing class
 
 ### 3.0.1
 
