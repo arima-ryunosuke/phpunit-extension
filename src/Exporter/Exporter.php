@@ -36,6 +36,7 @@ namespace ryunosuke\PHPUnit\Exporter;
 
 // @formatter:off
 
+use function ryunosuke\PHPUnit\mb_ellipsis;
 use LogicException;
 use SebastianBergmann\RecursionContext\Context;
 use SplObjectStorage;
@@ -146,7 +147,7 @@ class Exporter
     {
         if (is_string($value)) {
             $string = str_replace("\n", '', $this->export($value));
-            return $this->stringEllipsis($string, 80, '...');
+            return mb_ellipsis($string, 80, '...');
         }
 
         if (is_object($value)) {
@@ -330,33 +331,5 @@ class Exporter
         }
 
         return var_export($value, true);
-    }
-
-    private function stringEllipsis(string $string, $width, $trimmarker = '...', $pos = null)
-    {
-        $strwidth = mb_strwidth($string);
-        if ($strwidth <= $width) {
-            return $string;
-        }
-
-        $maxwidth = $width - mb_strwidth($trimmarker);
-        $pos ??= $maxwidth / 2;
-        $pos = ceil(max(0, min($pos, $maxwidth)));
-        $end = $pos + $strwidth - $maxwidth;
-
-        $widths = array_map('mb_strwidth', mb_str_split($string));
-        $s = $e = null;
-        $sum = 0;
-        foreach ($widths as $n => $w) {
-            $sum += $w;
-            if (!isset($s) && $sum > $pos) {
-                $s = $n;
-            }
-            if (!isset($e) && $sum >= $end) {
-                $e = $n + 1;
-            }
-        }
-
-        return mb_substr($string, 0, $s) . $trimmarker . mb_substr($string, $e);
     }
 }
