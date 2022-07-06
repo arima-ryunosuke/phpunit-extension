@@ -583,6 +583,14 @@ Nzxc ');
         $this->assertSame($actual->member->return(), $object->member);
     }
 
+    function test_echo()
+    {
+        $actual = $this->actual((object)['a' => 'A']);
+
+        $this->expectOutputRegex('/stdClass#/');
+        $this->assertInstanceOf(Actual::class, $actual->echo());
+    }
+
     function test_eval()
     {
         $this->actual('qwe')->eval(new IsEqual('qwe'));

@@ -622,6 +622,12 @@ class Actual implements \ArrayAccess
         return $this->actual;
     }
 
+    public function echo(): Actual
+    {
+        var_pretty($this->actual);
+        return $this;
+    }
+
     public function eval(Constraint ...$constraints): Actual
     {
         return $this->assert([$this->actual], ...$constraints);

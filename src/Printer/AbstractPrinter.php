@@ -3,16 +3,19 @@
 namespace ryunosuke\PHPUnit\Printer;
 
 use PHPUnit\Framework\AssertionFailedError;
+use PHPUnit\Framework\ExpectationFailedException;
 use PHPUnit\Framework\IncompleteTest;
 use PHPUnit\Framework\RiskyTestError;
 use PHPUnit\Framework\SkippedTestError;
 use PHPUnit\Framework\Test;
 use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\TestFailure;
 use PHPUnit\Framework\TestSuite;
 use PHPUnit\Framework\Warning;
 use PHPUnit\Runner\PhptTestCase;
 use PHPUnit\TextUI\DefaultResultPrinter;
 use Throwable;
+use function ryunosuke\PHPUnit\var_export2;
 
 class AbstractPrinter extends DefaultResultPrinter
 {
@@ -163,6 +166,24 @@ class AbstractPrinter extends DefaultResultPrinter
                 $this->write(str_repeat(" ", ceil($padlength / 2)) . $buffer . str_repeat(" ", floor($padlength / 2)));
                 break;
         }
+    }
+
+    protected function printDefectTrace(TestFailure $defect): void
+    {
+        $e = $defect->thrownException();
+        if ($e instanceof ExpectationFailedException && $e->getComparisonFailure()) {
+            $actual = $e->getComparisonFailure()->getActual();
+            if (is_array($actual)) {
+                $actual = var_export2($actual, true);
+            }
+            if (is_string($actual) && strpos($actual, "\n") !== false) {
+                $this->write("<<<'ACTUAL'\n");
+                $this->write("$actual\n");
+                $this->write("ACTUAL\n\n");
+            }
+        }
+
+        parent::printDefectTrace($defect);
     }
 
     public function addError(Test $test, Throwable $t, float $time): void
