@@ -3,6 +3,7 @@
 error_reporting(-1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/../inc/bootstrap.php';
 require_once __DIR__ . '/../inc/annotation.php';
 
 $tmpdir = __DIR__ . DIRECTORY_SEPARATOR . 'tmp';
@@ -12,18 +13,6 @@ if (DIRECTORY_SEPARATOR === '\\') {
 }
 else {
     putenv("TMPDIR=$tmpdir");
-}
-
-ryunosuke\PHPUnit\Exporter\Exporter::insteadOf();
-
-/**
- * @template T
- * @param T $actual
- * @return \ryunosuke\PHPUnit\Actual|T
- */
-function that($actual)
-{
-    return new \ryunosuke\PHPUnit\Actual($actual);
 }
 
 file_put_contents(__DIR__ . "/../inc/ryunosuke.stub", \ryunosuke\Functions\Transporter::exportNamespace('\\ryunosuke\\PHPUnit'));
