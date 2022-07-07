@@ -39,6 +39,7 @@ Simplified chart:
 | function           | apply global function               | actual of applied value
 | foreach            | apply global function each element  | actual of applied value
 | return             | return original                     | original
+| echo               | dump original                       | $this
 | eval               | assert constraint directly          | $this
 | as                 | set assertion message               | $this
 | and                | return latest asserted actual       | actual of latest asserted
@@ -345,6 +346,11 @@ ryunosuke\PHPUnit\Exporter\Exporter::insteadOf();
 ## Release
 
 Versioning is Semantic Versioning.
+
+### 3.2.0
+
+- [feature] add bootstrap.php for boilerplates
+- [feature] print Actual value
 
 ### 3.1.0
 
