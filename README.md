@@ -347,6 +347,11 @@ ryunosuke\PHPUnit\Exporter\Exporter::insteadOf();
 
 Versioning is Semantic Versioning.
 
+### 3.3.0
+
+- [feature] ProgressPrinter to show file location on failure
+- [feature] htmlMatchesArray made it easier to understand when A fails
+
 ### 3.2.0
 
 - [feature] add bootstrap.php for boilerplates
