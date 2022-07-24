@@ -30,6 +30,10 @@ class AbstractPrinter extends DefaultResultPrinter
 
     protected int $numberOfColumns;
 
+    protected ?TestSuite $suite;
+
+    protected ?Test $test;
+
     protected ?Throwable $failureCause = null;
 
     public function __construct($out = null, bool $verbose = false, $colors = self::COLOR_DEFAULT, bool $debug = false, $numberOfColumns = 80, bool $reverse = false)
@@ -41,6 +45,8 @@ class AbstractPrinter extends DefaultResultPrinter
 
     public function startTestSuite(TestSuite $suite): void
     {
+        $this->suite = $suite;
+
         if ($this->numTests == -1) {
             $this->maxColumn = $this->numberOfColumns - strlen(' CCC tests (NNN/MMMM)  XXX%');
         }
@@ -61,10 +67,14 @@ class AbstractPrinter extends DefaultResultPrinter
         }
 
         parent::endTestSuite($suite);
+
+        $this->suite = null;
     }
 
     public function startTest(Test $test): void
     {
+        $this->test = $test;
+
         if ($test instanceof TestCase) {
             $this->_onStartTestCase($test);
         }
@@ -101,6 +111,8 @@ class AbstractPrinter extends DefaultResultPrinter
         elseif ($test instanceof PhptTestCase) {
             $this->numAssertions++;
         }
+
+        $this->test = null;
     }
 
     protected function _onStartTestSuite(TestSuite $testSuite)

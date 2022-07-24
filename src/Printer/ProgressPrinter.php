@@ -20,11 +20,18 @@ class ProgressPrinter extends AbstractPrinter
 
     protected function _onStartTestCase(TestCase $testCase)
     {
-        $this->writeWithSpace('- ' . $testCase->getName(true));
+        $this->write('- ' . $testCase->getName(true));
     }
 
     protected function _onFailTestCase(Throwable $failureCause)
     {
+        foreach ($failureCause->getTrace() as $trace) {
+            if (isset($trace['file'], $trace['line']) && $trace['file'] === (new \ReflectionClass($this->test))->getFileName()) {
+                $this->write(': ' . $trace['file'] . ':' . $trace['line']);
+                break;
+            }
+        }
+
         $this->writeNewLine();
         $this->write('    - status: ');
         parent::_onFailTestCase($failureCause);
