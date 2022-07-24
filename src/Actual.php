@@ -103,7 +103,7 @@ class Actual implements \ArrayAccess
 
     private string $message = '';
 
-    private ?array $results = null;
+    private array $results = [];
 
     public static function generateAnnotation($types = [])
     {
@@ -347,6 +347,7 @@ class Actual implements \ArrayAccess
         $that = new static($actual);
         $that->parent = $this;
         $that->arguments = $arguments;
+        $that->results = $this->results;
         return $that;
     }
 
@@ -570,11 +571,22 @@ class Actual implements \ArrayAccess
 
     public function try(?string $methodname, ...$arguments): Actual
     {
+        $ob_level = ob_get_level();
         try {
+            // for compatible
+            if ($ob_level === 1) {
+                ob_start();
+            }
             $return = $this->use($methodname)(...$arguments);
         }
         catch (\Throwable $t) {
             $return = $t;
+        }
+        finally {
+            // for compatible
+            if ($ob_level === 1) {
+                $this->results['stdout'] = ob_get_clean();
+            }
         }
         return $this->create($return, $arguments);
     }
@@ -658,7 +670,6 @@ class Actual implements \ArrayAccess
 
     public function final(string $mode = ''): Actual
     {
-        assert(is_array($this->results), 'Assert has not been called yet.');
         return $this->create($this->results[$mode] ?? $this->results);
     }
 
@@ -680,14 +691,14 @@ class Actual implements \ArrayAccess
         $elapsed = microtime(true) - $time;
         $cpu_usr = $after['ru_utime.tv_sec'] - $before['ru_utime.tv_sec'] + ($after['ru_utime.tv_usec'] - $before['ru_utime.tv_usec']) / 1000 / 1000;
         $cpu_sys = $after['ru_stime.tv_sec'] - $before['ru_stime.tv_sec'] + ($after['ru_stime.tv_usec'] - $before['ru_stime.tv_usec']) / 1000 / 1000;
-        $this->results = [
+        $this->results = array_replace($this->results, [
             'time'           => $elapsed,
             'cpu'            => ($cpu_usr + $cpu_sys) / $elapsed,
             'cpuUser'        => $cpu_usr / $elapsed,
             'cpuSystem'      => $cpu_sys / $elapsed,
             'memory'         => memory_get_peak_usage() - $memory,
             'assertionCount' => Assert::getCount() - $assertionCount,
-        ];
+        ]);
 
         return $this;
     }

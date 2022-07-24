@@ -651,6 +651,7 @@ Nzxc ');
 
     function test_final()
     {
+        $this->actual(fn() => print('output'))()->final('stdout')->is('output');
         $this->actual(fn() => usleep(1000 * 100))->inTime(120)->final('time')->greaterThan(0.1);
         $this->actual(fn() => usleep(1000 * 100))->inTime(120)->final('cpu')->lessThan(0.1);
         $this->actual(123)->isInt()->isBetween(100, 200)->final('assertionCount')->is(4);
