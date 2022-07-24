@@ -3,6 +3,8 @@
 namespace ryunosuke\PHPUnit\Constraint;
 
 use PHPUnit\Framework\ExpectationFailedException;
+use SebastianBergmann\Comparator\ComparisonFailure;
+use function ryunosuke\PHPUnit\var_export2;
 
 class HtmlMatchesArray extends AbstractConstraint
 {
@@ -22,17 +24,17 @@ class HtmlMatchesArray extends AbstractConstraint
     {
         $document = new \DOMDocument();
         libxml_use_internal_errors(true);
-        $document->loadHTML($other);
+        $document->loadHTML($other ?: '<html></html>');
         libxml_clear_errors();
 
         try {
             $this->match($this->nodes, $document->documentElement, []);
         }
-        catch (ExpectationFailedException $e) {
+        catch (ComparisonFailure $e) {
             if ($returnResult) {
                 return false;
             }
-            $this->fail($e->getMessage(), '');
+            $this->fail($e->getMessage(), $description, $e);
         }
 
         if ($returnResult) {
@@ -43,6 +45,10 @@ class HtmlMatchesArray extends AbstractConstraint
 
     private function match(array $nodes, \DOMElement $parent, array $pathes)
     {
+        if ($parent->childNodes->count() && empty($nodes)) {
+            $this->throwComparisonFailure(sprintf('%s not should be empty', implode('/', $pathes) ?: '/'), $parent, $nodes);
+        }
+
         foreach ($nodes as $path => $attrs) {
             $fullpath = [...$pathes, $path];
             $cpath = $path;
@@ -53,7 +59,7 @@ class HtmlMatchesArray extends AbstractConstraint
             $xpath = new \DOMXPath($parent->ownerDocument);
             $nodelist = $xpath->query($cpath, $parent);
             if ($nodelist === false || count($nodelist) !== 1) {
-                throw new ExpectationFailedException(sprintf('%s should be single element. found %s elements', implode('/', $fullpath), $nodelist ? count($nodelist) : 'false'));
+                $this->throwComparisonFailure(sprintf('%s should be single element. found %s elements', implode('/', $fullpath), $nodelist ? count($nodelist) : 'false'), $parent, $nodes);
             }
             $this->compare($nodelist[0], $attrs, $fullpath);
         }
@@ -66,23 +72,71 @@ class HtmlMatchesArray extends AbstractConstraint
                 $this->match([$attr => $value], $element, $fullpath);
             }
             elseif (is_int($attr)) {
-                if (strpos($element->textContent, $value) === false) {
-                    throw new ExpectationFailedException(sprintf('%s textContent contains "%s"', implode('/', $fullpath), $value));
+                if (!strlen($value) && strlen($element->textContent)) {
+                    $this->throwComparisonFailure(sprintf('%s textContent should be empty', implode('/', $fullpath)), $element, $expected);
+                }
+                if (strlen($value) && strpos($element->textContent, $value) === false) {
+                    $this->throwComparisonFailure(sprintf('%s textContent should contain "%s"', implode('/', $fullpath), $value), $element, $expected);
                 }
             }
             elseif (is_bool($value)) {
                 if (!$element->hasAttribute($attr) && $value === true) {
-                    throw new ExpectationFailedException(sprintf('%s[%s] should exist', implode('/', $fullpath), $attr));
+                    $this->throwComparisonFailure(sprintf('%s[%s] should exist', implode('/', $fullpath), $attr), $element, $expected);
                 }
                 if ($element->hasAttribute($attr) && $value === false) {
-                    throw new ExpectationFailedException(sprintf('%s[%s] should not exist', implode('/', $fullpath), $attr));
+                    $this->throwComparisonFailure(sprintf('%s[%s] should not exist', implode('/', $fullpath), $attr), $element, $expected);
                 }
             }
             else {
                 if ($element->getAttribute($attr) !== (string) $value) {
-                    throw new ExpectationFailedException(sprintf('%s[%s] should be "%s"', implode('/', $fullpath), $attr, $value));
+                    $this->throwComparisonFailure(sprintf('%s[%s] should be "%s"', implode('/', $fullpath), $attr, $value), $element, $expected);
                 }
             }
         }
+    }
+
+    private function throwComparisonFailure($message, $actual, $expected)
+    {
+        $actualArray = $this->nodeToArray($actual);
+        throw new ComparisonFailure(
+            $this->nodeArrayToString($expected),
+            $this->nodeArrayToString($actualArray),
+            $this->exporter()->export($expected),
+            $this->exporter()->export(array_filter($actualArray, fn($array) => !is_array($array))),
+            false,
+            $message,
+        );
+    }
+
+    private function nodeToArray(\DOMNode $node)
+    {
+        $result = [];
+
+        foreach ($node->attributes as $attribute) {
+            $result[$attribute->name] = $attribute->value;
+        }
+
+        $child_type = [];
+        foreach ($node->childNodes as $child) {
+            if ($child instanceof \DOMText) {
+                $text = trim($child->textContent);
+                if (strlen($text)) {
+                    $result[] = $text;
+                }
+            }
+            if ($child instanceof \DOMElement) {
+                $tag = $child->tagName;
+                $child_type[$tag] = ($child_type[$tag] ?? 0) + 1;
+                $result["{$tag}[{$child_type[$tag]}]"] = $this->nodeToArray($child);
+            }
+        }
+
+        return $result;
+    }
+
+    private function nodeArrayToString($array)
+    {
+        $string = var_export2($array, true);
+        return preg_replace('#^(\s+)\d+\s+=> #mu', '$1', $string);
     }
 }

@@ -8,6 +8,16 @@ class HtmlMatchesArrayTest extends \ryunosuke\Test\AbstractTestCase
 {
     function test()
     {
+        $constraint = new HtmlMatchesArray([]);
+        $this->assertTrue($constraint->evaluate('', '', true));
+        $this->assertFalse($constraint->evaluate('<body></body>', '', true));
+
+        $constraint = new HtmlMatchesArray([
+            'div' => [''],
+        ]);
+        $this->assertTrue($constraint->evaluate('<div></div>', '', true));
+        $this->assertFalse($constraint->evaluate('<div>hoge</div>', '', true));
+
         $constraint = new HtmlMatchesArray([
             'div' => [
                 'text1',
@@ -44,11 +54,11 @@ class HtmlMatchesArrayTest extends \ryunosuke\Test\AbstractTestCase
 
         $this->ng(function () use ($constraint) {
             $constraint->evaluate('<div id="hoge" hidden>hoge1 text2<span>span1 span2</span></div>');
-        }, 'div textContent contains "text1"');
+        }, 'div textContent should contain "text1"');
 
         $this->ng(function () use ($constraint) {
             $constraint->evaluate('<div id="hoge" hidden>text1 text2<span>span1 hoge</span></div>');
-        }, 'div/span textContent contains "span2"');
+        }, 'div/span textContent should contain "span2"');
     }
 
     function test_assert()
