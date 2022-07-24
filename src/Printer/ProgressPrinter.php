@@ -12,9 +12,10 @@ class ProgressPrinter extends AbstractPrinter
     {
         $this->writeWithSpace('# ' . $testSuite->getName());
 
+        $digit = strlen((string) $this->numTests);
         $numTestsRun = $this->numTestsRun + $testSuite->count();
         $this->writeWithColor('fg-cyan', sprintf("%3d tests", $testSuite->count()), false);
-        $this->writeWithColor('fg-green', sprintf(" (%d/%d)%4d%%", $numTestsRun, $this->numTests, $numTestsRun / $this->numTests * 100), false);
+        $this->writeWithColor('fg-green', sprintf(" (%{$digit}d/%{$digit}d)%4d%%", $numTestsRun, $this->numTests, $numTestsRun / $this->numTests * 100), false);
         $this->writeNewLine();
     }
 
