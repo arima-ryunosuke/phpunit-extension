@@ -2,6 +2,7 @@
 
 namespace ryunosuke\PHPUnit\Printer;
 
+use PHPUnit\Framework\AssertionFailedError;
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\TestSuite;
 use Throwable;
@@ -26,11 +27,20 @@ class ProgressPrinter extends AbstractPrinter
 
     protected function _onFailTestCase(Throwable $failureCause)
     {
-        foreach ($failureCause->getTrace() as $trace) {
-            if (isset($trace['file'], $trace['line']) && $trace['file'] === (new \ReflectionClass($this->test))->getFileName()) {
-                $this->write(': ' . $trace['file'] . ':' . $trace['line']);
-                break;
+        $failureFileLine = null;
+        if ($failureCause instanceof AssertionFailedError) {
+            foreach ($failureCause->getTrace() as $trace) {
+                if (isset($trace['file'], $trace['line']) && $trace['file'] === (new \ReflectionClass($this->test))->getFileName()) {
+                    $failureFileLine = $trace;
+                    break;
+                }
             }
+        }
+        else {
+            $failureFileLine = ['file' => $failureCause->getFile(), 'line' => $failureCause->getLine()];
+        }
+        if (isset($failureFileLine)) {
+            $this->write(sprintf(': %s:%d', $failureFileLine['file'], $failureFileLine['line']));
         }
 
         $this->writeNewLine();
