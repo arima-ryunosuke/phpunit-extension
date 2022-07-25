@@ -45,6 +45,9 @@ class Actual implements \ArrayAccess
         'lte'                  => [IsEqual::class, LessThan::class],
         'isNullOrString'       => [IsNull::class, IsType::class => [IsType::TYPE_STRING]],
         'outputContains'       => [OutputMatches::class => ['raw' => true]],
+        'outputEquals'         => [OutputMatches::class => ['raw' => true, 'with' => ['\\A', '\\z']]],
+        'outputStartsWith'     => [OutputMatches::class => ['raw' => true, 'with' => ['\\A', '']]],
+        'outputEndsWith'       => [OutputMatches::class => ['raw' => true, 'with' => ['', '\\z']]],
         'wasThrown'            => IsThrowable::class,
         // via IsType
         'isArray'              => [IsType::class => [IsType::TYPE_ARRAY]],
