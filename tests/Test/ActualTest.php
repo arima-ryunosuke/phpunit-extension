@@ -34,9 +34,9 @@ class ActualTest extends \ryunosuke\Test\AbstractTestCase
         $this->assertIsString($annotations);
         $this->assertStringContainsString('@method', $annotations);
         $this->assertStringContainsString('@see', $annotations);
-        $this->assertStringContainsString('isFoo($value = \'foo\'', $annotations);
+        $this->assertStringContainsString('isFoo($value = "foo"', $annotations);
         $this->assertStringContainsString('isFooAny(array $values', $annotations);
-        $this->assertStringContainsString('isBar($expected = \'\')', $annotations);
+        $this->assertStringContainsString('isBar($expected = "")', $annotations);
         $this->assertStringContainsString('isBaz($value, float $delta = 1.0', $annotations);
         $this->assertStringContainsString('isFalse', $annotations);
         $this->assertStringContainsString('isNotFalse', $annotations);

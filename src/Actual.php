@@ -123,13 +123,13 @@ class Actual implements \ArrayAccess
                 }
                 $arg = $type . '$' . $parameter->getName();
                 if (array_key_exists($parameter->getPosition(), $defaults)) {
-                    $arg .= ' = ' . var_export($defaults[$parameter->getPosition()], true);
+                    $arg .= ' = ' . var_export2($defaults[$parameter->getPosition()], true);
                 }
                 elseif (array_key_exists($parameter->getName(), $defaults)) {
-                    $arg .= ' = ' . var_export($defaults[$parameter->getName()], true);
+                    $arg .= ' = ' . var_export2($defaults[$parameter->getName()], true);
                 }
                 elseif ($parameter->isDefaultValueAvailable()) {
-                    $arg .= ' = ' . var_export($parameter->getDefaultValue(), true);
+                    $arg .= ' = ' . var_export2($parameter->getDefaultValue(), true);
                 }
                 return $arg;
             }, $parameters), function ($v) { return $v !== null; });
@@ -321,7 +321,7 @@ class Actual implements \ArrayAccess
                         continue;
                     }
                     $methods[] = "/** @see \\$refclass->name::$method->name() */";
-                    $methods[] = "public {$v($method->isStatic() ? 'static ' : '')}function $method->name(): \\$classname { }";
+                    $methods[] = "public {$v($method->isStatic() ? 'static ' : '')}function $method->name(...\$arguments): \\$classname { }";
                 }
 
                 file_put_contents("$outputdir/" . strtr($refclass->name, ['\\' => '-']) . '.php', <<<PHP
