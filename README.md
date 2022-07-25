@@ -27,7 +27,9 @@ Simplified chart:
 | method             | description                         | return type
 | :---               | :---                                | :---
 | __call             | call original method no thrown      | actual of method's return or expcetion
-| __invoke           | call original __invoke              | actual of __invoke's return or expcetion
+| __call(...[])      | get original method's callable      | actual of method's callable (with bindings)
+| __invoke           | call original __invoke no thrown    | actual of __invoke's return or expcetion
+| __invoke(...[])    | get original __invoke's callable    | actual of __invoke's callable (with bindings)
 | __get              | get original property               | actual of property
 | offsetGet          | get ArrayAccess by key              | actual of key's value
 | var                | get property                        | original property
@@ -141,6 +143,14 @@ class ActualTest extends \PHPUnit\Framework\TestCase
         $object = function ($a, $b) { return $a + $b; };
         // means: assertThat($object(1, 2), equalTo(3));
         that($object)(1, 2)->isEqual(3);
+    }
+
+    function test_methodCallWithBinding()
+    {
+        # method call by (...[]) returns method's callable of original object with binding (non-public access is possible)
+        $closure = function ($arg) { echo $arg; };
+        that($closure)->callable('__invoke', 'hoge')->outputEquals('hoge');
+        that($closure)(...['hoge'])->outputEquals('hoge');
     }
 
     function test_try()
@@ -346,6 +356,16 @@ ryunosuke\PHPUnit\Exporter\Exporter::insteadOf();
 ## Release
 
 Versioning is Semantic Versioning.
+
+### 3.4.0
+
+- [refactor] fixed annotation
+- [feature] added ...[] syntax
+- [feature] added stdout to results property
+- [feature] added htmlMatchesArray supports class and closure
+- [feature] added OutputMatches variation
+- [fixbug] fixed the file location was on the test code when an error on the test target
+- [fixbug] fixed progress disorder
 
 ### 3.3.0
 
