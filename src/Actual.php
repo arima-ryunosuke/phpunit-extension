@@ -479,11 +479,19 @@ class Actual implements \ArrayAccess
             return $this->function($name, ...$arguments);
         }
 
+        if (preg_match('#' . preg_quote($name, '#') . '\s*\(\s*\.\.\.\s*\[#u', $this->getCallerLine())) {
+            return $this->callable($name, ...$arguments);
+        }
+
         return $this->try($name, ...$arguments);
     }
 
     public function __invoke(...$arguments): Actual
     {
+        if (preg_match('#\)\(\s*\.\.\.\s*\[#u', $this->getCallerLine())) {
+            return $this->callable(null, ...$arguments);
+        }
+
         return $this->try(null, ...$arguments);
     }
 
@@ -761,6 +769,19 @@ class Actual implements \ArrayAccess
             }
         }
         return $newConstraint($arguments);
+    }
+
+    private function getCallerLine(?array $trace = null): string
+    {
+        $trace ??= debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2)[1];
+        $file = $trace['file'];
+        $line = $trace['line'];
+
+        static $files = [];
+        $files[$file] ??= file($file, FILE_IGNORE_NEW_LINES);
+        $files = array_slice($files, -4);
+
+        return $files[$file][$line - 1];
     }
 
     public function __isset($name) { throw new \DomainException(__FUNCTION__ . ' is not supported.'); }

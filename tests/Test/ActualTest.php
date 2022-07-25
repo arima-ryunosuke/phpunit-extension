@@ -386,6 +386,16 @@ Nzxc ');
 
         $actual = $this->actual($thrower);
         $actual(1)->is(1);
+
+        $object = new class() {
+            public function __invoke($x = 1)
+            {
+                echo $x * 10;
+            }
+        };
+
+        $this->actual($object)(...[])->outputEquals('10');
+        $this->actual($object)(...[2])->outputEquals('20');
     }
 
     function test_call()
@@ -398,6 +408,11 @@ Nzxc ');
                 }
                 return $x * 10;
             }
+
+            public function print($x = 1)
+            {
+                echo $x * 10;
+            }
         };
 
         /** @noinspection PhpUndefinedMethodInspection */
@@ -406,6 +421,9 @@ Nzxc ');
             $this->actual($object)->method(null)->getMessage()->is('this is message.');
             $this->actual($object)->method(null)->wasThrown('this is message');
         }
+
+        $this->actual($object)->print(...[])->outputEquals('10');
+        $this->actual($object)->print(...[2])->outputEquals('20');
 
         $array = [1, 2, 3];
         $this->actual($array)->maximum()->is(3);
