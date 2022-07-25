@@ -4,13 +4,13 @@ namespace ryunosuke\PHPUnit;
 
 /**
  * @see \ryunosuke\PHPUnit\Constraint\Contains
- * @method \ryunosuke\PHPUnit\Actual eachContains($needle, ?bool $strict = NULL)
- * @method \ryunosuke\PHPUnit\Actual contains($needle, ?bool $strict = NULL)
- * @method \ryunosuke\PHPUnit\Actual notContains($needle, ?bool $strict = NULL)
- * @method \ryunosuke\PHPUnit\Actual containsAny(array $needles, ?bool $strict = NULL)
- * @method \ryunosuke\PHPUnit\Actual containsAll(array $needles, ?bool $strict = NULL)
- * @method \ryunosuke\PHPUnit\Actual notContainsAny(array $needles, ?bool $strict = NULL)
- * @method \ryunosuke\PHPUnit\Actual notContainsAll(array $needles, ?bool $strict = NULL)
+ * @method \ryunosuke\PHPUnit\Actual eachContains($needle, ?bool $strict = null)
+ * @method \ryunosuke\PHPUnit\Actual contains($needle, ?bool $strict = null)
+ * @method \ryunosuke\PHPUnit\Actual notContains($needle, ?bool $strict = null)
+ * @method \ryunosuke\PHPUnit\Actual containsAny(array $needles, ?bool $strict = null)
+ * @method \ryunosuke\PHPUnit\Actual containsAll(array $needles, ?bool $strict = null)
+ * @method \ryunosuke\PHPUnit\Actual notContainsAny(array $needles, ?bool $strict = null)
+ * @method \ryunosuke\PHPUnit\Actual notContainsAll(array $needles, ?bool $strict = null)
  *
  * @see \ryunosuke\PHPUnit\Constraint\EqualsFile
  * @method \ryunosuke\PHPUnit\Actual eachEqualsFile($value, bool $ignoreCase = false)
@@ -113,9 +113,9 @@ namespace ryunosuke\PHPUnit;
  * @method \ryunosuke\PHPUnit\Actual isNotFalsy()
  *
  * @see \ryunosuke\PHPUnit\Constraint\IsThrowable
- * @method \ryunosuke\PHPUnit\Actual eachIsThrowable($expected = NULL)
- * @method \ryunosuke\PHPUnit\Actual isThrowable($expected = NULL)
- * @method \ryunosuke\PHPUnit\Actual isNotThrowable($expected = NULL)
+ * @method \ryunosuke\PHPUnit\Actual eachIsThrowable($expected = null)
+ * @method \ryunosuke\PHPUnit\Actual isThrowable($expected = null)
+ * @method \ryunosuke\PHPUnit\Actual isNotThrowable($expected = null)
  *
  * @see \ryunosuke\PHPUnit\Constraint\IsTruthy
  * @method \ryunosuke\PHPUnit\Actual eachIsTruthy()
@@ -150,13 +150,13 @@ namespace ryunosuke\PHPUnit;
  * @method \ryunosuke\PHPUnit\Actual lengthNotEqualsAll(array $lengths)
  *
  * @see \ryunosuke\PHPUnit\Constraint\OutputMatches
- * @method \ryunosuke\PHPUnit\Actual eachOutputMatches($value, $raw = false)
- * @method \ryunosuke\PHPUnit\Actual outputMatches($value, $raw = false)
- * @method \ryunosuke\PHPUnit\Actual outputNotMatches($value, $raw = false)
- * @method \ryunosuke\PHPUnit\Actual outputMatchesAny(array $values, $raw = false)
- * @method \ryunosuke\PHPUnit\Actual outputMatchesAll(array $values, $raw = false)
- * @method \ryunosuke\PHPUnit\Actual outputNotMatchesAny(array $values, $raw = false)
- * @method \ryunosuke\PHPUnit\Actual outputNotMatchesAll(array $values, $raw = false)
+ * @method \ryunosuke\PHPUnit\Actual eachOutputMatches($value, $raw = false, $with = ["", ""])
+ * @method \ryunosuke\PHPUnit\Actual outputMatches($value, $raw = false, $with = ["", ""])
+ * @method \ryunosuke\PHPUnit\Actual outputNotMatches($value, $raw = false, $with = ["", ""])
+ * @method \ryunosuke\PHPUnit\Actual outputMatchesAny(array $values, $raw = false, $with = ["", ""])
+ * @method \ryunosuke\PHPUnit\Actual outputMatchesAll(array $values, $raw = false, $with = ["", ""])
+ * @method \ryunosuke\PHPUnit\Actual outputNotMatchesAny(array $values, $raw = false, $with = ["", ""])
+ * @method \ryunosuke\PHPUnit\Actual outputNotMatchesAll(array $values, $raw = false, $with = ["", ""])
  *
  * @see \ryunosuke\PHPUnit\Constraint\StringLengthEquals
  * @method \ryunosuke\PHPUnit\Actual eachStringLengthEquals(int $length, bool $multibyte = false)
@@ -186,9 +186,9 @@ namespace ryunosuke\PHPUnit;
  * @method \ryunosuke\PHPUnit\Actual subsetNotMatchesAll(array $subpatternss)
  *
  * @see \ryunosuke\PHPUnit\Constraint\Throws
- * @method \ryunosuke\PHPUnit\Actual eachThrows($expected = NULL)
- * @method \ryunosuke\PHPUnit\Actual throws($expected = NULL)
- * @method \ryunosuke\PHPUnit\Actual notThrows($expected = NULL)
+ * @method \ryunosuke\PHPUnit\Actual eachThrows($expected = null)
+ * @method \ryunosuke\PHPUnit\Actual throws($expected = null)
+ * @method \ryunosuke\PHPUnit\Actual notThrows($expected = null)
  *
  * @see \PHPUnit\Framework\Constraint\IsFalse
  * @method \ryunosuke\PHPUnit\Actual eachIsFalse()
@@ -399,13 +399,13 @@ namespace ryunosuke\PHPUnit;
  * @method \ryunosuke\PHPUnit\Actual classNotHasStaticAttributeAll(array $attributeNames)
  *
  * @see \PHPUnit\Framework\Constraint\ObjectEquals
- * @method \ryunosuke\PHPUnit\Actual eachObjectEquals(object $object, string $method = 'equals')
- * @method \ryunosuke\PHPUnit\Actual objectEquals(object $object, string $method = 'equals')
- * @method \ryunosuke\PHPUnit\Actual objectNotEquals(object $object, string $method = 'equals')
- * @method \ryunosuke\PHPUnit\Actual objectEqualsAny(array $objects, string $method = 'equals')
- * @method \ryunosuke\PHPUnit\Actual objectEqualsAll(array $objects, string $method = 'equals')
- * @method \ryunosuke\PHPUnit\Actual objectNotEqualsAny(array $objects, string $method = 'equals')
- * @method \ryunosuke\PHPUnit\Actual objectNotEqualsAll(array $objects, string $method = 'equals')
+ * @method \ryunosuke\PHPUnit\Actual eachObjectEquals(object $object, string $method = "equals")
+ * @method \ryunosuke\PHPUnit\Actual objectEquals(object $object, string $method = "equals")
+ * @method \ryunosuke\PHPUnit\Actual objectNotEquals(object $object, string $method = "equals")
+ * @method \ryunosuke\PHPUnit\Actual objectEqualsAny(array $objects, string $method = "equals")
+ * @method \ryunosuke\PHPUnit\Actual objectEqualsAll(array $objects, string $method = "equals")
+ * @method \ryunosuke\PHPUnit\Actual objectNotEqualsAny(array $objects, string $method = "equals")
+ * @method \ryunosuke\PHPUnit\Actual objectNotEqualsAll(array $objects, string $method = "equals")
  *
  * @see \PHPUnit\Framework\Constraint\ObjectHasAttribute
  * @method \ryunosuke\PHPUnit\Actual eachObjectHasAttribute(string $attributeName)
@@ -630,18 +630,45 @@ namespace ryunosuke\PHPUnit;
  * @method \ryunosuke\PHPUnit\Actual isNotNullOrString()
  *
  * @see \ryunosuke\PHPUnit\Constraint\OutputMatches::__construct() {"raw":true}
- * @method \ryunosuke\PHPUnit\Actual eachOutputContains($value, $raw = true)
- * @method \ryunosuke\PHPUnit\Actual outputContains($value, $raw = true)
- * @method \ryunosuke\PHPUnit\Actual outputNotContains($value, $raw = true)
- * @method \ryunosuke\PHPUnit\Actual outputContainsAny(array $values, $raw = true)
- * @method \ryunosuke\PHPUnit\Actual outputContainsAll(array $values, $raw = true)
- * @method \ryunosuke\PHPUnit\Actual outputNotContainsAny(array $values, $raw = true)
- * @method \ryunosuke\PHPUnit\Actual outputNotContainsAll(array $values, $raw = true)
+ * @method \ryunosuke\PHPUnit\Actual eachOutputContains($value, $raw = true, $with = ["", ""])
+ * @method \ryunosuke\PHPUnit\Actual outputContains($value, $raw = true, $with = ["", ""])
+ * @method \ryunosuke\PHPUnit\Actual outputNotContains($value, $raw = true, $with = ["", ""])
+ * @method \ryunosuke\PHPUnit\Actual outputContainsAny(array $values, $raw = true, $with = ["", ""])
+ * @method \ryunosuke\PHPUnit\Actual outputContainsAll(array $values, $raw = true, $with = ["", ""])
+ * @method \ryunosuke\PHPUnit\Actual outputNotContainsAny(array $values, $raw = true, $with = ["", ""])
+ * @method \ryunosuke\PHPUnit\Actual outputNotContainsAll(array $values, $raw = true, $with = ["", ""])
+ *
+ * @see \ryunosuke\PHPUnit\Constraint\OutputMatches::__construct() {"raw":true,"with":["\\A","\\z"]}
+ * @method \ryunosuke\PHPUnit\Actual eachOutputEquals($value, $raw = true, $with = ["\\A", "\\z"])
+ * @method \ryunosuke\PHPUnit\Actual outputEquals($value, $raw = true, $with = ["\\A", "\\z"])
+ * @method \ryunosuke\PHPUnit\Actual outputNotEquals($value, $raw = true, $with = ["\\A", "\\z"])
+ * @method \ryunosuke\PHPUnit\Actual outputEqualsAny(array $values, $raw = true, $with = ["\\A", "\\z"])
+ * @method \ryunosuke\PHPUnit\Actual outputEqualsAll(array $values, $raw = true, $with = ["\\A", "\\z"])
+ * @method \ryunosuke\PHPUnit\Actual outputNotEqualsAny(array $values, $raw = true, $with = ["\\A", "\\z"])
+ * @method \ryunosuke\PHPUnit\Actual outputNotEqualsAll(array $values, $raw = true, $with = ["\\A", "\\z"])
+ *
+ * @see \ryunosuke\PHPUnit\Constraint\OutputMatches::__construct() {"raw":true,"with":["\\A",""]}
+ * @method \ryunosuke\PHPUnit\Actual eachOutputStartsWith($value, $raw = true, $with = ["\\A", ""])
+ * @method \ryunosuke\PHPUnit\Actual outputStartsWith($value, $raw = true, $with = ["\\A", ""])
+ * @method \ryunosuke\PHPUnit\Actual notOutputStartsWith($value, $raw = true, $with = ["\\A", ""])
+ * @method \ryunosuke\PHPUnit\Actual outputStartsWithAny(array $values, $raw = true, $with = ["\\A", ""])
+ * @method \ryunosuke\PHPUnit\Actual outputStartsWithAll(array $values, $raw = true, $with = ["\\A", ""])
+ * @method \ryunosuke\PHPUnit\Actual notOutputStartsWithAny(array $values, $raw = true, $with = ["\\A", ""])
+ * @method \ryunosuke\PHPUnit\Actual notOutputStartsWithAll(array $values, $raw = true, $with = ["\\A", ""])
+ *
+ * @see \ryunosuke\PHPUnit\Constraint\OutputMatches::__construct() {"raw":true,"with":["","\\z"]}
+ * @method \ryunosuke\PHPUnit\Actual eachOutputEndsWith($value, $raw = true, $with = ["", "\\z"])
+ * @method \ryunosuke\PHPUnit\Actual outputEndsWith($value, $raw = true, $with = ["", "\\z"])
+ * @method \ryunosuke\PHPUnit\Actual notOutputEndsWith($value, $raw = true, $with = ["", "\\z"])
+ * @method \ryunosuke\PHPUnit\Actual outputEndsWithAny(array $values, $raw = true, $with = ["", "\\z"])
+ * @method \ryunosuke\PHPUnit\Actual outputEndsWithAll(array $values, $raw = true, $with = ["", "\\z"])
+ * @method \ryunosuke\PHPUnit\Actual notOutputEndsWithAny(array $values, $raw = true, $with = ["", "\\z"])
+ * @method \ryunosuke\PHPUnit\Actual notOutputEndsWithAll(array $values, $raw = true, $with = ["", "\\z"])
  *
  * @see \ryunosuke\PHPUnit\Constraint\IsThrowable::__construct()
- * @method \ryunosuke\PHPUnit\Actual eachWasThrown($expected = NULL)
- * @method \ryunosuke\PHPUnit\Actual wasThrown($expected = NULL)
- * @method \ryunosuke\PHPUnit\Actual notWasThrown($expected = NULL)
+ * @method \ryunosuke\PHPUnit\Actual eachWasThrown($expected = null)
+ * @method \ryunosuke\PHPUnit\Actual wasThrown($expected = null)
+ * @method \ryunosuke\PHPUnit\Actual notWasThrown($expected = null)
  *
  * @see \PHPUnit\Framework\Constraint\IsType::__construct() ["array"]
  * @method \ryunosuke\PHPUnit\Actual eachIsArray()
@@ -794,13 +821,13 @@ namespace ryunosuke\PHPUnit;
  * @method \ryunosuke\PHPUnit\Actual isNotValidUrl($flags = 0)
  *
  * @see tests/bootstrap.php#21-23
- * @method \ryunosuke\PHPUnit\Actual eachLineCount(int $lineCount, string $delimiter = '\\R')
- * @method \ryunosuke\PHPUnit\Actual lineCount(int $lineCount, string $delimiter = '\\R')
- * @method \ryunosuke\PHPUnit\Actual notLineCount(int $lineCount, string $delimiter = '\\R')
- * @method \ryunosuke\PHPUnit\Actual lineCountAny(array $lineCounts, string $delimiter = '\\R')
- * @method \ryunosuke\PHPUnit\Actual lineCountAll(array $lineCounts, string $delimiter = '\\R')
- * @method \ryunosuke\PHPUnit\Actual notLineCountAny(array $lineCounts, string $delimiter = '\\R')
- * @method \ryunosuke\PHPUnit\Actual notLineCountAll(array $lineCounts, string $delimiter = '\\R')
+ * @method \ryunosuke\PHPUnit\Actual eachLineCount(int $lineCount, string $delimiter = "\\R")
+ * @method \ryunosuke\PHPUnit\Actual lineCount(int $lineCount, string $delimiter = "\\R")
+ * @method \ryunosuke\PHPUnit\Actual notLineCount(int $lineCount, string $delimiter = "\\R")
+ * @method \ryunosuke\PHPUnit\Actual lineCountAny(array $lineCounts, string $delimiter = "\\R")
+ * @method \ryunosuke\PHPUnit\Actual lineCountAll(array $lineCounts, string $delimiter = "\\R")
+ * @method \ryunosuke\PHPUnit\Actual notLineCountAny(array $lineCounts, string $delimiter = "\\R")
+ * @method \ryunosuke\PHPUnit\Actual notLineCountAll(array $lineCounts, string $delimiter = "\\R")
  *
  */
 trait Annotation
