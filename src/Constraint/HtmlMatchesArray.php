@@ -2,7 +2,7 @@
 
 namespace ryunosuke\PHPUnit\Constraint;
 
-use PHPUnit\Framework\ExpectationFailedException;
+use Closure;
 use SebastianBergmann\Comparator\ComparisonFailure;
 use function ryunosuke\PHPUnit\var_export2;
 
@@ -68,7 +68,13 @@ class HtmlMatchesArray extends AbstractConstraint
     private function compare(\DOMElement $element, array $expected, array $fullpath)
     {
         foreach ($expected as $attr => $value) {
-            if (is_array($value)) {
+            if ($attr === 'class' && is_array($value)) {
+                $classes = preg_split('#\s#', $element->getAttribute($attr), -1, PREG_SPLIT_NO_EMPTY);
+                if (($diff = array_diff($value, $classes)) !== []) {
+                    $this->throwComparisonFailure(sprintf('%s[%s] should contain "%s"', implode('/', $fullpath), $attr, implode(' ', $diff)), $element, $expected);
+                }
+            }
+            elseif (is_array($value)) {
                 $this->match([$attr => $value], $element, $fullpath);
             }
             elseif (is_int($attr)) {
@@ -85,6 +91,11 @@ class HtmlMatchesArray extends AbstractConstraint
                 }
                 if ($element->hasAttribute($attr) && $value === false) {
                     $this->throwComparisonFailure(sprintf('%s[%s] should not exist', implode('/', $fullpath), $attr), $element, $expected);
+                }
+            }
+            elseif ($value instanceof Closure) {
+                if (!$value($element->getAttribute($attr), $element)) {
+                    $this->throwComparisonFailure(sprintf('%s[%s] should satisfy closure', implode('/', $fullpath), $attr), $element, $expected);
                 }
             }
             else {
