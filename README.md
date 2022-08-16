@@ -357,6 +357,12 @@ ryunosuke\PHPUnit\Exporter\Exporter::insteadOf();
 
 Versioning is Semantic Versioning.
 
+### 3.5.0
+
+- [feature] added htmlMatchesArray supports style attribute
+- [fixbug] fixed "try" catches necessary exceptions
+- [change] implemented __callStatic omission
+
 ### 3.4.0
 
 - [refactor] fixed annotation
