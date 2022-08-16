@@ -4,6 +4,7 @@ namespace ryunosuke\Test;
 
 use PHPUnit\Framework\Constraint\IsEqual;
 use ryunosuke\PHPUnit\Actual;
+use ryunosuke\PHPUnit\Exception\UndefinedException;
 use ryunosuke\PHPUnit\Util;
 use function ryunosuke\PHPUnit\rm_rf;
 
@@ -536,6 +537,9 @@ Nzxc ');
             $this->actual($thrower)(10, 0)->getMessage()->is('Division by zero');
             $this->actual($thrower)(10, 0)->wasThrown('Division by zero');
         }
+
+        $this->expectException(UndefinedException::class);
+        $this->actual($thrower)->undefined();
     }
 
     function test_list()

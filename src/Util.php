@@ -3,6 +3,7 @@
 namespace ryunosuke\PHPUnit;
 
 use PHPUnit\Framework\SelfDescribing;
+use ryunosuke\PHPUnit\Exception\UndefinedException;
 
 class Util
 {
@@ -57,7 +58,7 @@ class Util
             return $object->$property;
         }
 
-        throw new \DomainException($refclass->name . '::$' . $property . ' is not defined.');
+        throw new UndefinedException($refclass->name . '::$' . $property . ' is not defined.');
     }
 
     public static function methodToCallable($object, string $method = null): callable
@@ -80,7 +81,7 @@ class Util
             return [$object, $method];
         }
 
-        throw new \DomainException(get_class($object) . '::' . $method . '() is not defined.');
+        throw new UndefinedException((is_object($object) ? get_class($object) : $object) . '::' . $method . '() is not defined.');
     }
 
     public static function selfDescribingCallable(callable $callable, string $describing): callable

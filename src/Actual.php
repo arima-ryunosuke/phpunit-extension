@@ -21,6 +21,7 @@ use ryunosuke\PHPUnit\Constraint\LogicalAnd;
 use ryunosuke\PHPUnit\Constraint\LogicalNot;
 use ryunosuke\PHPUnit\Constraint\LogicalOr;
 use ryunosuke\PHPUnit\Constraint\OutputMatches;
+use ryunosuke\PHPUnit\Exception\UndefinedException;
 
 if (!trait_exists(Annotation::class)) { // @codeCoverageIgnore
     trait Annotation { }
@@ -591,6 +592,9 @@ class Actual implements \ArrayAccess
             $return = $this->use($methodname)(...$arguments);
         }
         catch (\Throwable $t) {
+            if ($t instanceof UndefinedException) {
+                throw $t;
+            }
             $return = $t;
         }
         finally {
