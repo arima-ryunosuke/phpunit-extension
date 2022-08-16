@@ -170,11 +170,24 @@ Nzxc ');
             {
                 return func_get_args();
             }
+
+            static function staticThrowMethod()
+            {
+                debug_print_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
+                throw new \Exception('this is message.');
+            }
         });
+
         /** @noinspection PhpUndefinedMethodInspection */
         {
             $actual::staticMethod(1, 2, 3)->is([1, 2, 3]);
             ("$actual")::staticMethod(1, 2, 3)->is([1, 2, 3]);
+
+            $actual::staticMethod(...[1, 2])()->is([1, 2]);
+            ("$actual")::staticMethod(...[1, 2, 3])()->is([1, 2, 3]);
+
+            $actual::staticThrowMethod()->wasThrown('this is message');
+            ("$actual")::staticThrowMethod()->wasThrown('this is message');
         }
     }
 

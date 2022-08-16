@@ -93,7 +93,7 @@ class Actual implements \ArrayAccess
         ],
     ];
 
-    private static ?string $object = null;
+    private static array $objects = [];
 
     private $actual;
 
@@ -351,9 +351,9 @@ class Actual implements \ArrayAccess
         return $that;
     }
 
-    public static function __callStatic($methodname, $arguments)
+    public static function __callStatic($name, $arguments): Actual
     {
-        return new static(Util::methodToCallable(static::$object, $methodname)(...$arguments));
+        return (new static(last_value(static::$objects)))->$name(...$arguments);
     }
 
     public function __construct($actual)
@@ -362,29 +362,32 @@ class Actual implements \ArrayAccess
         $this->parent = $this;
 
         if (is_object($actual)) {
-            static::$object = get_class($actual);
+            static::$objects[spl_object_id($this)] = get_class($actual);
         }
         elseif (is_string($actual) && @class_exists($actual)) {
-            static::$object = (string) $actual;
+            static::$objects[spl_object_id($this)] = (string) $actual;
         }
+    }
+
+    public function __destruct()
+    {
+        unset(static::$objects[spl_object_id($this)]);
     }
 
     public function __toString()
     {
         if (is_object($this->actual)) {
-            $staticCaller = new class(static::class, $this->actual) {
-                public static $static, $class;
+            $staticCaller = new class(new static($this->actual)) {
+                public static $that;
 
-                public function __construct($static, $object)
+                public function __construct($that)
                 {
-                    self::$static = $static;
-                    self::$class = get_class($object);
+                    self::$that = $that;
                 }
 
                 public static function __callStatic($name, $arguments)
                 {
-                    $static = self::$static;
-                    return new $static((self::$class)::$name(...$arguments));
+                    return self::$that::$name(...$arguments);
                 }
             };
             return get_class($staticCaller);
@@ -773,7 +776,14 @@ class Actual implements \ArrayAccess
 
     private function getCallerLine(?array $trace = null): string
     {
-        $trace ??= debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2)[1];
+        if ($trace === null) {
+            $traces = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
+            foreach ($traces as $trace) {
+                if ($trace['file'] !== __FILE__) {
+                    break;
+                }
+            }
+        }
         $file = $trace['file'];
         $line = $trace['line'];
 
