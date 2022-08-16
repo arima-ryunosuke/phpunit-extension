@@ -4,6 +4,8 @@ namespace ryunosuke\PHPUnit\Constraint;
 
 use Closure;
 use SebastianBergmann\Comparator\ComparisonFailure;
+use function ryunosuke\PHPUnit\array_sprintf;
+use function ryunosuke\PHPUnit\str_array;
 use function ryunosuke\PHPUnit\var_export2;
 
 class HtmlMatchesArray extends AbstractConstraint
@@ -72,6 +74,12 @@ class HtmlMatchesArray extends AbstractConstraint
                 $classes = preg_split('#\s#', $element->getAttribute($attr), -1, PREG_SPLIT_NO_EMPTY);
                 if (($diff = array_diff($value, $classes)) !== []) {
                     $this->throwComparisonFailure(sprintf('%s[%s] should contain "%s"', implode('/', $fullpath), $attr, implode(' ', $diff)), $element, $expected);
+                }
+            }
+            elseif ($attr === 'style' && is_array($value)) {
+                $styles = str_array(preg_split('#;#', $element->getAttribute($attr), -1, PREG_SPLIT_NO_EMPTY), ':', true);
+                if (($diff = array_diff_assoc($value, $styles)) !== []) {
+                    $this->throwComparisonFailure(sprintf('%s[%s] should contain "%s"', implode('/', $fullpath), $attr, array_sprintf($diff, '%2$s:%1$s', '; ')), $element, $expected);
                 }
             }
             elseif (is_array($value)) {
