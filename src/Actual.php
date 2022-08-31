@@ -354,7 +354,7 @@ class Actual implements \ArrayAccess
 
     public static function __callStatic($name, $arguments): Actual
     {
-        return (new static(last_value(static::$objects)))->$name(...$arguments);
+        return (new static(last_value(static::$objects)))->__call($name, $arguments);
     }
 
     public function __construct($actual)
