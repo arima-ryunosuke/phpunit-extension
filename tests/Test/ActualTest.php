@@ -702,6 +702,99 @@ Nzxc ');
         $this->actual(123)->isInt()->isBetween(100, 200)->final('assertionCount')->is(4);
     }
 
+    function test_declare()
+    {
+        Actual::$debugMode = true;
+        /** @noinspection PhpUndefinedMethodInspection */
+        {
+            $this->actual(null)->declare('')->debug('isNull()');
+            $this->actual(false)->declare('')->debug('isFalse()');
+            $this->actual(true)->declare('')->debug('isTrue()');
+            $this->actual(3.14)->declare('')->debug('isBetween(3.0, 4.0)');
+
+            $this->actual('hoge')->declare('')->debug('is("hoge")');
+            $this->actual('hoge')->declare('length')->debug('stringLengthEquals(4)');
+
+            $this->actual('<label style="font-size:12px;color:#333"><input type="checkbox" class="checkbox" name="hoge" value="on">check</label>')->declare('html')->debug('htmlMatchesArray');
+            $this->actual(json_encode(['a' => ['b' => ['c' => ['x', 'y', 'z']]]]))->declare('json')->debug('jsonMatchesArray');
+
+            $this->actual([1, 2, 3])->declare('')->debug('is([1, 2, 3])');
+            $this->actual([1, 2, 3])->declare('count')->debug('count(3)');
+
+            $this->actual($this)->hoge->declare('')->debug('isUndefined()');
+
+            $this->actual(new \Exception('hoge'))->declare('')->debug('isThrowable(new \\Exception("hoge"))');
+            $this->actual(new \Exception('hoge', 123))->declare('')->debug('isThrowable(new \\Exception("hoge", 123))');
+            $this->actual(new \ArrayObject())->declare('')->debug('isInstanceOf(\ArrayObject::class)');
+            $this->actual((object) [1, 2, 3])->declare('')->debug('is((object) [1, 2, 3])');
+
+            $this->actual(new \ArrayObject(['a' => ['b' => ['c' => ['x', 'y', 'z']]]]))->getArrayCopy()->declare('')->debug(<<<'EOF'
+            is([
+                "a" => [
+                    "b" => [
+                        "c" => ["x", "y", "z"],
+                    ],
+                ],
+            ])
+            EOF,);
+
+            $this->expectExceptionMessage('undetect');
+            $this->actual(new class { })->declare('');
+        }
+    }
+
+    function test_getCallerLine()
+    {
+        $actual = $this->actual(null);
+
+        $minlength = 1;
+        $maxlength = 5;
+        $tmpfiles = [];
+        foreach (range($minlength, $maxlength) as $n) {
+            $tmpfiles[$n] = tempnam(sys_get_temp_dir(), 'tst');
+            file_put_contents($tmpfiles[$n], $n);
+            $this->actual($actual)->getCallerLine(null, [
+                'file' => $tmpfiles[$n],
+                'line' => 1,
+            ]);
+        }
+
+        file_put_contents($tmpfiles[$minlength], 'rewritten1');
+        file_put_contents($tmpfiles[$maxlength], 'rewritten2');
+
+        $this->actual($actual)->getCallerLine(null, [
+            'file' => $tmpfiles[$minlength],
+            'line' => 1,
+        ])->is('rewritten1');
+        $this->actual($actual)->getCallerLine(null, [
+            'file' => $tmpfiles[$maxlength],
+            'line' => 1,
+        ])->is($maxlength);
+
+        $tmpfile = tempnam(sys_get_temp_dir(), 'tst');
+        file_put_contents($tmpfile, <<<DUMMY
+        line 1
+        line 2
+        line 3
+        line 4
+        
+        DUMMY,);
+
+        $this->actual($actual)->getCallerLine(fn($line) => "$line Ex\nnew Line", [
+            'file' => $tmpfile,
+            'line' => 3,
+        ]);
+
+        $this->assertEquals(<<<DUMMY
+        line 1
+        line 2
+        line 3 Ex
+        new Line
+        line 4
+        
+        DUMMY, file_get_contents($tmpfile));
+    }
+
     function test_variation()
     {
         $this->actual('hoge')->isHoge();

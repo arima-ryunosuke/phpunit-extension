@@ -13,8 +13,10 @@ use PHPUnit\Framework\Constraint\IsNull;
 use PHPUnit\Framework\Constraint\IsType;
 use PHPUnit\Framework\Constraint\LessThan;
 use PHPUnit\Framework\Constraint\RegularExpression;
+use PHPUnit\Framework\Constraint\StringContains;
 use PHPUnit\Framework\Constraint\StringEndsWith;
 use PHPUnit\Framework\Constraint\StringStartsWith;
+use ryunosuke\PHPUnit\Constraint\HtmlMatchesArray;
 use ryunosuke\PHPUnit\Constraint\IsCType;
 use ryunosuke\PHPUnit\Constraint\IsThrowable;
 use ryunosuke\PHPUnit\Constraint\IsValid;
@@ -31,6 +33,8 @@ if (!trait_exists(Annotation::class)) { // @codeCoverageIgnore
 class Actual implements \ArrayAccess
 {
     use Annotation;
+
+    public static $debugMode = false;
 
     public static $constraintVariations = [
         // alias
@@ -400,6 +404,10 @@ class Actual implements \ArrayAccess
 
     public function __call($name, $arguments)
     {
+        if ($name === 'debug') {
+            return self::$debugMode ? $this->assert([$this->actual], new StringContains(...$arguments)) : null;
+        }
+
         $callee = $name;
         $modes = [];
 
@@ -707,6 +715,74 @@ class Actual implements \ArrayAccess
         return $this->create($this->results[$mode] ?? $this->results);
     }
 
+    public function declare($hint = ''): Actual
+    {
+        $receiver = '';
+        $rewriter = function ($line) use ($hint, &$receiver) {
+            $v = fn($v) => $v;
+            $ve = fn($v) => var_export2($v, true);
+
+            $actual = $this->actual;
+            if (is_object($actual) && (new \ReflectionClass($actual))->isAnonymous()) {
+                throw new UndefinedException("undetect({$v(get_class($actual))})");
+            }
+            elseif (is_null($actual)) {
+                $method = "isNull";
+                $params = [];
+            }
+            elseif (is_bool($actual)) {
+                $method = "is{$v(ucfirst($ve($actual)))}";
+                $params = [];
+            }
+            elseif (is_float($actual)) {
+                $method = "isBetween";
+                $params = [$ve(floor($actual)), $ve(ceil($actual))];
+            }
+            elseif ($actual instanceof UndefinedException) {
+                $method = "isUndefined";
+                $params = [];
+            }
+            elseif ($actual instanceof \Throwable) {
+                $method = "isThrowable";
+                $class = "new \\{$v(get_class($actual))}";
+                $params = ["{$class}({$ve($actual->getMessage())}" . ($actual->getCode() ? ", {$ve($actual->getCode())})" : ")")];
+            }
+            elseif (is_stringable($actual) && str_exists($hint, 'length')) {
+                $method = "stringLengthEquals";
+                $params = [strlen($actual)];
+            }
+            elseif (is_stringable($actual) && str_exists($hint, 'html')) {
+                $method = "htmlMatchesArray";
+                $params = [$ve(HtmlMatchesArray::stringToArray($actual))];
+            }
+            elseif (is_stringable($actual) && str_exists($hint, 'json')) {
+                $method = "jsonMatchesArray";
+                $params = [$ve(json_decode($actual, true))];
+            }
+            elseif (is_countable($actual) && str_exists($hint, 'count')) {
+                $method = "count";
+                $params = [count($actual)];
+            }
+            elseif (is_object($actual) && !$actual instanceof \stdClass) {
+                $method = "isInstanceOf";
+                $params = ["\\{$v(get_class($actual))}::class"];
+            }
+            else {
+                $method = "is";
+                $params = [$ve($actual)];
+            }
+
+            $receiver = "{$method}({$v(implode(', ', $params))})";
+            preg_match('#^(\s*)#', $line, $matches);
+            $newline = preg_replace('#(|::)\s*declare\s*\(.*?\)#u', '$1' . $receiver, $line);
+            $newline = preg_replace('#\n#u', "\n{$v($matches[1] ?? '')}", $newline);
+            return self::$debugMode ? $line : $newline;
+        };
+
+        $this->getCallerLine($rewriter);
+        return self::$debugMode ? $this->create($receiver) : $this;
+    }
+
     private function assert($actuals, Constraint ...$constraints): Actual
     {
         $constraint = LogicalOr::fromConstraints(...$constraints);
@@ -799,7 +875,7 @@ class Actual implements \ArrayAccess
         return $newConstraint($arguments);
     }
 
-    private function getCallerLine(?array $trace = null): string
+    private function getCallerLine($rewriter = null, ?array $trace = null): string
     {
         if ($trace === null) {
             $traces = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
@@ -813,10 +889,25 @@ class Actual implements \ArrayAccess
         $line = $trace['line'];
 
         static $files = [];
-        $files[$file] ??= file($file, FILE_IGNORE_NEW_LINES);
-        $files = array_slice($files, -4);
+        $files[$file] ??= [
+            'fixed' => true,
+            'lines' => file($file, FILE_IGNORE_NEW_LINES),
+        ];
+        foreach (array_slice(array_filter($files, fn($member) => $member['fixed']), 0, -4) as $n => $member) {
+            unset($files[$n]);
+        }
 
-        return $files[$file][$line - 1];
+        if ($rewriter) {
+            $newline = $rewriter($files[$file]['lines'][$line - 1]);
+            if ($newline !== $files[$file]['lines'][$line - 1]) {
+                $files[$file]['fixed'] = false;
+                $files[$file]['lines'][$line - 1] = $newline;
+                file_put_contents($file, implode("\n", $files[$file]['lines']) . "\n");
+            }
+            return $newline;
+        }
+
+        return $files[$file]['lines'][$line - 1];
     }
 
     public function __isset($name) { throw new \DomainException(__FUNCTION__ . ' is not supported.'); }

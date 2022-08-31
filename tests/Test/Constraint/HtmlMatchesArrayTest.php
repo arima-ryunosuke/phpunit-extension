@@ -92,4 +92,17 @@ class HtmlMatchesArrayTest extends \ryunosuke\Test\AbstractTestCase
             ],
         ]);
     }
+
+    function test_stringToArray()
+    {
+        that(HtmlMatchesArray::class)::stringToArray('<div>div1<span>span1</span>div2<span>span2</span>div3</div>')->is([
+            "div[1]" => [
+                "div1",
+                "span[1]" => ["span1"],
+                "div2",
+                "span[2]" => ["span2"],
+                "div3",
+            ],
+        ]);
+    }
 }

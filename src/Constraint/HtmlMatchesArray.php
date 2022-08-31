@@ -6,6 +6,7 @@ use Closure;
 use SebastianBergmann\Comparator\ComparisonFailure;
 use function ryunosuke\PHPUnit\array_sprintf;
 use function ryunosuke\PHPUnit\str_array;
+use function ryunosuke\PHPUnit\str_exists;
 use function ryunosuke\PHPUnit\var_export2;
 
 class HtmlMatchesArray extends AbstractConstraint
@@ -114,6 +115,23 @@ class HtmlMatchesArray extends AbstractConstraint
         }
     }
 
+    public static function stringToArray($string)
+    {
+        if (!str_exists($string, '<body')) {
+            $string = "<body>$string</body>";
+        }
+        if (!str_exists($string, '<html')) {
+            $string = "<html>$string</html>";
+        }
+
+        $document = new \DOMDocument();
+        libxml_use_internal_errors(true);
+        $document->loadHTML($string ?: '<html></html>');
+        libxml_clear_errors();
+
+        return self::nodeToArray($document->getElementsByTagName('body')[0]);
+    }
+
     private function throwComparisonFailure($message, $actual, $expected)
     {
         $actualArray = $this->nodeToArray($actual);
@@ -127,12 +145,20 @@ class HtmlMatchesArray extends AbstractConstraint
         );
     }
 
-    private function nodeToArray(\DOMNode $node)
+    private static function nodeToArray(\DOMNode $node)
     {
         $result = [];
 
         foreach ($node->attributes as $attribute) {
-            $result[$attribute->name] = $attribute->value;
+            if ($attribute->name === 'class') {
+                $result[$attribute->name] = preg_split('#\s#', $attribute->value, -1, PREG_SPLIT_NO_EMPTY);
+            }
+            elseif ($attribute->name === 'style') {
+                $result[$attribute->name] = str_array(preg_split('#;#', $attribute->value, -1, PREG_SPLIT_NO_EMPTY), ':', true);
+            }
+            else {
+                $result[$attribute->name] = $attribute->value;
+            }
         }
 
         $child_type = [];
@@ -146,14 +172,14 @@ class HtmlMatchesArray extends AbstractConstraint
             if ($child instanceof \DOMElement) {
                 $tag = $child->tagName;
                 $child_type[$tag] = ($child_type[$tag] ?? 0) + 1;
-                $result["{$tag}[{$child_type[$tag]}]"] = $this->nodeToArray($child);
+                $result["{$tag}[{$child_type[$tag]}]"] = self::nodeToArray($child);
             }
         }
 
         return $result;
     }
 
-    private function nodeArrayToString($array)
+    private static function nodeArrayToString($array)
     {
         $string = var_export2($array, true);
         return preg_replace('#^(\s+)\d+\s+=> #mu', '$1', $string);
