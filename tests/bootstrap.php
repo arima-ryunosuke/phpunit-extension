@@ -35,3 +35,37 @@ trait Annotation
     }
 }
 ");
+
+class NoneConstructor
+{
+}
+
+class PrivateConstructor
+{
+    private $x;
+
+    private function __construct($x)
+    {
+        $this->x = $x;
+    }
+
+    public function double()
+    {
+        return $this->x * 2;
+    }
+}
+
+class PublicConstructor
+{
+    private $x;
+
+    public function __construct($x)
+    {
+        $this->x = $x;
+    }
+
+    public function double()
+    {
+        return $this->x * 2;
+    }
+}

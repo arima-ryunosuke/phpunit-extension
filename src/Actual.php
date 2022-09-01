@@ -594,6 +594,15 @@ class Actual implements \ArrayAccess
         return $this->create($this->use($methodname)(...$arguments));
     }
 
+    public function new(...$arguments): Actual
+    {
+        if (preg_match('#new\s*\(\s*\.\.\.\s*\[#u', $this->getCallerLine())) {
+            return $this->callable('__construct', ...$arguments);
+        }
+
+        return $this->try('__construct', ...$arguments);
+    }
+
     public function try(?string $methodname, ...$arguments): Actual
     {
         $ob_level = ob_get_level();

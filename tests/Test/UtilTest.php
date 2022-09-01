@@ -95,6 +95,15 @@ class UtilTest extends \ryunosuke\Test\AbstractTestCase
         $magicMethod = Util::methodToCallable($class, 'magicMethod');
         $this->assertEquals('__call', $magicMethod());
 
+        $constructor = Util::methodToCallable(\NoneConstructor::class, '__construct');
+        $this->assertInstanceOf(\NoneConstructor::class, $constructor());
+
+        $constructor = Util::methodToCallable(\PublicConstructor::class, '__construct');
+        $this->assertInstanceOf(\PublicConstructor::class, $constructor(1));
+
+        $constructor = Util::methodToCallable(\PrivateConstructor::class, '__construct');
+        $this->assertInstanceOf(\PrivateConstructor::class, $constructor(1));
+
         $this->expectExceptionMessage('is not defined');
         Util::methodToCallable(new \stdClass(), 'undefined');
     }

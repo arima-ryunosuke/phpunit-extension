@@ -68,12 +68,32 @@ class Util
 
         if ($refclass->hasMethod($method)) {
             $refmethod = $refclass->getMethod($method);
-            if ($refmethod->isPublic()) {
+            if (!$refmethod->isConstructor() && $refmethod->isPublic()) {
                 return [$object, $method];
             }
             $refmethod->setAccessible(true);
-            $callable = fn() => $refmethod->invokeArgs($refmethod->isStatic() ? null : $object, func_get_args());
+            if ($refmethod->isConstructor()) {
+                if ($refmethod->isPublic()) {
+                    $callable = fn() => $refclass->newInstanceArgs(func_get_args());
+                }
+                else {
+                    $callable = function () use ($refclass, $refmethod) {
+                        $instance = $refclass->newInstanceWithoutConstructor();
+                        $refmethod->invokeArgs($instance, func_get_args());
+                        return $instance;
+                    };
+                }
+            }
+            else {
+                $callable = fn() => $refmethod->invokeArgs($refmethod->isStatic() ? null : $object, func_get_args());
+            }
             $describe = ($refclass->isAnonymous() ? 'AnonymousClass@' . self::reflectFile($refclass) : $refclass->name) . '::' . $refmethod->name;
+            return self::selfDescribingCallable($callable, $describe);
+        }
+
+        if ($method === '__construct') {
+            $callable = fn() => $refclass->newInstanceArgs(func_get_args());
+            $describe = ($refclass->isAnonymous() ? 'AnonymousClass@' . self::reflectFile($refclass) : $refclass->name) . '::' . $method;
             return self::selfDescribingCallable($callable, $describe);
         }
 

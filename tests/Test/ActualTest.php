@@ -506,6 +506,19 @@ Nzxc ');
         $this->actual($callee)->do(null, 2)->is(20);
     }
 
+    function test_new()
+    {
+        /** @noinspection PhpUndefinedMethodInspection */
+        {
+            $this->actual(\NoneConstructor::class)->new()->isInstanceOf(\NoneConstructor::class);
+            $this->actual(\PrivateConstructor::class)->new(10)->isInstanceOf(\PrivateConstructor::class)->double()->is(20);
+            $this->actual(\PublicConstructor::class)->new(10)->isInstanceOf(\PublicConstructor::class)->double()->is(20);
+
+            $this->actual(\PrivateConstructor::class)->new(...[10])()->double()->is(20);
+            $this->actual(\PublicConstructor::class)->new(...[10])()->double()->is(20);
+        }
+    }
+
     function test_try()
     {
         $thrower = new class() {
