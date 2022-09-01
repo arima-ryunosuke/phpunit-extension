@@ -212,6 +212,9 @@ class Actual implements \ArrayAccess
 
         if ($types['variation']) {
             foreach (self::$constraintVariations as $name => $variation) {
+                if ($variation === false) {
+                    continue;
+                }
                 if ($variation instanceof \Closure) {
                     $method = new \ReflectionFunction($variation);
 
@@ -428,6 +431,9 @@ class Actual implements \ArrayAccess
         $callee = lcfirst($callee);
         if (isset(self::$constraintVariations[$callee])) {
             $variation = self::$constraintVariations[$callee];
+            if ($variation === false) {
+                goto SKIP;
+            }
             if ($variation instanceof \Closure) {
                 $constraint = new class($variation, $arguments) extends Constraint {
                     private $callback;
@@ -488,6 +494,8 @@ class Actual implements \ArrayAccess
                 return $this->assert($actuals, $constraint);
             }
         }
+
+        SKIP:
 
         if ($this->functionArgument($name) !== null) {
             return $this->function($name, ...$arguments);

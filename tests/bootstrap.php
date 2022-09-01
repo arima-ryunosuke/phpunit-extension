@@ -21,6 +21,7 @@ file_put_contents(__DIR__ . "/../tests/ryunosuke.php", \ryunosuke\Functions\Tran
 \ryunosuke\PHPUnit\Actual::$constraintVariations['lineCount'] = function ($other, int $lineCount, string $delimiter = "\\R") {
     return $lineCount === (preg_match_all("#$delimiter#", $other) + 1);
 };
+\ryunosuke\PHPUnit\Actual::$constraintVariations['dummy'] = false;
 
 file_put_contents(__DIR__ . '/../inc/annotation.php', "<?php
 
