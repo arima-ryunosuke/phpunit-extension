@@ -100,17 +100,17 @@ class Actual implements \ArrayAccess
         ],
     ];
 
-    private static array $objects = [];
+    private static array $___objects = [];
 
-    private $actual;
+    private $___actual;
 
-    private Actual $parent;
+    private Actual $___parent;
 
-    private array $arguments = [];
+    private array $___arguments = [];
 
-    private string $message = '';
+    private string $___message = '';
 
-    private array $results = [];
+    private array $___results = [];
 
     public static function generateAnnotation($types = [])
     {
@@ -355,39 +355,39 @@ class Actual implements \ArrayAccess
     private function create($actual, $arguments = []): Actual
     {
         $that = new static($actual);
-        $that->parent = $this;
-        $that->arguments = $arguments;
-        $that->results = $this->results;
+        $that->___parent = $this;
+        $that->___arguments = $arguments;
+        $that->___results = $this->___results;
         return $that;
     }
 
     public static function __callStatic($name, $arguments): Actual
     {
-        return (new static(last_value(static::$objects)))->__call($name, $arguments);
+        return (new static(last_value(static::$___objects)))->__call($name, $arguments);
     }
 
     public function __construct($actual)
     {
-        $this->actual = $actual;
-        $this->parent = $this;
+        $this->___actual = $actual;
+        $this->___parent = $this;
 
         if (is_object($actual)) {
-            static::$objects[spl_object_id($this)] = get_class($actual);
+            static::$___objects[spl_object_id($this)] = get_class($actual);
         }
         elseif (is_string($actual) && @class_exists($actual)) {
-            static::$objects[spl_object_id($this)] = (string) $actual;
+            static::$___objects[spl_object_id($this)] = (string) $actual;
         }
     }
 
     public function __destruct()
     {
-        unset(static::$objects[spl_object_id($this)]);
+        unset(static::$___objects[spl_object_id($this)]);
     }
 
     public function __toString()
     {
-        if (is_object($this->actual)) {
-            $staticCaller = new class(new static($this->actual)) {
+        if (is_object($this->___actual)) {
+            $staticCaller = new class(new static($this->___actual)) {
                 public static $that;
 
                 public function __construct($that)
@@ -402,13 +402,13 @@ class Actual implements \ArrayAccess
             };
             return get_class($staticCaller);
         }
-        return var_export2($this->actual, true) . "\n";
+        return var_export2($this->___actual, true) . "\n";
     }
 
     public function __call($name, $arguments)
     {
         if ($name === 'debug') {
-            return self::$debugMode ? $this->assert([$this->actual], new StringContains(...$arguments)) : null;
+            return self::$debugMode ? $this->assert([$this->___actual], new StringContains(...$arguments)) : null;
         }
 
         $callee = $name;
@@ -426,7 +426,7 @@ class Actual implements \ArrayAccess
         $callee = LogicalAnd::import($callee2 = $callee);
         $modes['all'] = $callee2 !== $callee;
 
-        $actuals = $modes['each'] ? $this->actual : [$this->actual];
+        $actuals = $modes['each'] ? $this->___actual : [$this->___actual];
 
         $callee = lcfirst($callee);
         if (isset(self::$constraintVariations[$callee])) {
@@ -524,11 +524,11 @@ class Actual implements \ArrayAccess
         }
 
         try {
-            if (is_array($this->actual)) {
-                if (!array_key_exists($name, $this->actual)) {
+            if (is_array($this->___actual)) {
+                if (!array_key_exists($name, $this->___actual)) {
                     throw new UndefinedException("undefined array key ('$name')");
                 }
-                $var = $this->actual[$name];
+                $var = $this->___actual[$name];
             }
             else {
                 $var = $this->var($name);
@@ -543,52 +543,52 @@ class Actual implements \ArrayAccess
 
     public function __set($name, $value)
     {
-        if (is_array($this->actual)) {
-            $this->actual[$name] = $value;
+        if (is_array($this->___actual)) {
+            $this->___actual[$name] = $value;
             return;
         }
-        $this->actual->$name = $value;
+        $this->___actual->$name = $value;
     }
 
     public function __unset($name)
     {
-        if (is_array($this->actual)) {
-            unset($this->actual[$name]);
+        if (is_array($this->___actual)) {
+            unset($this->___actual[$name]);
             return;
         }
-        unset($this->actual->$name);
+        unset($this->___actual->$name);
     }
 
     public function offsetGet($offset): Actual
     {
-        if (is_array($this->actual) || $this->actual instanceof ArrayAccess) {
-            return $this->create($this->actual[$offset]);
+        if (is_array($this->___actual) || $this->___actual instanceof ArrayAccess) {
+            return $this->create($this->___actual[$offset]);
         }
 
-        throw new \DomainException('$this->actual must be structure value given ' . gettype($this->actual) . ').');
+        throw new \DomainException('$this->actual must be structure value given ' . gettype($this->___actual) . ').');
     }
 
     public function offsetSet($offset, $value): void
     {
-        $this->actual[$offset] = $value;
+        $this->___actual[$offset] = $value;
     }
 
     public function offsetUnset($offset): void
     {
-        unset($this->actual[$offset]);
+        unset($this->___actual[$offset]);
     }
 
     public function var(string $propertyname)
     {
-        return Util::propertyToValue($this->actual, $propertyname);
+        return Util::propertyToValue($this->___actual, $propertyname);
     }
 
     public function use(?string $methodname): callable
     {
-        if ($methodname === null && !is_object($this->actual) && is_callable($this->actual)) {
-            return \Closure::fromCallable($this->actual);
+        if ($methodname === null && !is_object($this->___actual) && is_callable($this->___actual)) {
+            return \Closure::fromCallable($this->___actual);
         }
-        return Util::methodToCallable($this->actual, $methodname);
+        return Util::methodToCallable($this->___actual, $methodname);
     }
 
     public function callable(?string $methodname = null, ...$bindings): Actual
@@ -635,7 +635,7 @@ class Actual implements \ArrayAccess
         finally {
             // for compatible
             if ($ob_level === 1) {
-                $this->results['stdout'] = ob_get_clean();
+                $this->___results['stdout'] = ob_get_clean();
             }
         }
         return $this->create($return, $arguments);
@@ -644,9 +644,9 @@ class Actual implements \ArrayAccess
     public function list($index = null): Actual
     {
         if ($index === null) {
-            return $this->create($this->arguments);
+            return $this->create($this->___arguments);
         }
-        return $this->create($this->arguments[$index]);
+        return $this->create($this->___arguments[$index]);
     }
 
     /**
@@ -656,7 +656,7 @@ class Actual implements \ArrayAccess
      */
     public function function ($function, ...$arguments): Actual
     {
-        return $this->create(chain($this->actual)->$function(...$arguments)(), $arguments);
+        return $this->create(chain($this->___actual)->$function(...$arguments)(), $arguments);
     }
 
     /**
@@ -670,7 +670,7 @@ class Actual implements \ArrayAccess
         $function = $this->functionArgument($function);
 
         $actuals = [];
-        foreach ($this->actual as $k => $actual) {
+        foreach ($this->___actual as $k => $actual) {
             if ($methodMode) {
                 $method = Util::methodToCallable($actual, $function);
                 $actuals[$k] = $method(...$arguments);
@@ -684,23 +684,23 @@ class Actual implements \ArrayAccess
 
     public function return()
     {
-        return $this->actual;
+        return $this->___actual;
     }
 
     public function echo(): Actual
     {
-        var_pretty($this->actual);
+        var_pretty($this->___actual);
         return $this;
     }
 
     public function eval(Constraint ...$constraints): Actual
     {
-        return $this->assert([$this->actual], ...$constraints);
+        return $this->assert([$this->___actual], ...$constraints);
     }
 
     public function as(string $message): Actual
     {
-        $this->message = $message;
+        $this->___message = $message;
         return $this;
     }
 
@@ -713,14 +713,14 @@ class Actual implements \ArrayAccess
     {
         $that = $this;
         do {
-            $that = $that->parent;
+            $that = $that->___parent;
         } while (--$nest > 0);
         return $that;
     }
 
     public function final(string $mode = ''): Actual
     {
-        return $this->create($this->results[$mode] ?? $this->results);
+        return $this->create($this->___results[$mode] ?? $this->___results);
     }
 
     public function declare($hint = ''): Actual
@@ -730,7 +730,7 @@ class Actual implements \ArrayAccess
             $v = fn($v) => $v;
             $ve = fn($v) => var_export2($v, true);
 
-            $actual = $this->actual;
+            $actual = $this->___actual;
             if (is_object($actual) && (new \ReflectionClass($actual))->isAnonymous()) {
                 throw new UndefinedException("undetect({$v(get_class($actual))})");
             }
@@ -802,14 +802,14 @@ class Actual implements \ArrayAccess
         $before = getrusage();
 
         foreach ($actuals as $actual) {
-            Assert::assertThat($actual, $constraint, $this->message);
+            Assert::assertThat($actual, $constraint, $this->___message);
         }
 
         $after = getrusage();
         $elapsed = microtime(true) - $time;
         $cpu_usr = $after['ru_utime.tv_sec'] - $before['ru_utime.tv_sec'] + ($after['ru_utime.tv_usec'] - $before['ru_utime.tv_usec']) / 1000 / 1000;
         $cpu_sys = $after['ru_stime.tv_sec'] - $before['ru_stime.tv_sec'] + ($after['ru_stime.tv_usec'] - $before['ru_stime.tv_usec']) / 1000 / 1000;
-        $this->results = array_replace($this->results, [
+        $this->___results = array_replace($this->___results, [
             'time'           => $elapsed,
             'cpu'            => ($cpu_usr + $cpu_sys) / $elapsed,
             'cpuUser'        => $cpu_usr / $elapsed,
