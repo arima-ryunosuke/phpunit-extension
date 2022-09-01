@@ -8,6 +8,7 @@ use PHPUnit\Framework\Constraint\Constraint;
 use PHPUnit\Framework\Constraint\GreaterThan;
 use PHPUnit\Framework\Constraint\IsEqual;
 use PHPUnit\Framework\Constraint\IsIdentical;
+use PHPUnit\Framework\Constraint\IsInstanceOf;
 use PHPUnit\Framework\Constraint\IsNull;
 use PHPUnit\Framework\Constraint\IsType;
 use PHPUnit\Framework\Constraint\LessThan;
@@ -50,6 +51,7 @@ class Actual implements \ArrayAccess
         'outputStartsWith'     => [OutputMatches::class => ['raw' => true, 'with' => ['\\A', '']]],
         'outputEndsWith'       => [OutputMatches::class => ['raw' => true, 'with' => ['', '\\z']]],
         'wasThrown'            => IsThrowable::class,
+        'isUndefined'          => [IsInstanceOf::class => [UndefinedException::class]],
         // via IsType
         'isArray'              => [IsType::class => [IsType::TYPE_ARRAY]],
         'isBool'               => [IsType::class => [IsType::TYPE_BOOL]],
@@ -505,11 +507,22 @@ class Actual implements \ArrayAccess
             return $this->and();
         }
 
-        if (is_array($this->actual)) {
-            return $this->create($this->actual[$name]);
+        try {
+            if (is_array($this->actual)) {
+                if (!array_key_exists($name, $this->actual)) {
+                    throw new UndefinedException("undefined array key ('$name')");
+                }
+                $var = $this->actual[$name];
+            }
+            else {
+                $var = $this->var($name);
+            }
+        }
+        catch (\Throwable $ex) {
+            $var = $ex;
         }
 
-        return $this->create($this->var($name));
+        return $this->create($var);
     }
 
     public function __set($name, $value)
@@ -592,9 +605,6 @@ class Actual implements \ArrayAccess
             $return = $this->use($methodname)(...$arguments);
         }
         catch (\Throwable $t) {
-            if ($t instanceof UndefinedException) {
-                throw $t;
-            }
             $return = $t;
         }
         finally {

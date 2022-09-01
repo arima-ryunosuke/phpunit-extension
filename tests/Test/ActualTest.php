@@ -233,9 +233,7 @@ Nzxc ');
 
         $actual->z[0]->k->is('v1');
 
-        $this->ng(function () use ($actual) {
-            $actual->undefined->isInt();
-        }, 'undefined');
+        $actual->undefined->isUndefined();
 
         $this->ng(function () {
             $this->actual(123)['aaaa'];
@@ -538,8 +536,7 @@ Nzxc ');
             $this->actual($thrower)(10, 0)->wasThrown('Division by zero');
         }
 
-        $this->expectException(UndefinedException::class);
-        $this->actual($thrower)->undefined();
+        $this->actual($thrower)->undefined()->isUndefined();
     }
 
     function test_list()
