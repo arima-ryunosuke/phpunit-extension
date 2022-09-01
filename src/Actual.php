@@ -722,7 +722,9 @@ class Actual implements \ArrayAccess
     {
         foreach ([$function, __NAMESPACE__ . "\\$function"] as $fname) {
             if (is_callable($fname)) {
-                return $fname;
+                if (!function_exists($fname) || ctype_lower($function)) {
+                    return $fname;
+                }
             }
 
             if (preg_match('#(.+?)(\d)$#', $fname, $match) && is_callable($match[1])) {
