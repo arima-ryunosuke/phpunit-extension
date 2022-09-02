@@ -4,7 +4,6 @@ namespace ryunosuke\Test;
 
 use PHPUnit\Framework\Constraint\IsEqual;
 use ryunosuke\PHPUnit\Actual;
-use ryunosuke\PHPUnit\Exception\UndefinedException;
 use ryunosuke\PHPUnit\Util;
 use function ryunosuke\PHPUnit\rm_rf;
 
@@ -630,7 +629,7 @@ Nzxc ');
 
     function test_echo()
     {
-        $actual = $this->actual((object)['a' => 'A']);
+        $actual = $this->actual((object) ['a' => 'A']);
 
         $this->expectOutputRegex('/stdClass#/');
         $this->assertInstanceOf(Actual::class, $actual->echo());
