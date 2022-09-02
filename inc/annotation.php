@@ -30,6 +30,15 @@ namespace ryunosuke\PHPUnit;
  * @method \ryunosuke\PHPUnit\Actual notEqualsIgnoreWSAny(array $values, bool $ignoreCase = false)
  * @method \ryunosuke\PHPUnit\Actual notEqualsIgnoreWSAll(array $values, bool $ignoreCase = false)
  *
+ * @see \ryunosuke\PHPUnit\Constraint\EqualsPath
+ * @method \ryunosuke\PHPUnit\Actual eachEqualsPath($value, bool $ignoreCase = false)
+ * @method \ryunosuke\PHPUnit\Actual equalsPath($value, bool $ignoreCase = false)
+ * @method \ryunosuke\PHPUnit\Actual notEqualsPath($value, bool $ignoreCase = false)
+ * @method \ryunosuke\PHPUnit\Actual equalsPathAny(array $values, bool $ignoreCase = false)
+ * @method \ryunosuke\PHPUnit\Actual equalsPathAll(array $values, bool $ignoreCase = false)
+ * @method \ryunosuke\PHPUnit\Actual notEqualsPathAny(array $values, bool $ignoreCase = false)
+ * @method \ryunosuke\PHPUnit\Actual notEqualsPathAll(array $values, bool $ignoreCase = false)
+ *
  * @see \ryunosuke\PHPUnit\Constraint\FileContains
  * @method \ryunosuke\PHPUnit\Actual eachFileContains($value, bool $ignoreCase = false)
  * @method \ryunosuke\PHPUnit\Actual fileContains($value, bool $ignoreCase = false)
@@ -669,6 +678,11 @@ namespace ryunosuke\PHPUnit;
  * @method \ryunosuke\PHPUnit\Actual eachWasThrown($expected = null)
  * @method \ryunosuke\PHPUnit\Actual wasThrown($expected = null)
  * @method \ryunosuke\PHPUnit\Actual notWasThrown($expected = null)
+ *
+ * @see \PHPUnit\Framework\Constraint\IsInstanceOf::__construct() ["ryunosuke\\PHPUnit\\Exception\\UndefinedException"]
+ * @method \ryunosuke\PHPUnit\Actual eachIsUndefined()
+ * @method \ryunosuke\PHPUnit\Actual isUndefined()
+ * @method \ryunosuke\PHPUnit\Actual isNotUndefined()
  *
  * @see \PHPUnit\Framework\Constraint\IsType::__construct() ["array"]
  * @method \ryunosuke\PHPUnit\Actual eachIsArray()
