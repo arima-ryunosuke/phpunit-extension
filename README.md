@@ -30,7 +30,7 @@ Simplified chart:
 | __call(...[])      | get original method's callable      | actual of method's callable (with bindings)
 | __invoke           | call original __invoke no thrown    | actual of __invoke's return or expcetion
 | __invoke(...[])    | get original __invoke's callable    | actual of __invoke's callable (with bindings)
-| __get              | get original property               | actual of property
+| __get              | get original property no thrown     | actual of property or expcetion
 | offsetGet          | get ArrayAccess by key              | actual of key's value
 | var                | get property                        | original property
 | use                | get original method's callable      | original method as Closure
@@ -38,6 +38,7 @@ Simplified chart:
 | fn                 | get original invoke's callable      | actual of invoke's callable
 | do                 | call original method                | actual of method's return
 | try                | call original method no thrown      | actual of method's return or expcetion
+| new                | call class construct no thrown      | actual of object or expcetion
 | function           | apply global function               | actual of applied value
 | foreach            | apply global function each element  | actual of applied value
 | return             | return original                     | original
@@ -46,6 +47,7 @@ Simplified chart:
 | as                 | set assertion message               | $this
 | and                | return latest asserted actual       | actual of latest asserted
 | final              | return assertion statistic          | actual of assertion statistic
+| declare            | rewrite source by actual value      | $this
 
 ```PHP
 # e.g. bootstrap.php
@@ -223,6 +225,13 @@ class ActualTest extends \PHPUnit\Framework\TestCase
         $that->x->stringStartsWith('abc')->stringLengthEquals(4);
         $that->y->stringStartsWith('abc')->stringLengthEquals(4);
     }
+
+    function test_declare()
+    {
+        # declare is replaced below at runtime
+        // that(['x', 'y', 'z'])->declare();
+        that(['x', 'y', 'z'])->is(['x', 'y', 'z']);
+    }
 }
 ```
 
@@ -235,6 +244,7 @@ Internals:
 | Contains           | assert string/iterable/file contains substring/element/content
 | EqualsFile         | assert string equals file
 | EqualsIgnoreWS     | assert string equals ignoring whitespace
+| EqualsPath         | assert path equals other path (compatible posix)
 | FileContains       | assert file contains string
 | FileEquals         | assert file equals string
 | FileSizeIs         | assert file size
@@ -261,6 +271,8 @@ Alias:
 `\ryunosuke\PHPUnit\Actual::$constraintVariations` is searching for variation from other constraint.
 
 ```php
+// Disable. Built-in constraints are not called
+\ryunosuke\PHPUnit\Actual::$constraintVariations['isSame'] = false;
 // Alias. This ables to use: $actual->isSame('other')
 \ryunosuke\PHPUnit\Actual::$constraintVariations['isSame'] = IsIdentical::class;
 // Construct. This ables to use: $actual->isArray()
@@ -356,6 +368,19 @@ ryunosuke\PHPUnit\Exporter\Exporter::insteadOf();
 ## Release
 
 Versioning is Semantic Versioning.
+
+### 3.6.0
+
+- [refactor] changed private field name to be incompatible with stub generation
+- [feature] implemented to disable built-in constraints
+- [feature] added TestCaseTrait trait
+- [feature] added declare method
+- [feature] added new method
+- [feature] added isUndefined variation
+- [feature] added EqualsPath constaint
+- [fixbug] fixed no $ in stub generation
+- [fixbug] fixed strictly enforced due to frequent unintended function calls
+- [fixbug] fixed in __callStatic where original method was not called
 
 ### 3.5.0
 
