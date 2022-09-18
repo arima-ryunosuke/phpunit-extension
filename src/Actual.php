@@ -312,8 +312,8 @@ class Actual implements \ArrayAccess
                 }
                 $properties = [];
                 foreach ($refclass->getProperties() as $property) {
-                    $properties[] = "/** @see \\$refclass->name::$property->name */";
-                    $properties[] = "public {$v($property->isStatic() ? 'static ' : '')}\\$classname $$property->name;";
+                    $properties[] = "/** @see \\$refclass->name::\$$property->name */";
+                    $properties[] = "public {$v($property->isStatic() ? 'static ' : '')}\\$classname \$$property->name;";
                 }
 
                 $methods = [];
