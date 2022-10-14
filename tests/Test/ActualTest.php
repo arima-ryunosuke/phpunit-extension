@@ -650,6 +650,10 @@ Nzxc ');
         $this->ng(function () {
             $this->actual(1)->as('this is fail message')->isFalse();
         }, "this is fail message");
+
+        $this->ng(function () {
+            $this->actual(1)->as('this is fail message(', [1, 2, 3], ')')->isFalse();
+        }, "this is fail message([1, 2, 3])");
     }
 
     function test_and_exit()

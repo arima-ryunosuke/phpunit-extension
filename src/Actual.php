@@ -698,8 +698,12 @@ class Actual implements \ArrayAccess
         return $this->assert([$this->___actual], ...$constraints);
     }
 
-    public function as(string $message): Actual
+    public function as(...$messages): Actual
     {
+        $message = '';
+        foreach ($messages as $m) {
+            $message .= is_stringable($m) ? $m : var_export2($m, true);
+        }
         $this->___message = $message;
         return $this;
     }
