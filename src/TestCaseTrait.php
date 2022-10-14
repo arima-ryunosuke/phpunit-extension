@@ -3,7 +3,6 @@
 namespace ryunosuke\PHPUnit;
 
 use Closure;
-use DomainException;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use ReflectionClass;

@@ -74,25 +74,25 @@ class Util
             $refmethod->setAccessible(true);
             if ($refmethod->isConstructor()) {
                 if ($refmethod->isPublic()) {
-                    $callable = fn() => $refclass->newInstanceArgs(func_get_args());
+                    $callable = fn(...$args) => $refclass->newInstance(...$args);
                 }
                 else {
-                    $callable = function () use ($refclass, $refmethod) {
+                    $callable = function (...$args) use ($refclass, $refmethod) {
                         $instance = $refclass->newInstanceWithoutConstructor();
-                        $refmethod->invokeArgs($instance, func_get_args());
+                        $refmethod->invoke($instance, ...$args);
                         return $instance;
                     };
                 }
             }
             else {
-                $callable = fn() => $refmethod->invokeArgs($refmethod->isStatic() ? null : $object, func_get_args());
+                $callable = fn(...$args) => $refmethod->invoke($refmethod->isStatic() ? null : $object, ...$args);
             }
             $describe = ($refclass->isAnonymous() ? 'AnonymousClass@' . self::reflectFile($refclass) : $refclass->name) . '::' . $refmethod->name;
             return self::selfDescribingCallable($callable, $describe);
         }
 
         if ($method === '__construct') {
-            $callable = fn() => $refclass->newInstanceArgs(func_get_args());
+            $callable = fn(...$args) => $refclass->newInstance(...$args);
             $describe = ($refclass->isAnonymous() ? 'AnonymousClass@' . self::reflectFile($refclass) : $refclass->name) . '::' . $method;
             return self::selfDescribingCallable($callable, $describe);
         }
@@ -116,9 +116,9 @@ class Util
                 $this->describe = $describe;
             }
 
-            public function __invoke()
+            public function __invoke(...$args)
             {
-                return ($this->callable)(...(func_get_args()));
+                return ($this->callable)(...$args);
             }
 
             public function toString(): string
