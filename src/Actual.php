@@ -276,7 +276,7 @@ class Actual implements \ArrayAccess
                     foreach (range(0, $reffunc->getNumberOfParameters() - 1) as $n) {
                         $params = $paramargs;
                         unset($params['$' . $parameters[$n]->getName()]);
-                        $variation[] = '\\' . __CLASS__ . ' ' . $reffunc->getShortName() . ($n ? $n : '') . "(" . implode(', ', $params) . ")";
+                        $variation[$funcname] = '\\' . __CLASS__ . ' ' . $reffunc->getShortName() . ($n ? $n : '') . "(" . implode(', ', $params) . ")";
                     }
 
                     $via = $reffunc->isInternal()
@@ -289,11 +289,17 @@ class Actual implements \ArrayAccess
 
         $result = [];
         foreach ($annotations as $name => $methods) {
-            $result[] = ' * @see ' . $name;
-            foreach ($methods as $method) {
-                $result[] = ' * @method ' . $method;
+            $member = [];
+            foreach ($methods as $key => $method) {
+                if (!array_key_exists($key, $result)) {
+                    $member[$key] = ' * @method ' . $method;
+                }
             }
-            $result[] = ' *';
+            if ($member) {
+                $result[] = ' * @see ' . $name;
+                $result = array_merge($result, $member);
+                $result[] = ' *';
+            }
         }
         return "/**\n" . implode("\n", $result) . "\n */";
     }
