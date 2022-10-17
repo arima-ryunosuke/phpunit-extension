@@ -735,6 +735,11 @@ if (!defined("ryunosuke\\PHPUnit\\JSON_TEMPLATE_LITERAL")) {
     define("ryunosuke\\PHPUnit\\JSON_TEMPLATE_LITERAL", -105);
 }
 
+if (!defined("ryunosuke\\PHPUnit\\JSON_BARE_AS_STRING")) {
+    /** json_*** 関数で bare string を文字列として扱うか */
+    define("ryunosuke\\PHPUnit\\JSON_BARE_AS_STRING", -106);
+}
+
 if (!defined("ryunosuke\\PHPUnit\\TOKEN_NAME")) {
     /** parse_php 関数でトークン名変換をするか */
     define("ryunosuke\\PHPUnit\\TOKEN_NAME", 2);
@@ -2594,11 +2599,11 @@ if (!isset($excluded_functions["array_find"]) && (!function_exists("ryunosuke\\P
      * Example:
      * ```php
      * // 最初に見つかったキーを返す
-     * that(array_find(['a', 'b', '9'], 'ctype_digit'))->isSame(2);
-     * that(array_find(['a', 'b', '9'], fn($v) => $v === 'b'))->isSame(1);
+     * that(array_find(['a', '8', '9'], 'ctype_digit'))->isSame(1);
+     * that(array_find(['a', 'b', 'b'], fn($v) => $v === 'b'))->isSame(1);
      * // 最初に見つかったコールバック結果を返す（最初の数字の2乗を返す）
      * $ifnumeric2power = fn($v) => ctype_digit($v) ? $v * $v : false;
-     * that(array_find(['a', 'b', '9'], $ifnumeric2power, false))->isSame(81);
+     * that(array_find(['a', '8', '9'], $ifnumeric2power, false))->isSame(64);
      * ```
      *
      * @param iterable $array 調べる配列
@@ -2628,6 +2633,59 @@ if (function_exists("ryunosuke\\PHPUnit\\array_find") && !defined("ryunosuke\\PH
      *
      */
     define("ryunosuke\\PHPUnit\\array_find", "ryunosuke\\PHPUnit\\array_find");
+}
+
+if (!isset($excluded_functions["array_find_last"]) && (!function_exists("ryunosuke\\PHPUnit\\array_find_last") || (!false && (new \ReflectionFunction("ryunosuke\\PHPUnit\\array_find_last"))->isInternal()))) {
+    /**
+     * array_find の後ろから探す版
+     *
+     * コールバックの返り値が true 相当のものを返す。
+     * $is_key に true を与えるとそのキーを返す（デフォルトの動作）。
+     * $is_key に false を与えるとコールバックの結果を返す。
+     *
+     * この関数は論理値 FALSE を返す可能性がありますが、FALSE として評価される値を返す可能性もあります。
+     *
+     * Example:
+     * ```php
+     * // 最後に見つかったキーを返す
+     * that(array_find_last(['a', '8', '9'], 'ctype_digit'))->isSame(2);
+     * that(array_find_last(['a', 'b', 'b'], fn($v) => $v === 'b'))->isSame(2);
+     * // 最後に見つかったコールバック結果を返す（最初の数字の2乗を返す）
+     * $ifnumeric2power = fn($v) => ctype_digit($v) ? $v * $v : false;
+     * that(array_find_last(['a', '8', '9'], $ifnumeric2power, false))->isSame(81);
+     * ```
+     *
+     * @param iterable $array 調べる配列
+     * @param callable $callback 評価コールバック
+     * @param bool $is_key キーを返すか否か
+     * @return mixed コールバックが true を返した最初のキー。存在しなかったら false
+     */
+    function array_find_last($array, $callback, $is_key = true)
+    {
+        // 配列なら reverse すればよい
+        if (is_array($array)) {
+            return array_find(array_reverse($array, true), $callback, $is_key);
+        }
+
+        $callback = func_user_func_array($callback);
+
+        // イテレータは全ループするしかない
+        $return = $notfound = new \stdClass();
+        $n = 0;
+        foreach ($array as $k => $v) {
+            $result = $callback($v, $k, $n++);
+            if ($result) {
+                $return = $is_key ? $k : $result;
+            }
+        }
+        return $return === $notfound ? false : $return;
+    }
+}
+if (function_exists("ryunosuke\\PHPUnit\\array_find_last") && !defined("ryunosuke\\PHPUnit\\array_find_last")) {
+    /**
+     *
+     */
+    define("ryunosuke\\PHPUnit\\array_find_last", "ryunosuke\\PHPUnit\\array_find_last");
 }
 
 if (!isset($excluded_functions["array_find_recursive"]) && (!function_exists("ryunosuke\\PHPUnit\\array_find_recursive") || (!false && (new \ReflectionFunction("ryunosuke\\PHPUnit\\array_find_recursive"))->isInternal()))) {
@@ -3826,7 +3884,7 @@ if (!isset($excluded_functions["array_rank"]) && (!function_exists("ryunosuke\\P
             if (!isset($type)) {
                 $type = gettype($v);
             }
-            $buckets[$v][$k] = $array[$k];
+            $buckets[(string) $v][$k] = $array[$k];
         }
 
         if ($length < 0) {
@@ -7341,7 +7399,7 @@ if (function_exists("ryunosuke\\PHPUnit\\get_object_properties") && !defined("ry
 
 if (!isset($excluded_functions["date_timestamp"]) && (!function_exists("ryunosuke\\PHPUnit\\date_timestamp") || (!false && (new \ReflectionFunction("ryunosuke\\PHPUnit\\date_timestamp"))->isInternal()))) {
     /**
-     * 日時文字列をよしなにタイムスタンプに変換する
+     * 日時的なものをよしなにタイムスタンプに変換する
      *
      * マイクロ秒にも対応している。つまり返り値は int か float になる。
      * また、相対指定の +1 month の月末問題は起きないようにしてある。
@@ -7367,34 +7425,40 @@ if (!isset($excluded_functions["date_timestamp"]) && (!function_exists("ryunosuk
      */
     function date_timestamp($datetimedata, $baseTimestamp = null)
     {
-        // 全角を含めた trim
-        $chars = "[\\x0-\x20\x7f\xc2\xa0\xe3\x80\x80]";
-        $datetimedata = preg_replace("/\A{$chars}++|{$chars}++\z/u", '', $datetimedata);
+        if ($datetimedata instanceof \DateTimeInterface) {
+            return (float) $datetimedata->format('U.u');
+        }
 
-        // 和暦を西暦に置換
-        $jpnames = array_merge(array_column(JP_ERA, 'name'), array_column(JP_ERA, 'abbr'));
-        $datetimedata = preg_replace_callback('/^(' . implode('|', $jpnames) . ')(\d{1,2}|元)/u', function ($matches) {
-            [, $era, $year] = $matches;
-            $eratime = array_find(JP_ERA, function ($v) use ($era) {
-                if (in_array($era, [$v['name'], $v['abbr']], true)) {
-                    return $v['since'];
-                }
-            }, false);
-            return idate('Y', $eratime) + ($year === '元' ? 1 : $year) - 1;
-        }, $datetimedata);
+        if (is_string($datetimedata) || (is_object($datetimedata) && method_exists($datetimedata, '__toString'))) {
+            // 全角を含めた trim
+            $chars = "[\\x0-\x20\x7f\xc2\xa0\xe3\x80\x80]";
+            $datetimedata = preg_replace("/\A{$chars}++|{$chars}++\z/u", '', $datetimedata);
 
-        // 単位文字列を置換
-        $datetimedata = strtr($datetimedata, [
-            '　'  => ' ',
-            '西暦' => '',
-            '年'  => '/',
-            '月'  => '/',
-            '日'  => ' ',
-            '時'  => ':',
-            '分'  => ':',
-            '秒'  => '',
-        ]);
-        $datetimedata = trim($datetimedata, " \t\n\r\0\x0B:/");
+            // 和暦を西暦に置換
+            $jpnames = array_merge(array_column(JP_ERA, 'name'), array_column(JP_ERA, 'abbr'));
+            $datetimedata = preg_replace_callback('/^(' . implode('|', $jpnames) . ')(\d{1,2}|元)/u', function ($matches) {
+                [, $era, $year] = $matches;
+                $eratime = array_find(JP_ERA, function ($v) use ($era) {
+                    if (in_array($era, [$v['name'], $v['abbr']], true)) {
+                        return $v['since'];
+                    }
+                }, false);
+                return idate('Y', $eratime) + ($year === '元' ? 1 : $year) - 1;
+            }, $datetimedata);
+
+            // 単位文字列を置換
+            $datetimedata = strtr($datetimedata, [
+                '　'  => ' ',
+                '西暦' => '',
+                '年'  => '/',
+                '月'  => '/',
+                '日'  => ' ',
+                '時'  => ':',
+                '分'  => ':',
+                '秒'  => '',
+            ]);
+            $datetimedata = trim($datetimedata, " \t\n\r\0\x0B:/");
+        }
 
         // 数値4桁は年と解釈されるように
         if (preg_match('/^[0-9]{4}$/', $datetimedata)) {
@@ -7451,14 +7515,25 @@ if (!isset($excluded_functions["date_timestamp"]) && (!function_exists("ryunosuk
             $parts['second'] += $relative['second'];
         }
 
-        // ドキュメントに「引数が不正な場合、 この関数は FALSE を返します」とあるが、 date_parse の結果を与える分には失敗しないはず
-        $time = mktime($parts['hour'], $parts['minute'], $parts['second'], $parts['month'], $parts['day'], $parts['year']);
-        if ($parts['fraction']) {
-            // 1970 以前なら減算、以降なら加算じゃないと帳尻が合わなくなる
-            $time += $time >= 0 ? $parts['fraction'] : -$parts['fraction'];
+        $offset = 0;
+        $timezone = null;
+        if ($parts['is_localtime']) {
+            if ($parts['zone_type'] === 1) {
+                $timezone = new \DateTimeZone('UTC');
+                $offset = $parts['zone'];
+            }
+            elseif ($parts['zone_type'] === 2) {
+                $timezone = new \DateTimeZone($parts['tz_abbr']);
+            }
+            elseif ($parts['zone_type'] === 3) {
+                $timezone = new \DateTimeZone($parts['tz_id']);
+            }
         }
 
-        return $time;
+        $dt = new \DateTime('', $timezone);
+        $dt->setDate($parts['year'], $parts['month'], $parts['day']);
+        $dt->setTime($parts['hour'], $parts['minute'], $parts['second'] - $offset, ($parts['fraction'] ?: 0) * 1000 * 1000);
+        return $parts['fraction'] ? (float) $dt->format('U.u') : $dt->getTimestamp();
     }
 }
 if (function_exists("ryunosuke\\PHPUnit\\date_timestamp") && !defined("ryunosuke\\PHPUnit\\date_timestamp")) {
@@ -7600,12 +7675,12 @@ if (!isset($excluded_functions["date_fromto"]) && (!function_exists("ryunosuke\\
         $y ??= idate('Y');
         $ld = $d ?? idate('t', mktime(0, 0, 0, $m ?? 12, 1, $y));
 
-        $min = mktime($h ?? 0, $i ?? 0, $s ?? 0, $m ?? 1, $d ?? 1, $y);
+        $min = mktime($h ?? 0, $i ?? 0, $s ?? 0, $m ?? 1, $d ?? 1, $y) + $parsed['fraction'];
         $max = mktime($h ?? 23, $i ?? 59, $s ?? 59, $m ?? 12, $d ?? $ld, $y) + 1;
         if ($format === null) {
             return [$min, $max];
         }
-        return [date($format, $min), date($format, $max)];
+        return [date_convert($format, $min), date_convert($format, $max)];
     }
 }
 if (function_exists("ryunosuke\\PHPUnit\\date_fromto") && !defined("ryunosuke\\PHPUnit\\date_fromto")) {
@@ -9265,11 +9340,11 @@ if (!isset($excluded_functions["rm_rf"]) && (!function_exists("ryunosuke\\PHPUni
             $rii = new \RecursiveIteratorIterator($rdi, \RecursiveIteratorIterator::CHILD_FIRST);
 
             foreach ($rii as $it) {
-                if ($it->isDir()) {
-                    rmdir($it->getPathname());
+                if ($it->isFile() || $it->isLink()) {
+                    unlink($it->getPathname());
                 }
                 else {
-                    unlink($it->getPathname());
+                    rmdir($it->getPathname());
                 }
             }
 
@@ -11571,6 +11646,37 @@ if (function_exists("ryunosuke\\PHPUnit\\calculate_formula") && !defined("ryunos
     define("ryunosuke\\PHPUnit\\calculate_formula", "ryunosuke\\PHPUnit\\calculate_formula");
 }
 
+if (!isset($excluded_functions["cidr_parse"]) && (!function_exists("ryunosuke\\PHPUnit\\cidr_parse") || (!false && (new \ReflectionFunction("ryunosuke\\PHPUnit\\cidr_parse"))->isInternal()))) {
+    /**
+     * cidr を分割する
+     *
+     * ※ 内部向け
+     *
+     * @param string $cidr
+     * @return array [$address, $networkBit, $localBit]
+     */
+    function cidr_parse($cidr)
+    {
+        [$address, $subnet] = explode('/', trim($cidr), 2) + [1 => 32];
+
+        if (!filter_var($address, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+            throw new \InvalidArgumentException("subnet addr '$address' is invalid.");
+        }
+        if (!(ctype_digit("$subnet") && (0 <= $subnet && $subnet <= 32))) {
+            throw new \InvalidArgumentException("subnet mask '$subnet' is invalid.");
+        }
+
+        $subnet = (int) $subnet;
+        return [$address, $subnet, 32 - $subnet];
+    }
+}
+if (function_exists("ryunosuke\\PHPUnit\\cidr_parse") && !defined("ryunosuke\\PHPUnit\\cidr_parse")) {
+    /**
+     *
+     */
+    define("ryunosuke\\PHPUnit\\cidr_parse", "ryunosuke\\PHPUnit\\cidr_parse");
+}
+
 if (!isset($excluded_functions["getipaddress"]) && (!function_exists("ryunosuke\\PHPUnit\\getipaddress") || (!false && (new \ReflectionFunction("ryunosuke\\PHPUnit\\getipaddress"))->isInternal()))) {
     /**
      * 接続元となる IP を返す
@@ -11643,6 +11749,103 @@ if (function_exists("ryunosuke\\PHPUnit\\getipaddress") && !defined("ryunosuke\\
     define("ryunosuke\\PHPUnit\\getipaddress", "ryunosuke\\PHPUnit\\getipaddress");
 }
 
+if (!isset($excluded_functions["ip2cidr"]) && (!function_exists("ryunosuke\\PHPUnit\\ip2cidr") || (!false && (new \ReflectionFunction("ryunosuke\\PHPUnit\\ip2cidr"))->isInternal()))) {
+    /**
+     * IP アドレスを含みうる cidr を返す
+     *
+     * from, to の大小関係には言及しないので、from > to を与えると空配列を返す。
+     *
+     * ipv6 は今のところ未対応。
+     *
+     * Example:
+     * ```php
+     * that(ip2cidr('192.168.1.1', '192.168.2.64'))->isSame([
+     *     '192.168.1.1/32',
+     *     '192.168.1.2/31',
+     *     '192.168.1.4/30',
+     *     '192.168.1.8/29',
+     *     '192.168.1.16/28',
+     *     '192.168.1.32/27',
+     *     '192.168.1.64/26',
+     *     '192.168.1.128/25',
+     *     '192.168.2.0/26',
+     *     '192.168.2.64/32',
+     * ]);
+     * ```
+     *
+     * @param string $fromipaddr ipaddrs
+     * @param string $toipaddr ipaddrs
+     * @return array cidr
+     */
+    function ip2cidr($fromipaddr, $toipaddr)
+    {
+        if (!filter_var($fromipaddr, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+            throw new \InvalidArgumentException("ipaddr '$fromipaddr' is invalid.");
+        }
+        if (!filter_var($toipaddr, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+            throw new \InvalidArgumentException("ipaddr '$toipaddr' is invalid.");
+        }
+        $minlong = ip2long($fromipaddr);
+        $maxlong = ip2long($toipaddr);
+
+        $bit_length = fn($number) => strlen(ltrim(sprintf('%032b', $number), '0'));
+
+        $result = [];
+        for ($long = $minlong; $long <= $maxlong; $long += 1 << $nbits) {
+            $current_bits = $bit_length(~$long & ($long - 1));
+            $target_bits = $bit_length($maxlong - $long + 1) - 1;
+            $nbits = min($current_bits, $target_bits);
+
+            $result[] = long2ip($long) . '/' . (32 - $nbits);
+        }
+        return $result;
+    }
+}
+if (function_exists("ryunosuke\\PHPUnit\\ip2cidr") && !defined("ryunosuke\\PHPUnit\\ip2cidr")) {
+    /**
+     *
+     */
+    define("ryunosuke\\PHPUnit\\ip2cidr", "ryunosuke\\PHPUnit\\ip2cidr");
+}
+
+if (!isset($excluded_functions["cidr2ip"]) && (!function_exists("ryunosuke\\PHPUnit\\cidr2ip") || (!false && (new \ReflectionFunction("ryunosuke\\PHPUnit\\cidr2ip"))->isInternal()))) {
+    /**
+     * cidr 内の IP アドレスを返す
+     *
+     * すべての IP アドレスを返すため、`/1` のような極端な値を投げてはならない。
+     * （Generator の方がいいかもしれない）。
+     *
+     * ipv6 は今のところ未対応。
+     *
+     * Example:
+     * ```php
+     * that(cidr2ip('192.168.0.0/30'))->isSame(['192.168.0.0', '192.168.0.1', '192.168.0.2', '192.168.0.3']);
+     * that(cidr2ip('192.168.0.255/30'))->isSame(['192.168.0.252', '192.168.0.253', '192.168.0.254', '192.168.0.255']);
+     * ```
+     *
+     * @param string $cidr cidr
+     * @return array IP アドレス
+     */
+    function cidr2ip($cidr)
+    {
+        [$prefix, , $mask] = cidr_parse($cidr);
+
+        $prefix = ip2long($prefix) >> $mask << $mask;
+
+        $result = [];
+        for ($i = 0, $l = 1 << $mask; $i < $l; $i++) {
+            $result[] = long2ip($prefix + $i);
+        }
+        return $result;
+    }
+}
+if (function_exists("ryunosuke\\PHPUnit\\cidr2ip") && !defined("ryunosuke\\PHPUnit\\cidr2ip")) {
+    /**
+     *
+     */
+    define("ryunosuke\\PHPUnit\\cidr2ip", "ryunosuke\\PHPUnit\\cidr2ip");
+}
+
 if (!isset($excluded_functions["incidr"]) && (!function_exists("ryunosuke\\PHPUnit\\incidr") || (!false && (new \ReflectionFunction("ryunosuke\\PHPUnit\\incidr"))->isInternal()))) {
     /**
      * ipv4 の cidr チェック
@@ -11664,28 +11867,24 @@ if (!isset($excluded_functions["incidr"]) && (!function_exists("ryunosuke\\PHPUn
      * that(incidr('192.168.1.1', ['192.168.2.0/24', '192.168.3.0/24']))->isFalse();
      * ```
      *
-     * @param string $ipaddr 調べられる IP アドレス
+     * @param string $ipaddr 調べられる IP/cidr アドレス
      * @param string|array $cidr 調べる cidr アドレス
      * @return bool $ipaddr が $cidr 内なら true
      */
     function incidr($ipaddr, $cidr)
     {
-        if (!filter_var($ipaddr, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
-            throw new \InvalidArgumentException("ipaddr '$ipaddr' is invalid.");
-        }
+        [$ipaddr, , $ipmask] = cidr_parse($ipaddr);
+
         $iplong = ip2long($ipaddr);
 
         foreach (arrayize($cidr) as $cidr) {
-            [$subnet, $length] = explode('/', $cidr, 2) + [1 => '32'];
+            [$netaddress, , $netmask] = cidr_parse($cidr);
 
-            if (!filter_var($subnet, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
-                throw new \InvalidArgumentException("subnet addr '$subnet' is invalid.");
-            }
-            if (!(ctype_digit($length) && (0 <= $length && $length <= 32))) {
-                throw new \InvalidArgumentException("subnet mask '$length' is invalid.");
+            if ($ipmask > $netmask) {
+                continue;
             }
 
-            if (substr_compare(sprintf('%032b', $iplong), sprintf('%032b', ip2long($subnet)), 0, $length) === 0) {
+            if ((ip2long($netaddress) >> $netmask) == ($iplong >> $netmask)) {
                 return true;
             }
         }
@@ -13393,9 +13592,10 @@ if (!isset($excluded_functions["strpos_quoted"]) && (!function_exists("ryunosuke
      * @param int $offset 開始位置
      * @param string|array $enclosure 囲い文字。この文字中にいる $from, $to 文字は走査外になる
      * @param string $escape エスケープ文字。この文字が前にある $from, $to 文字は走査外になる
+     * @param ?string $found $needle の内、見つかった文字列が格納される
      * @return false|int $needle の位置
      */
-    function strpos_quoted($haystack, $needle, $offset = 0, $enclosure = "'\"", $escape = '\\')
+    function strpos_quoted($haystack, $needle, $offset = 0, $enclosure = "'\"", $escape = '\\', &$found = null)
     {
         if (is_string($enclosure)) {
             if (strlen($enclosure)) {
@@ -13414,6 +13614,7 @@ if (!isset($excluded_functions["strpos_quoted"]) && (!function_exists("ryunosuke
             $offset += $strlen;
         }
 
+        $found = null;
         $enclosing = [];
         for ($i = $offset; $i < $strlen; $i++) {
             if ($i !== 0 && $haystack[$i - 1] === $escape) {
@@ -13437,6 +13638,7 @@ if (!isset($excluded_functions["strpos_quoted"]) && (!function_exists("ryunosuke
             if (empty($enclosing)) {
                 foreach ($needles as $needle) {
                     if (substr_compare($haystack, $needle, $i, strlen($needle)) === 0) {
+                        $found = $needle;
                         return $i;
                     }
                 }
@@ -16480,13 +16682,14 @@ if (!isset($excluded_functions["json_import"]) && (!function_exists("ryunosuke\\
     /**
      * json_decode のプロキシ関数
      *
-     * 引数体系とデフォルト値を変更してある。また、エラー時に例外が飛ぶ。
+     * 引数体系とデフォルト値を変更してある。
      *
      * JSON_ES5 に null か true を渡すと json5 としてでデコードする（null はまず json_decode で試みる、true は json5 のみ）。
      * その場合拡張オプションとして下記がある。
      *
      * - JSON_INT_AS_STRING: 常に整数を文字列で返す
      * - JSON_FLOAT_AS_STRING: 常に小数を文字列で返す
+     * - JSON_BARE_AS_STRING: bare string を文字列として扱う
      * - JSON_TEMPLATE_LITERAL: テンプレートリテラルが使用可能になる
      *   - あくまで「文字列の括りに ` が使えるようになる」というものでテンプレートリテラルそのものではない
      *   - 冒頭のインデントがすべて除去され、最終段階で trim される
@@ -16524,13 +16727,15 @@ if (!isset($excluded_functions["json_import"]) && (!function_exists("ryunosuke\\
             JSON_INT_AS_STRING    => false,
             JSON_FLOAT_AS_STRING  => false,
             JSON_TEMPLATE_LITERAL => false,
+            JSON_BARE_AS_STRING   => false,
         ];
         foreach ($specials as $key => $default) {
             $specials[$key] = $options[$key] ?? $default;
             unset($options[$key]);
         }
+        $specials[JSON_THROW_ON_ERROR] = $options[JSON_THROW_ON_ERROR] ?? true;
         $specials[JSON_BIGINT_AS_STRING] = $options[JSON_BIGINT_AS_STRING] ?? false;
-        if ($specials[JSON_INT_AS_STRING] || $specials[JSON_FLOAT_AS_STRING] || $specials[JSON_TEMPLATE_LITERAL]) {
+        if ($specials[JSON_INT_AS_STRING] || $specials[JSON_FLOAT_AS_STRING] || $specials[JSON_TEMPLATE_LITERAL] || $specials[JSON_BARE_AS_STRING]) {
             $specials[JSON_ES5] = true;
         }
 
@@ -16793,6 +16998,9 @@ if (!isset($excluded_functions["json_import"]) && (!function_exists("ryunosuke\\
                         if (($string = $stringify($token)) !== null) {
                             return $string;
                         }
+                        if ($options[JSON_BARE_AS_STRING]) {
+                            return $token;
+                        }
                         throw $this->exception("Bad value", $this);
                 }
             }
@@ -16814,7 +17022,16 @@ if (!isset($excluded_functions["json_import"]) && (!function_exists("ryunosuke\\
             }
         };
 
-        return $parser->parse($specials);
+        try {
+            return $parser->parse($specials);
+        }
+        catch (\Throwable $t){
+            if ($specials[JSON_THROW_ON_ERROR]) {
+                throw $t;
+            }
+            // json_last_error を設定する術はないので強制的に Syntax error にする（return することで返り値も統一される）
+            return @json_decode('invalid json');
+        }
     }
 }
 if (function_exists("ryunosuke\\PHPUnit\\json_import") && !defined("ryunosuke\\PHPUnit\\json_import")) {
@@ -20543,14 +20760,20 @@ if (!isset($excluded_functions["cacheobject"]) && (!function_exists("ryunosuke\\
      * - clear するとディレクトリ自体を吹き飛ばすのでそのディレクトリはキャッシュ以外の用途に使用してはならない
      * - psr-16 にはない getOrSet が生えている（利便性が非常に高く使用頻度が多いため）
      *
+     * 性質上、参照されない期限切れキャッシュが溜まり続けるが $clean_probability を渡すと一定確率で削除される。
+     * $clean_probability は 1 が 100%（必ず削除）、 0 が 0%（削除しない）である。
+     * 削除処理は軽くはないため高頻度な実行は避けなければならない。
+     * clean メソッドが生えているので明示的に呼ぶことも可能。
+     *
      * psr/simple-cache （\Psr\SimpleCache\CacheInterface）が存在するなら implement される。
      * 存在しないなら素の無名クラスで返す。
      * 動作に違いはないが instanceoof や class_implements に違いが出てくるので注意。
      *
      * @param string $directory キャッシュ保存ディレクトリ
+     * @param float $clean_probability 不要キャッシュの削除確率
      * @return \Psr16CacheInterface psr-16 実装オブジェクト
      */
-    function cacheobject($directory)
+    function cacheobject($directory, $clean_probability = 0)
     {
         $cacheobject = new class($directory) {
             private $directory;
@@ -20598,6 +20821,59 @@ if (!isset($excluded_functions["cacheobject"]) && (!function_exists("ryunosuke\\
                 return $this->directory . DIRECTORY_SEPARATOR . strtr(rawurlencode($key), ['.' => DIRECTORY_SEPARATOR]) . ".php";
             }
 
+            private function _getMetadata(string $filename): ?array
+            {
+                $fp = fopen($filename, "r");
+                try {
+                    $first = fgets($fp);
+                    $meta = @json_decode(substr($first, strpos($first, '#') + 1), true);
+                    return $meta ?: null;
+                }
+                finally {
+                    fclose($fp);
+                }
+            }
+
+            public function keys(?string $pattern = null)
+            {
+                $files = file_list($this->directory, [
+                    '!type' => ['dir', 'link'],
+                ]);
+
+                $now = time();
+                $result = [];
+                foreach ($files as $file) {
+                    $meta = $this->_getMetadata($file);
+                    if ($meta && ($pattern === null || fnmatch($pattern, $meta['key']))) {
+                        $result[$meta['key']] = [
+                            'realpath' => $file,
+                            'size'     => filesize($file),
+                            'ttl'      => $meta['expire'] - $now,
+                        ];
+                    }
+                }
+                return $result;
+            }
+
+            public function clean()
+            {
+                $files = file_list($this->directory, [
+                    '!type' => 'link',
+                ]);
+
+                foreach ($files as $file) {
+                    if (is_file($file)) {
+                        $meta = $this->_getMetadata($file);
+                        if (isset($meta['expire']) && $meta['expire'] < time()) {
+                            @unlink($file);
+                        }
+                    }
+                    elseif (is_dir($file)) {
+                        @rmdir($file);
+                    }
+                }
+            }
+
             public function fetch($key, $provider, $ttl = null)
             {
                 $value = $this->get($key);
@@ -20641,9 +20917,11 @@ if (!isset($excluded_functions["cacheobject"]) && (!function_exists("ryunosuke\\
                     return $this->delete($key);
                 }
 
-                $this->entries[$key] = [time() + $ttl, $value];
-                $code = var_export3($this->entries[$key], ['outmode' => 'file']);
-                return !!file_set_contents($this->_getFilename($key), $code);
+                $expire = time() + $ttl;
+                $this->entries[$key] = [$expire, $value];
+                $meta = json_encode(['key' => $key, 'expire' => $expire]);
+                $code = var_export3($this->entries[$key], ['outmode' => 'eval']);
+                return !!file_set_contents($this->_getFilename($key), "<?php # $meta\n$code\n");
             }
 
             public function delete($key)
@@ -20687,6 +20965,14 @@ if (!isset($excluded_functions["cacheobject"]) && (!function_exists("ryunosuke\\
             }
         };
 
+        static $cleaned = [];
+        if ($clean_probability !== 0 && !($cleaned[$directory] ?? false)) {
+            $cleaned[$directory] = true;
+            if ($clean_probability * 100 >= rand(1, 100)) {
+                $cacheobject->clean();
+            }
+        }
+
         /** @noinspection PhpIncompatibleReturnTypeInspection */
         return !interface_exists(\Psr\SimpleCache\CacheInterface::class) ? $cacheobject : new class($cacheobject) implements \Psr\SimpleCache\CacheInterface {
             private $cacheobject;
@@ -20697,6 +20983,8 @@ if (!isset($excluded_functions["cacheobject"]) && (!function_exists("ryunosuke\\
             }
 
             // @formatter:off
+            public function clean()                                { return $this->cacheobject->{__FUNCTION__}(...func_get_args()); }
+            public function keys($pattern = null)                  { return $this->cacheobject->{__FUNCTION__}(...func_get_args()); }
             public function fetch($key, $provider, $ttl = null)    { return $this->cacheobject->{__FUNCTION__}(...func_get_args()); }
             public function fetchMultiple($providers, $ttl = null) { return $this->cacheobject->{__FUNCTION__}(...func_get_args()); }
             public function get($key, $default = null)             { return $this->cacheobject->{__FUNCTION__}(...func_get_args()); }
@@ -24943,6 +25231,7 @@ if (!isset($excluded_functions["var_pretty"]) && (!function_exists("ryunosuke\\P
     function var_pretty($value, $options = [])
     {
         $options += [
+            'minify'    => false, // 短縮形で返す（実質的には情報を減らして1行で返す）
             'indent'    => 2,     // インデントの空白数
             'context'   => null,  // html なコンテキストか cli なコンテキストか
             'return'    => false, // 値を戻すか出力するか
@@ -24963,6 +25252,11 @@ if (!isset($excluded_functions["var_pretty"]) && (!function_exists("ryunosuke\\P
             }
         }
 
+        if ($options['minify']) {
+            $options['indent'] = null;
+            $options['trace'] = false;
+        }
+
         $appender = new class($options) {
             private $options;
             private $objects;
@@ -24979,8 +25273,12 @@ if (!isset($excluded_functions["var_pretty"]) && (!function_exists("ryunosuke\\P
                 $this->column = 0;
             }
 
-            private function _append($value, $style = null, $data = [])
+            private function _append($value, $style = null, $data = []): self
             {
+                if ($this->options['minify']) {
+                    $value = strtr($value, ["\n" => ' ']);
+                }
+
                 $strlen = strlen($value);
 
                 if ($this->options['limit'] && $this->options['limit'] < $this->length += $strlen) {
@@ -25021,12 +25319,12 @@ if (!isset($excluded_functions["var_pretty"]) && (!function_exists("ryunosuke\\P
                 return $this;
             }
 
-            public function plain($token)
+            public function plain($token): self
             {
                 return $this->_append($token);
             }
 
-            public function index($token)
+            public function index($token): self
             {
                 if (is_int($token)) {
                     return $this->_append($token, 'bold');
@@ -25042,7 +25340,7 @@ if (!isset($excluded_functions["var_pretty"]) && (!function_exists("ryunosuke\\P
                 }
             }
 
-            public function value($token)
+            public function value($token): self
             {
                 if (is_null($token)) {
                     return $this->_append($this->string($token), 'bold', ['type' => 'null']);
@@ -25067,12 +25365,22 @@ if (!isset($excluded_functions["var_pretty"]) && (!function_exists("ryunosuke\\P
                 }
             }
 
-            public function string($token)
+            public function string($token): string
             {
                 if (is_null($token)) {
                     return 'null';
                 }
                 elseif (is_object($token)) {
+                    if ($token instanceof \Closure) {
+                        $ref = new \ReflectionFunction($token);
+                        $fname = $ref->getFileName();
+                        $sline = $ref->getStartLine();
+                        $eline = $ref->getEndLine();
+                        if ($fname && $sline && $eline) {
+                            $lines = $sline === $eline ? $sline : "$sline~$eline";
+                            return get_class($token) . "@$fname:$lines#" . spl_object_id($token);
+                        }
+                    }
                     return get_class($token) . "#" . spl_object_id($token);
                 }
                 elseif (is_resource($token)) {
@@ -25130,10 +25438,10 @@ if (!isset($excluded_functions["var_pretty"]) && (!function_exists("ryunosuke\\P
 
                     $is_hasharray = is_hasharray($value);
                     $primitive_only = array_all($value, is_primitive);
-                    $assoc = $is_hasharray || !$primitive_only;
+                    $assoc = !$this->options['minify'] && ($is_hasharray || !$primitive_only);
 
-                    $spacer1 = str_repeat(' ', ($nest + 1) * $this->options['indent']);
-                    $spacer2 = str_repeat(' ', ($nest + 0) * $this->options['indent']);
+                    $spacer1 = $this->options['indent'] === null ? '' : str_repeat(' ', ($nest + 1) * $this->options['indent']);
+                    $spacer2 = $this->options['indent'] === null ? '' : str_repeat(' ', ($nest + 0) * $this->options['indent']);
 
                     $key = null;
                     if ($primitive_only && $this->options['maxlength']) {
@@ -25198,13 +25506,17 @@ if (!isset($excluded_functions["var_pretty"]) && (!function_exists("ryunosuke\\P
                             $this->plain('...(too length)...')->plain(', ');
                         }
                         foreach ($value as $k => $v) {
-                            if ($key === $n++) {
+                            if ($key === $n) {
                                 $this->plain('...(too length)...')->plain(', ');
+                            }
+                            if ($is_hasharray && $n !== $k) {
+                                $this->index($k)->plain(':');
                             }
                             $this->export($v, $nest, $parents, true);
                             if ($k !== $lastkey) {
                                 $this->plain(', ');
                             }
+                            $n++;
                         }
                         if ($omitted > 0) {
                             $this->plain(" (more $omitted elements)");
@@ -25213,12 +25525,17 @@ if (!isset($excluded_functions["var_pretty"]) && (!function_exists("ryunosuke\\P
                     }
                 }
                 elseif ($value instanceof \Closure) {
-                    /** @var \ReflectionFunctionAbstract $ref */
+                    $this->value($value);
+
+                    if ($this->options['minify']) {
+                        goto FINALLY_;
+                    }
+
                     $ref = reflect_callable($value);
                     $that = $ref->getClosureThis();
                     $properties = $ref->getStaticVariables();
 
-                    $this->value($value)->plain("(");
+                    $this->plain("(");
                     if ($that) {
                         $this->index($that);
                     }
@@ -25234,6 +25551,12 @@ if (!isset($excluded_functions["var_pretty"]) && (!function_exists("ryunosuke\\P
                     }
                 }
                 elseif (is_object($value)) {
+                    $this->value($value);
+
+                    if ($this->options['minify']) {
+                        goto FINALLY_;
+                    }
+
                     if ($this->options['debuginfo'] && method_exists($value, '__debugInfo')) {
                         $properties = [];
                         foreach (array_reverse($value->__debugInfo(), true) as $k => $v) {
@@ -25248,7 +25571,7 @@ if (!isset($excluded_functions["var_pretty"]) && (!function_exists("ryunosuke\\P
                         $properties = get_object_properties($value);
                     }
 
-                    $this->value($value)->plain(" ");
+                    $this->plain(" ");
                     if ($properties) {
                         $this->export($properties, $nest, $parents, false);
                     }

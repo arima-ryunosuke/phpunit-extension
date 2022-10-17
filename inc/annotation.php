@@ -3,6 +3,15 @@
 namespace ryunosuke\PHPUnit;
 
 /**
+ * @see \ryunosuke\PHPUnit\Constraint\ClosesTo
+ * @method \ryunosuke\PHPUnit\Actual eachClosesTo($value, ?float $delta = null)
+ * @method \ryunosuke\PHPUnit\Actual closesTo($value, ?float $delta = null)
+ * @method \ryunosuke\PHPUnit\Actual notClosesTo($value, ?float $delta = null)
+ * @method \ryunosuke\PHPUnit\Actual closesToAny(array $values, ?float $delta = null)
+ * @method \ryunosuke\PHPUnit\Actual closesToAll(array $values, ?float $delta = null)
+ * @method \ryunosuke\PHPUnit\Actual notClosesToAny(array $values, ?float $delta = null)
+ * @method \ryunosuke\PHPUnit\Actual notClosesToAll(array $values, ?float $delta = null)
+ *
  * @see \ryunosuke\PHPUnit\Constraint\Contains
  * @method \ryunosuke\PHPUnit\Actual eachContains($needle, ?bool $strict = null)
  * @method \ryunosuke\PHPUnit\Actual contains($needle, ?bool $strict = null)
@@ -11,6 +20,15 @@ namespace ryunosuke\PHPUnit;
  * @method \ryunosuke\PHPUnit\Actual containsAll(array $needles, ?bool $strict = null)
  * @method \ryunosuke\PHPUnit\Actual notContainsAny(array $needles, ?bool $strict = null)
  * @method \ryunosuke\PHPUnit\Actual notContainsAll(array $needles, ?bool $strict = null)
+ *
+ * @see \ryunosuke\PHPUnit\Constraint\DatetimeEquals
+ * @method \ryunosuke\PHPUnit\Actual eachDatetimeEquals($expected, $delta = 0.0)
+ * @method \ryunosuke\PHPUnit\Actual datetimeEquals($expected, $delta = 0.0)
+ * @method \ryunosuke\PHPUnit\Actual datetimeNotEquals($expected, $delta = 0.0)
+ * @method \ryunosuke\PHPUnit\Actual datetimeEqualsAny(array $expecteds, $delta = 0.0)
+ * @method \ryunosuke\PHPUnit\Actual datetimeEqualsAll(array $expecteds, $delta = 0.0)
+ * @method \ryunosuke\PHPUnit\Actual datetimeNotEqualsAny(array $expecteds, $delta = 0.0)
+ * @method \ryunosuke\PHPUnit\Actual datetimeNotEqualsAll(array $expecteds, $delta = 0.0)
  *
  * @see \ryunosuke\PHPUnit\Constraint\EqualsFile
  * @method \ryunosuke\PHPUnit\Actual eachEqualsFile($value, bool $ignoreCase = false)
@@ -92,6 +110,15 @@ namespace ryunosuke\PHPUnit;
  * @method \ryunosuke\PHPUnit\Actual inTimeAll(array $times)
  * @method \ryunosuke\PHPUnit\Actual notInTimeAny(array $times)
  * @method \ryunosuke\PHPUnit\Actual notInTimeAll(array $times)
+ *
+ * @see \ryunosuke\PHPUnit\Constraint\Is
+ * @method \ryunosuke\PHPUnit\Actual eachIs($value, ?float $delta = null, bool $canonicalize = false, bool $ignoreCase = false)
+ * @method \ryunosuke\PHPUnit\Actual is($value, ?float $delta = null, bool $canonicalize = false, bool $ignoreCase = false)
+ * @method \ryunosuke\PHPUnit\Actual isNot($value, ?float $delta = null, bool $canonicalize = false, bool $ignoreCase = false)
+ * @method \ryunosuke\PHPUnit\Actual isAny(array $values, ?float $delta = null, bool $canonicalize = false, bool $ignoreCase = false)
+ * @method \ryunosuke\PHPUnit\Actual isAll(array $values, ?float $delta = null, bool $canonicalize = false, bool $ignoreCase = false)
+ * @method \ryunosuke\PHPUnit\Actual isNotAny(array $values, ?float $delta = null, bool $canonicalize = false, bool $ignoreCase = false)
+ * @method \ryunosuke\PHPUnit\Actual isNotAll(array $values, ?float $delta = null, bool $canonicalize = false, bool $ignoreCase = false)
  *
  * @see \ryunosuke\PHPUnit\Constraint\IsBetween
  * @method \ryunosuke\PHPUnit\Actual eachIsBetween($min, $max)
@@ -533,15 +560,6 @@ namespace ryunosuke\PHPUnit;
  * @method \ryunosuke\PHPUnit\Actual isTypeAll(array $types)
  * @method \ryunosuke\PHPUnit\Actual isNotTypeAny(array $types)
  * @method \ryunosuke\PHPUnit\Actual isNotTypeAll(array $types)
- *
- * @see \PHPUnit\Framework\Constraint\IsEqual::__construct()
- * @method \ryunosuke\PHPUnit\Actual eachIs($value, float $delta = 0.0, bool $canonicalize = false, bool $ignoreCase = false)
- * @method \ryunosuke\PHPUnit\Actual is($value, float $delta = 0.0, bool $canonicalize = false, bool $ignoreCase = false)
- * @method \ryunosuke\PHPUnit\Actual isNot($value, float $delta = 0.0, bool $canonicalize = false, bool $ignoreCase = false)
- * @method \ryunosuke\PHPUnit\Actual isAny(array $values, float $delta = 0.0, bool $canonicalize = false, bool $ignoreCase = false)
- * @method \ryunosuke\PHPUnit\Actual isAll(array $values, float $delta = 0.0, bool $canonicalize = false, bool $ignoreCase = false)
- * @method \ryunosuke\PHPUnit\Actual isNotAny(array $values, float $delta = 0.0, bool $canonicalize = false, bool $ignoreCase = false)
- * @method \ryunosuke\PHPUnit\Actual isNotAll(array $values, float $delta = 0.0, bool $canonicalize = false, bool $ignoreCase = false)
  *
  * @see \PHPUnit\Framework\Constraint\IsIdentical::__construct()
  * @method \ryunosuke\PHPUnit\Actual eachIsSame($value)
