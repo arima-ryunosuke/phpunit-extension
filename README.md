@@ -41,6 +41,7 @@ Simplified chart:
 | new                | call class construct no thrown      | actual of object or expcetion
 | function           | apply global function               | actual of applied value
 | foreach            | apply global function each element  | actual of applied value
+| list               | return reference argument           | actual of reference argument
 | return             | return original                     | original
 | echo               | dump original                       | $this
 | eval               | assert constraint directly          | $this
@@ -186,6 +187,14 @@ class ActualTest extends \PHPUnit\Framework\TestCase
         that([new \Exception('foo'), new \Exception('bar')])->foreach('::getMessage')->isEqual(['foo', 'bar']);
     }
 
+    function test_list()
+    {
+        # "list" returns reference argument and actual
+        // means: (fn (&$ref) => $ref = 123)($dummy); assertThat($dummy, equalTo(123));
+        $dummy = null;
+        that(fn (&$ref) => $ref = 123)($dummy)->list(0)->isEqual(123);
+    }
+
     function test_return()
     {
         # "return" returns original value
@@ -241,7 +250,9 @@ Internals:
 
 | constraint         | description
 | :---               | :---
+| ClosesTo           | assert float by auto approximation
 | Contains           | assert string/iterable/file contains substring/element/content
+| DatetimeEquals     | assert Datetimable equals
 | EqualsFile         | assert string equals file
 | EqualsIgnoreWS     | assert string equals ignoring whitespace
 | EqualsPath         | assert path equals other path (compatible posix)
@@ -251,6 +262,7 @@ Internals:
 | HasKey             | assert array/object has key/property
 | HtmlMatchesArray   | assert html string by array
 | InTime             | assert processing in time
+| Is                 | assert value with loosely
 | IsBetween          | assert range of number
 | IsBlank            | assert blank string
 | IsCType            | assert value by ctype_xxx
@@ -368,6 +380,15 @@ ryunosuke\PHPUnit\Exporter\Exporter::insteadOf();
 ## Release
 
 Versioning is Semantic Versioning.
+
+### 3.7.0
+
+- [fixbug] fixed duplicated annotation
+- [feature] added Is constaint (looser than IsEqual)
+- [feature] added ClosesTo constaint
+- [feature] added DatetimeEquals constaint
+- [feature] supported SplFileInfo at file system
+- [change] changed as method to variable arguments
 
 ### 3.6.0
 
