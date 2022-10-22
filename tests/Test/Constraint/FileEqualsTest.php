@@ -3,6 +3,8 @@
 namespace ryunosuke\Test\Constraint;
 
 use ryunosuke\PHPUnit\Constraint\FileEquals;
+use SplFileInfo;
+use SplFileObject;
 
 class FileEqualsTest extends \ryunosuke\Test\AbstractTestCase
 {
@@ -14,6 +16,8 @@ class FileEqualsTest extends \ryunosuke\Test\AbstractTestCase
         $constraint = new FileEquals('x');
         $this->assertTrue($constraint->evaluate($filename1, '', true));
         $this->assertFalse($constraint->evaluate($filename2, '', true));
+        $this->assertTrue($constraint->evaluate(new SplFileObject($filename1), '', true));
+        $this->assertTrue($constraint->evaluate(new SplFileInfo($filename1), '', true));
 
         $this->ng(function () use ($constraint, $filename2) {
             $constraint->evaluate($filename2);

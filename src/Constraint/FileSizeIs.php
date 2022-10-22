@@ -3,6 +3,7 @@
 namespace ryunosuke\PHPUnit\Constraint;
 
 use PHPUnit\Framework\Constraint\IsEqual;
+use SplFileInfo;
 
 class FileSizeIs extends Composite
 {
@@ -17,6 +18,9 @@ class FileSizeIs extends Composite
 
     protected function filter($other)
     {
+        if ($other instanceof SplFileInfo) {
+            $other = $other->getPathname();
+        }
         return filesize($other);
     }
 

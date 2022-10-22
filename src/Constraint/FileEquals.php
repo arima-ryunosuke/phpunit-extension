@@ -3,6 +3,7 @@
 namespace ryunosuke\PHPUnit\Constraint;
 
 use PHPUnit\Framework\Constraint\IsEqual;
+use SplFileInfo;
 
 class FileEquals extends Composite
 {
@@ -13,6 +14,9 @@ class FileEquals extends Composite
 
     protected function filter($other)
     {
+        if ($other instanceof SplFileInfo) {
+            $other = $other->getPathname();
+        }
         return file_get_contents($other);
     }
 }
