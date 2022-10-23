@@ -381,6 +381,10 @@ ryunosuke\PHPUnit\Exporter\Exporter::insteadOf();
 
 Versioning is Semantic Versioning.
 
+### 3.7.1
+
+- [fixbug] fixed broken dependency
+
 ### 3.7.0
 
 - [fixbug] fixed duplicated annotation
