@@ -7448,14 +7448,14 @@ if (!isset($excluded_functions["date_timestamp"]) && (!function_exists("ryunosuk
 
             // 単位文字列を置換
             $datetimedata = strtr($datetimedata, [
-                '　'  => ' ',
+                '　'    => ' ',
                 '西暦' => '',
-                '年'  => '/',
-                '月'  => '/',
-                '日'  => ' ',
-                '時'  => ':',
-                '分'  => ':',
-                '秒'  => '',
+                '年'   => '/',
+                '月'   => '/',
+                '日'   => ' ',
+                '時'   => ':',
+                '分'   => ':',
+                '秒'   => '',
             ]);
             $datetimedata = trim($datetimedata, " \t\n\r\0\x0B:/");
         }
@@ -15579,7 +15579,7 @@ if (!isset($excluded_functions["htmltag"]) && (!function_exists("ryunosuke\\PHPU
 
         $build = static function ($selector, $content, $escape) use ($html) {
             $attrs = css_selector($selector);
-            $tag = array_unset($attrs, '');
+            $tag = array_unset($attrs, '', '');
             if (!strlen($tag)) {
                 throw new \InvalidArgumentException('tagname is empty.');
             }
@@ -17025,7 +17025,7 @@ if (!isset($excluded_functions["json_import"]) && (!function_exists("ryunosuke\\
         try {
             return $parser->parse($specials);
         }
-        catch (\Throwable $t){
+        catch (\Throwable $t) {
             if ($specials[JSON_THROW_ON_ERROR]) {
                 throw $t;
             }
@@ -21047,7 +21047,7 @@ if (!isset($excluded_functions["cache"]) && (!function_exists("ryunosuke\\PHPUni
      * ```
      *
      * @param string $key キャッシュのキー
-     * @param callable $provider キャッシュがない場合にコールされる callable
+     * @param ?callable $provider キャッシュがない場合にコールされる callable
      * @param ?string $namespace 名前空間
      * @return mixed キャッシュ
      */
