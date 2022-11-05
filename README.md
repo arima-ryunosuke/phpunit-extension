@@ -351,6 +351,20 @@ That ables to use `$actual->isH(oge)` completion and `$actual->isF(uga)` method.
 Or call `\ryunosuke\PHPUnit\Actual::generateAnnotation`.
 This method returns annotation via `$constraintVariations` and `$constraintNamespaces`.
 
+### TestCaseTrait
+
+This Trait provides testing utility.
+
+- restorer
+    - Reset function base's value. When unset return value recovery prev value.
+- rewriteProperty
+    - Rewrite private/protected property. When unset return value recovery prev value.
+- getEnvOrSkip
+    - Return getenv(). If novalue then skip the test.
+- getConstOrSkip
+    - Return constant(). If undefined then skip the test.
+- emptyDirectory
+    - Ready temporary directory and clean contents.
 
 ### Custom printer
 
@@ -380,6 +394,13 @@ ryunosuke\PHPUnit\Exporter\Exporter::insteadOf();
 ## Release
 
 Versioning is Semantic Versioning.
+
+### 3.8.0
+
+- [feature] added restorer
+- [feature] added get(Env|Const)OrSkip
+- [change] fixed ExpectationFailedException message is too large
+- [fixbug] fixed output is swallowed up
 
 ### 3.7.1
 
