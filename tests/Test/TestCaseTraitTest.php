@@ -9,9 +9,44 @@ class TestCaseTraitTest extends \ryunosuke\Test\AbstractTestCase
 {
     use TestCaseTrait;
 
+    /**
+     * @backupGlobals enabled
+     */
+    function test_restorer()
+    {
+        $currents = [ini_get('memory_limit'), mb_internal_encoding()];
+
+        // change something
+        $restorer1 = $this->restorer(fn($v) => ini_set('memory_limit', $v), ['99G']);
+        $restorer2 = $this->restorer('mb_internal_encoding', ['SJIS'], [mb_internal_encoding()]);
+
+        // enable changed value (see also test_restorer_php)
+        $this->assertEquals('99G', ini_get('memory_limit'));
+        $this->assertEquals('SJIS', mb_internal_encoding());
+
+        // recovery explicit
+        $restorer1();
+        $this->assertEquals($currents[0], ini_get('memory_limit'));
+
+        // recovery implicit (backupGlobals=on, so not recovery)
+        unset($restorer2);
+        $this->assertEquals('SJIS', mb_internal_encoding());
+
+        return $currents[1];
+    }
+
+    /**
+     * @depends test_restorer
+     */
+    function test_restorer_recovery($mb_internal_encoding)
+    {
+        // auto restore changes of test_restorer
+        $this->assertEquals($mb_internal_encoding, mb_internal_encoding());
+    }
+
     function test_rewriteProperty()
     {
-        $object = new class {
+        $object = new class() {
             private static $staticProperty  = 'this is static';
             private        $privateProperty = 'this is private';
 

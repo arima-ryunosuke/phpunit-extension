@@ -12,6 +12,59 @@ use RuntimeException;
 trait TestCaseTrait
 {
     /**
+     * reset function base's value on temporary scope
+     *
+     * `unset($return)` restores original value
+     *
+     * @see https://phpunit.readthedocs.io/ja/latest/annotations.html#appendixes-annotations-backupglobals
+     *
+     * @param callable $setter
+     * @param array $initializeArgs
+     * @param ?array $finalizeArgs
+     * @return callable
+     */
+    public function restorer(callable $setter, array $initializeArgs, ?array $finalizeArgs = null): callable
+    {
+        $current = $setter(...$initializeArgs);
+        $handler = new class($setter, $finalizeArgs ?? [$current]) {
+            private $setter;
+            private $args;
+            private $restored = false;
+
+            public function __construct($setter, $args)
+            {
+                $this->setter = $setter;
+                $this->args = $args;
+            }
+
+            public function __destruct()
+            {
+                $this();
+
+                unset($this->finalize);
+                unset($this->args);
+                gc_collect_cycles();
+            }
+
+            public function __invoke()
+            {
+                if (!$this->restored) {
+                    ($this->setter)(...$this->args);
+                }
+                $this->restored = true;
+            }
+        };
+
+        $ref = new ReflectionClass($this);
+        $refprop = $ref->getProperty('backupGlobals');
+        $refprop->setAccessible(true);
+        if ($refprop->getValue($this)) {
+            $GLOBALS[__FUNCTION__][] = $handler;
+        }
+        return $handler;
+    }
+
+    /**
      * rewrite private property on temporary scope
      *
      * `unset($return)` restores original value
