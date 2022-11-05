@@ -2,6 +2,7 @@
 
 namespace ryunosuke\Test;
 
+use PHPUnit\Framework\SkippedTestError;
 use ryunosuke\PHPUnit\TestCaseTrait;
 
 class TestCaseTraitTest extends \ryunosuke\Test\AbstractTestCase
@@ -51,6 +52,20 @@ class TestCaseTraitTest extends \ryunosuke\Test\AbstractTestCase
             "static"  => "this is static",
             "private" => "this is private",
         ], $object->describe());
+    }
+
+    function test_getEnvOrSkip()
+    {
+        $this->assertEquals('value', $this->getEnvOrSkip('THIS_IS_ENV'));
+        $this->expectException(SkippedTestError::class);
+        $this->getEnvOrSkip('THIS_IS_ENV_EMPTY');
+    }
+
+    function test_getConstantOrSkip()
+    {
+        $this->assertEquals('value', $this->getConstOrSkip('THIS_IS_CONST'));
+        $this->expectException(SkippedTestError::class);
+        $this->getConstOrSkip('UNDEFINED_CONST');
     }
 
     function test_emptyDirectory()

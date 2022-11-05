@@ -3,6 +3,7 @@
 namespace ryunosuke\PHPUnit;
 
 use Closure;
+use PHPUnit\Framework\SkippedTestError;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use ReflectionClass;
@@ -77,6 +78,35 @@ trait TestCaseTrait
         $rewriter ??= fn($v) => $v;
         $handler->set($rewriter($handler->get()));
         return $handler;
+    }
+
+    /**
+     * return environment variable or skip
+     *
+     * @param string $envName
+     * @return string
+     */
+    public function getEnvOrSkip(string $envName): ?string
+    {
+        $envvar = getenv($envName);
+        if (strlen("$envvar") === 0) {
+            throw new SkippedTestError("env '$envName' is not defined");
+        }
+        return $envvar;
+    }
+
+    /**
+     * return constant value or skip
+     *
+     * @param string $constantName
+     * @return mixed
+     */
+    public function getConstOrSkip(string $constantName)
+    {
+        if (!defined($constantName)) {
+            throw new SkippedTestError("constant '$constantName' is not defined");
+        }
+        return constant($constantName);
     }
 
     /**
