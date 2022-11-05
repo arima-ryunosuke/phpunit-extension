@@ -640,7 +640,7 @@ class Actual implements \ArrayAccess
         finally {
             // for compatible
             if ($ob_level === 1) {
-                $this->___results['stdout'] = ob_get_clean();
+                echo $this->___results['stdout'] = ob_get_clean();
             }
         }
         return $this->create($return, $arguments);

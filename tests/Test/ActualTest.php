@@ -173,7 +173,6 @@ Nzxc ');
 
             static function staticThrowMethod()
             {
-                debug_print_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
                 throw new \Exception('this is message.');
             }
         });
@@ -699,6 +698,7 @@ Nzxc ');
 
     function test_final()
     {
+        $this->expectOutputString('output');
         $this->actual(fn() => print('output'))()->final('stdout')->is('output');
         $this->actual(fn() => usleep(1000 * 100))->inTime(120)->final('time')->greaterThan(0.1);
         $this->actual(fn() => usleep(1000 * 100))->inTime(120)->final('cpu')->lessThan(0.1);
