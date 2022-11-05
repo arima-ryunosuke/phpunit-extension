@@ -136,8 +136,12 @@ class AbstractPrinter extends DefaultResultPrinter
                 break;
             }
         }
-        if (strlen($failureCause->getMessage())) {
-            $this->write(' (' . $failureCause->getMessage() . ')');
+        $message = $failureCause->getMessage();
+        if (strlen($message)) {
+            if ($failureCause instanceof ExpectationFailedException) {
+                $message = explode("\n", $message, 2)[0];
+            }
+            $this->write(' (' . $message . ')');
         }
     }
 
