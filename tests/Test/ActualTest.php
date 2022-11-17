@@ -362,7 +362,7 @@ Nzxc ');
         $actual = $this->actual(new class {
             public function __invoke($x, $y)
             {
-                return $x / $y;
+                return intdiv($x, $y);
             }
         });
 
@@ -520,9 +520,9 @@ Nzxc ');
     function test_try()
     {
         $thrower = new class() {
-            function divide($x, $n) { return $x / $n; }
+            function divide($x, $n) { return intdiv($x, $n); }
 
-            function __invoke($x, $n) { return $x / $n; }
+            function __invoke($x, $n) { return intdiv($x, $n); }
         };
 
         /** @noinspection PhpUndefinedMethodInspection */
@@ -535,7 +535,7 @@ Nzxc ');
         }
 
         $thrower = function ($x, $n) {
-            return $x / $n;
+            return intdiv($x, $n);
         };
 
         /** @noinspection PhpUndefinedMethodInspection */
@@ -698,11 +698,42 @@ Nzxc ');
 
     function test_final()
     {
-        $this->expectOutputString('output');
-        $this->actual(fn() => print('output'))()->final('stdout')->is('output');
         $this->actual(fn() => usleep(1000 * 100))->inTime(120)->final('time')->greaterThan(0.1);
         $this->actual(fn() => usleep(1000 * 100))->inTime(120)->final('cpu')->lessThan(0.1);
         $this->actual(123)->isInt()->isBetween(100, 200)->final('assertionCount')->is(4);
+    }
+
+    function test_wasOutputed()
+    {
+        $this->actual(fn() => print('output'))()->wasOutputed('output');
+        $this->ng(function () {
+            $this->actual(fn() => 'hoge')()->wasOutputed('output');
+        }, "'' contains \"output\"");
+
+        $this->expectOutputString('output');
+        $this->actual(fn() => print('output'))()->is(1);
+    }
+
+    function test_wasErrored()
+    {
+        @$this->actual(fn() => trigger_error('E_USER_DEPRECATED', E_USER_DEPRECATED))()->isTrue();
+        $this->actual(fn() => trigger_error('E_USER_NOTICE', E_USER_NOTICE))()->wasErrored('USER_NOTICE');
+        $this->actual(fn() => trigger_error('E_USER_WARNING', E_USER_WARNING))()->wasErrored('USER_WARNING');
+        $this->actual(fn() => trigger_error('E_USER_ERROR', E_USER_ERROR))()->wasErrored('E_USER_ERROR');
+
+        $this->actual(fn() => []['undefined'])()->wasErrored('Undefined');
+        $this->actual(fn() => file('noexists-file'))()->wasErrored('No such file');
+
+        $this->expectNotice();
+        $this->actual(fn() => trigger_error('E_USER_NOTICE', E_USER_NOTICE))()->isTrue();
+    }
+
+    function test_inElapsedTime()
+    {
+        $this->actual(fn() => usleep(1000 * 100))()->inElapsedTime(0.12);
+        $this->ng(function () {
+            $this->actual(fn() => usleep(1000 * 100))()->inElapsedTime(0.09);
+        }, "is equal to 0.09 or is less than 0.09");
     }
 
     function test_declare()

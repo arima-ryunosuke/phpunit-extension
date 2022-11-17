@@ -16,6 +16,7 @@ use PHPUnit\Framework\Constraint\RegularExpression;
 use PHPUnit\Framework\Constraint\StringContains;
 use PHPUnit\Framework\Constraint\StringEndsWith;
 use PHPUnit\Framework\Constraint\StringStartsWith;
+use PHPUnit\Framework\Error\Error;
 use ryunosuke\PHPUnit\Constraint\HtmlMatchesArray;
 use ryunosuke\PHPUnit\Constraint\IsCType;
 use ryunosuke\PHPUnit\Constraint\IsThrowable;
@@ -110,6 +111,14 @@ class Actual implements \ArrayAccess
     private string $___message = '';
 
     private array $___results = [];
+
+    private ?float $___elapsed = null;
+
+    private ?string $___output         = null;
+    private bool    $___outputAsserted = false;
+
+    private ?Error $___error         = null;
+    private bool   $___errorAsserted = false;
 
     public static function generateAnnotation($types = [])
     {
@@ -387,6 +396,13 @@ class Actual implements \ArrayAccess
     public function __destruct()
     {
         unset(static::$___objects[spl_object_id($this)]);
+
+        if (!$this->___outputAsserted && strlen($this->___output ?? '')) {
+            echo $this->___output;
+        }
+        if (!$this->___errorAsserted && $this->___error instanceof Error) {
+            throw $this->___error;
+        }
     }
 
     public function __toString()
@@ -626,24 +642,32 @@ class Actual implements \ArrayAccess
 
     public function try(?string $methodname, ...$arguments): Actual
     {
-        $ob_level = ob_get_level();
         try {
-            // for compatible
-            if ($ob_level === 1) {
-                ob_start();
-            }
+            ob_start();
+            $handler = set_error_handler(function ($code, $message, $file, $line) use (&$handler, &$error) {
+                try {
+                    return $handler($code, $message, $file, $line);
+                }
+                catch (\Throwable $t) {
+                    $error = $t;
+                }
+            });
+            $time = microtime(true);
             $return = $this->use($methodname)(...$arguments);
         }
         catch (\Throwable $t) {
             $return = $t;
         }
         finally {
-            // for compatible
-            if ($ob_level === 1) {
-                echo $this->___results['stdout'] = ob_get_clean();
-            }
+            $time = microtime(true) - $time;
+            restore_error_handler();
+            $output = ob_get_clean();
         }
-        return $this->create($return, $arguments);
+        $that = $this->create($return, $arguments);
+        $that->___elapsed = $time;
+        $that->___output = $output;
+        $that->___error = $error;
+        return $that;
     }
 
     public function list($index = null): Actual
@@ -730,6 +754,23 @@ class Actual implements \ArrayAccess
     public function final(string $mode = ''): Actual
     {
         return $this->create($this->___results[$mode] ?? $this->___results);
+    }
+
+    public function wasOutputed(string $expectedOutput = ''): Actual
+    {
+        $this->___outputAsserted = true;
+        return $this->assert([$this->___output ?? ''], new StringContains($expectedOutput));
+    }
+
+    public function wasErrored(string $expectedMessage = ''): Actual
+    {
+        $this->___errorAsserted = true;
+        return $this->assert([$this->___error ? $this->___error->getMessage() : ''], new StringContains($expectedMessage));
+    }
+
+    public function inElapsedTime(float $elapsedTime = 0): Actual
+    {
+        return $this->assert([$this->___elapsed ?? 0], LogicalOr::fromConstraints(new IsEqual($elapsedTime), new LessThan($elapsedTime)));
     }
 
     public function declare($hint = ''): Actual
