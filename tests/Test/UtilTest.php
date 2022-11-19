@@ -52,8 +52,22 @@ class UtilTest extends \ryunosuke\Test\AbstractTestCase
         $this->assertEquals("this is dynamic", Util::propertyToValue($object, 'dynamicProperty'));
         $this->assertEquals("testname", Util::propertyToValue($object, 'name'));
 
-        $this->expectExceptionMessage('is not defined');
-        Util::propertyToValue(new \stdClass(), 'undefined');
+
+        try {
+            Util::propertyToValue(new \stdClass(), 'undefined');
+            $this->fail('not thrown');
+        }
+        catch (\Throwable $t) {
+            $this->assertStringContainsString('is not defined', $t->getMessage());
+        }
+
+        try {
+            Util::propertyToValue('NeverUndefinedClass', 'undefined');
+            $this->fail('not thrown');
+        }
+        catch (\Throwable $t) {
+            $this->assertStringContainsString('does not exist', $t->getMessage());
+        }
     }
 
     function test_methodToCallable()
@@ -104,8 +118,21 @@ class UtilTest extends \ryunosuke\Test\AbstractTestCase
         $constructor = Util::methodToCallable(\PrivateConstructor::class, '__construct');
         $this->assertInstanceOf(\PrivateConstructor::class, $constructor(1));
 
-        $this->expectExceptionMessage('is not defined');
-        Util::methodToCallable(new \stdClass(), 'undefined');
+        try {
+            Util::methodToCallable(new \stdClass(), 'undefined');
+            $this->fail('not thrown');
+        }
+        catch (\Throwable $t) {
+            $this->assertStringContainsString('is not defined', $t->getMessage());
+        }
+
+        try {
+            Util::methodToCallable('NeverUndefinedClass', 'undefined');
+            $this->fail('not thrown');
+        }
+        catch (\Throwable $t) {
+            $this->assertStringContainsString('does not exist', $t->getMessage());
+        }
     }
 
     function test_callableToString()

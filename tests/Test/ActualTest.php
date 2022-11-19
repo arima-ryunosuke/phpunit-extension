@@ -3,6 +3,7 @@
 namespace ryunosuke\Test;
 
 use PHPUnit\Framework\Constraint\IsEqual;
+use PHPUnit\Framework\RiskyTestError;
 use ryunosuke\PHPUnit\Actual;
 use ryunosuke\PHPUnit\Util;
 use function ryunosuke\PHPUnit\rm_rf;
@@ -59,6 +60,12 @@ class ActualTest extends \ryunosuke\Test\AbstractTestCase
         Actual::generateStub($input, $output);
         $this->assertFileExists("$output/stub-A.php");
         $this->assertFileExists("$output/stub-X.php");
+    }
+
+    function test___destruct()
+    {
+        $this->expectException(RiskyTestError::class);
+        $this->actual('hogefugapiyo')->undefined();
     }
 
     function test_ok()
@@ -755,7 +762,7 @@ Nzxc ');
             $this->actual([1, 2, 3])->declare('')->debug('is([1, 2, 3])');
             $this->actual([1, 2, 3])->declare('count')->debug('count(3)');
 
-            $this->actual($this)->hoge->declare('')->debug('isUndefined()');
+            $this->actual($this)->hoge->isObject()->declare('')->debug('isUndefined()');
 
             $this->actual(new \Exception('hoge'))->declare('')->debug('isThrowable(new \\Exception("hoge"))');
             $this->actual(new \Exception('hoge', 123))->declare('')->debug('isThrowable(new \\Exception("hoge", 123))');

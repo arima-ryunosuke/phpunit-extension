@@ -45,7 +45,13 @@ class Util
             }
         }
 
-        $refclass = is_string($object) ? new \ReflectionClass($object) : new \ReflectionObject($object);
+        try {
+            $refclass = is_string($object) ? new \ReflectionClass($object) : new \ReflectionObject($object);
+        }
+        catch (\ReflectionException $ex) {
+            throw new UndefinedException($ex->getMessage(), 0, $ex);
+        }
+
         for ($class = $refclass; $class; $class = $class->getParentClass()) {
             if ($class->hasProperty($property)) {
                 $refproperty = $class->getProperty($property);
@@ -63,7 +69,13 @@ class Util
 
     public static function methodToCallable($object, string $method = null): callable
     {
-        $refclass = new \ReflectionClass($object);
+        try {
+            $refclass = new \ReflectionClass($object);
+        }
+        catch (\ReflectionException $ex) {
+            throw new UndefinedException($ex->getMessage(), 0, $ex);
+        }
+
         $method = $method ?? '__invoke';
 
         if ($refclass->hasMethod($method)) {

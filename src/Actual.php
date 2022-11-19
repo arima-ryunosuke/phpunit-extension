@@ -17,6 +17,7 @@ use PHPUnit\Framework\Constraint\StringContains;
 use PHPUnit\Framework\Constraint\StringEndsWith;
 use PHPUnit\Framework\Constraint\StringStartsWith;
 use PHPUnit\Framework\Error\Error;
+use PHPUnit\Framework\RiskyTestError;
 use ryunosuke\PHPUnit\Constraint\HtmlMatchesArray;
 use ryunosuke\PHPUnit\Constraint\IsCType;
 use ryunosuke\PHPUnit\Constraint\IsThrowable;
@@ -397,6 +398,9 @@ class Actual implements \ArrayAccess
     {
         unset(static::$___objects[spl_object_id($this)]);
 
+        if (!($this->___results['assertionCount'] ?? 0) && ($this->___actual instanceof UndefinedException)) {
+            throw new RiskyTestError('This actual did not perform any assertions', 0, $this->___actual);
+        }
         if (!$this->___outputAsserted && strlen($this->___output ?? '')) {
             echo $this->___output;
         }
