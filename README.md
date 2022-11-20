@@ -49,7 +49,10 @@ Simplified chart:
 | and                | return latest asserted actual       | actual of latest asserted
 | final              | return assertion statistic          | actual of assertion statistic
 | declare            | rewrite source by actual value      | $this
-
+| wasOutputed        | assert stdout or echo               | $this
+| wasErrored         | assert stderr or throw              | $this
+| inElapsedTime      | assert elapsed time                 | $this
+ 
 ```PHP
 # e.g. bootstrap.php
 
@@ -394,6 +397,11 @@ ryunosuke\PHPUnit\Exporter\Exporter::insteadOf();
 ## Release
 
 Versioning is Semantic Versioning.
+
+### 3.8.1
+
+- [feature] mark risky not asserting anything
+- [feature] added wasOutputed/wasErrored/inElapsedTime method
 
 ### 3.8.0
 
