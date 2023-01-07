@@ -398,6 +398,14 @@ ryunosuke\PHPUnit\Exporter\Exporter::insteadOf();
 
 Versioning is Semantic Versioning.
 
+### 3.9.0
+
+- [change] fixed printer oddities
+  - improved portability
+  - prefer specified columns
+  - enable verbosity
+  - print result on interrupt
+
 ### 3.8.1
 
 - [feature] mark risky not asserting anything
