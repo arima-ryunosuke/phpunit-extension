@@ -2,6 +2,8 @@
 
 namespace ryunosuke\PHPUnit\Printer;
 
+require_once __DIR__ . '/AbstractPrinter.php';
+
 use PHPUnit\Framework\AssertionFailedError;
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\TestSuite;
@@ -11,9 +13,12 @@ class ProgressPrinter extends AbstractPrinter
 {
     protected function _onStartTestSuite(TestSuite $testSuite)
     {
+        $digit = strlen((string) $this->numTests);
+
+        $this->maxColumn = $this->numberOfColumns - strlen('C tests (N/M) XXX%') - (3 * ($digit - 1));
+
         $this->writeWithSpace('# ' . $testSuite->getName());
 
-        $digit = strlen((string) $this->numTests);
         $numTestsRun = $this->numTestsRun + $testSuite->count();
         $this->writeWithColor('fg-cyan', sprintf("%3d tests", $testSuite->count()), false);
         $this->writeWithColor('fg-green', sprintf(" (%{$digit}d/%{$digit}d)%4d%%", $numTestsRun, $this->numTests, $numTestsRun / $this->numTests * 100), false);

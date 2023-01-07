@@ -15,7 +15,6 @@ use PHPUnit\Framework\Warning;
 use PHPUnit\Runner\PhptTestCase;
 use PHPUnit\TextUI\DefaultResultPrinter;
 use Throwable;
-use function ryunosuke\PHPUnit\var_export2;
 
 class AbstractPrinter extends DefaultResultPrinter
 {
@@ -36,20 +35,35 @@ class AbstractPrinter extends DefaultResultPrinter
 
     protected ?Throwable $failureCause = null;
 
+    protected array $testThrowns = [];
+
     public function __construct($out = null, bool $verbose = false, $colors = self::COLOR_DEFAULT, bool $debug = false, $numberOfColumns = 80, bool $reverse = false)
     {
         parent::__construct($out, $verbose, $colors, $debug, $numberOfColumns, $reverse);
 
-        $this->numberOfColumns = (fn() => $this->numberOfColumns)->bindTo($this, parent::class)();
+        $this->numberOfColumns = $numberOfColumns;
+
+        $printResultOnInterrupt = function () {
+            foreach ($this->testThrowns as $type => $throwns) {
+                $this->writeNewLine();
+                $this->writeNewLine();
+                $this->printDefects($throwns, $type);
+            }
+            $this->flush();
+            exit;
+        };
+        if (extension_loaded('pcntl')) {
+            pcntl_async_signals(true);
+            pcntl_signal(SIGINT, $printResultOnInterrupt);
+        }
+        elseif (function_exists('sapi_windows_set_ctrl_handler')) {
+            sapi_windows_set_ctrl_handler($printResultOnInterrupt);
+        }
     }
 
     public function startTestSuite(TestSuite $suite): void
     {
         $this->suite = $suite;
-
-        if ($this->numTests == -1) {
-            $this->maxColumn = $this->numberOfColumns - strlen(' CCC tests (NNN/MMMM)  XXX%');
-        }
 
         parent::startTestSuite($suite);
 
@@ -190,7 +204,8 @@ class AbstractPrinter extends DefaultResultPrinter
         if ($e instanceof ExpectationFailedException && $e->getComparisonFailure()) {
             $actual = $e->getComparisonFailure()->getActual();
             if (is_array($actual)) {
-                $actual = var_export2($actual, true);
+                $export = function_exists('\\ryunosuke\\PHPUnit\\var_export2') ? '\\ryunosuke\\PHPUnit\\var_export2' : 'var_export';
+                $actual = $export($actual, true);
             }
             if (is_string($actual) && strpos($actual, "\n") !== false) {
                 $this->write("<<<'ACTUAL'\n");
@@ -204,11 +219,13 @@ class AbstractPrinter extends DefaultResultPrinter
 
     public function addError(Test $test, Throwable $t, float $time): void
     {
+        $this->testThrowns['errors'][] = new TestFailure($test, $t);
         $this->failureCause = $t;
     }
 
     public function addFailure(Test $test, AssertionFailedError $e, float $time): void
     {
+        $this->testThrowns['failures'][] = new TestFailure($test, $e);
         $this->failureCause = $e;
     }
 
@@ -229,6 +246,8 @@ class AbstractPrinter extends DefaultResultPrinter
 
     public function addSkippedTest(Test $test, Throwable $t, float $time): void
     {
-        $this->failureCause = $t;
+        if ($this->verbose) {
+            $this->failureCause = $t;
+        }
     }
 }
