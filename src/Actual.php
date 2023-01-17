@@ -422,6 +422,11 @@ class Actual implements \ArrayAccess
     public function __toString()
     {
         if (is_object($this->___actual)) {
+            if (is_stringable($this->___actual) && strpos($this->getCallerLine(), '::') === false) {
+                return (string) $this->___actual;
+            }
+            // delete future scope
+            trigger_error('use $class::staticMethod()', E_USER_DEPRECATED);
             $staticCaller = new class(new static($this->___actual)) {
                 public static $that;
 

@@ -182,18 +182,25 @@ Nzxc ');
             {
                 throw new \Exception('this is message.');
             }
+
+            public function __toString()
+            {
+                return 'this is anonymouse string';
+            }
         });
 
         /** @noinspection PhpUndefinedMethodInspection */
         {
             $actual::staticMethod(1, 2, 3)->is([1, 2, 3]);
-            ("$actual")::staticMethod(1, 2, 3)->is([1, 2, 3]);
-
             $actual::staticMethod(...[1, 2])()->is([1, 2]);
-            ("$actual")::staticMethod(...[1, 2, 3])()->is([1, 2, 3]);
-
             $actual::staticThrowMethod()->wasThrown('this is message');
-            ("$actual")::staticThrowMethod()->wasThrown('this is message');
+
+            $this->assertEquals("this is anonymouse string", (string) $actual);
+
+            // delete future scope
+            @("$actual")::staticMethod(1, 2, 3)->is([1, 2, 3]);
+            @("$actual")::staticMethod(...[1, 2, 3])()->is([1, 2, 3]);
+            @("$actual")::staticThrowMethod()->wasThrown('this is message');
         }
     }
 
