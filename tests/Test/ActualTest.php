@@ -388,6 +388,10 @@ Nzxc ');
         $actual->fn()(1, 0)->wasThrown('Division by zero');
 
         $this->ng(function () use ($actual) {
+            $actual->fn(1, 0)();
+        }, 'Division by zero');
+
+        $this->ng(function () use ($actual) {
             $actual->fn(1, 0)->throws('hoge');
         }, 'AnonymousClass@' . Util::reflectFile(new \ReflectionClass($actual->return())) . '::__invoke');
     }
@@ -545,6 +549,10 @@ Nzxc ');
             $this->actual($thrower)->try(null, 10, 0)->wasThrown('Division by zero');
         }
 
+        $this->ng(function () use ($thrower) {
+            $this->actual($thrower)->try(null, 10, 0);
+        }, 'Division by zero');
+
         $thrower = function ($x, $n) {
             return intdiv($x, $n);
         };
@@ -557,6 +565,10 @@ Nzxc ');
             $this->actual($thrower)(10, 0)->getMessage()->is('Division by zero');
             $this->actual($thrower)(10, 0)->wasThrown('Division by zero');
         }
+
+        $this->ng(function () use ($thrower) {
+            $this->actual($thrower)(10, 0);
+        }, 'Division by zero');
 
         $this->actual($thrower)->undefined()->isUndefined();
     }

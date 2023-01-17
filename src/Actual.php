@@ -109,6 +109,8 @@ class Actual implements \ArrayAccess
 
     private array $___arguments = [];
 
+    private bool $___doneSomething = false;
+
     private string $___message = '';
 
     private array $___results = [];
@@ -369,10 +371,13 @@ class Actual implements \ArrayAccess
 
     private function create($actual, $arguments = []): Actual
     {
+        $this->___doneSomething = true;
+
         $that = new static($actual);
         $that->___parent = $this;
         $that->___arguments = $arguments;
         $that->___results = $this->___results;
+
         return $that;
     }
 
@@ -401,12 +406,17 @@ class Actual implements \ArrayAccess
         if (!($this->___results['assertionCount'] ?? 0) && ($this->___actual instanceof UndefinedException)) {
             throw new RiskyTestError('This actual did not perform any assertions', 0, $this->___actual);
         }
+        if (!$this->___doneSomething && $this->___actual instanceof \Throwable) {
+            throw $this->___actual;
+        }
         if (!$this->___outputAsserted && strlen($this->___output ?? '')) {
             echo $this->___output;
         }
         if (!$this->___errorAsserted && $this->___error instanceof Error) {
             throw $this->___error;
         }
+
+        gc_collect_cycles();
     }
 
     public function __toString()
@@ -855,6 +865,7 @@ class Actual implements \ArrayAccess
         $time = microtime(true);
         $before = getrusage();
 
+        $this->___doneSomething = true;
         foreach ($actuals as $actual) {
             Assert::assertThat($actual, $constraint, $this->___message);
         }
