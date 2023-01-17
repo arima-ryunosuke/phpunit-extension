@@ -101,6 +101,11 @@ class Actual implements \ArrayAccess
         ],
     ];
 
+    public static $functionNamespaces = [
+        "\\"                   => ['*'],
+        "\\ryunosuke\\PHPUnit" => ['*'],
+    ];
+
     private static array $___objects = [];
 
     private $___actual;
@@ -893,19 +898,27 @@ class Actual implements \ArrayAccess
 
     private function functionArgument($function): ?string
     {
-        foreach ([$function, __NAMESPACE__ . "\\$function"] as $fname) {
-            if (is_callable($fname)) {
-                if (!function_exists($fname) || ctype_lower($function)) {
-                    return $fname;
+        if (strpos($function, '->') === 0 || strpos($function, '::') === 0) {
+            return substr($function, 2);
+        }
+
+        foreach (self::$functionNamespaces as $namespace => $patterns) {
+            $patterns = (array) $patterns;
+            if ($patterns) {
+                $allows = array_filter($patterns, fn($p) => ($p[0] ?? '') !== '!');
+                $denies = array_map(fn($p) => substr($p, 1), array_filter($patterns, fn($p) => ($p[0] ?? '') === '!'));
+                if (!fnmatch_or($allows ?: '*', $function, FNM_NOESCAPE) || fnmatch_or($denies ?: '', $function, FNM_NOESCAPE)) {
+                    return null;
                 }
+            }
+
+            $fname = trim(trim($namespace, '\\') . "\\$function", '\\');
+            if (is_callable($fname)) {
+                return $fname;
             }
 
             if (preg_match('#(.+?)(\d)$#', $fname, $match) && is_callable($match[1])) {
                 return $fname;
-            }
-
-            if (strpos($fname, '->') === 0 || strpos($fname, '::') === 0) {
-                return substr($fname, 2);
             }
         }
 

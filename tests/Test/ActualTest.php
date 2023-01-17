@@ -462,6 +462,18 @@ Nzxc ');
         $this->actual($array)->implode1(',')->is('1,2,3');
     }
 
+    /**
+     * @backupStaticAttributes enabled
+     */
+    function test_call_function()
+    {
+        Actual::$functionNamespaces = ['' => ['str_*', '!str_split', '!str_rot13']];
+
+        $this->actual('string')->str_repeat(3)->is('stringstringstring');
+        $this->actual('string')->str_split()->wasThrown();
+        $this->actual('string')->str_rot13()->wasThrown();
+    }
+
     function test_do()
     {
         $object = new class {
