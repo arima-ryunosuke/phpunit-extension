@@ -335,6 +335,15 @@ Nzxc ');
         $this->assertEquals(10, $actual->use('privateMethod')(1));
         $this->assertEquals(20, $actual->use('publicMethod')(1));
 
+        // unwrap
+        /** @noinspection PhpUndefinedMethodInspection */
+        {
+            $x = $actual->privateMethod(10);
+            $x->is(100);
+            $x = $actual->publicMethod($x);
+            $x->is(2000);
+        }
+
         $actual = $this->actual('strtoupper');
         $this->assertEquals('HOGE', $actual->use(null)('hoge'));
 
@@ -413,11 +422,18 @@ Nzxc ');
         $actual(1)->is(1);
 
         $thrower = function ($x) {
-            return $x;
+            return $x * 2;
         };
 
         $actual = $this->actual($thrower);
-        $actual(1)->is(1);
+        $actual(1)->is(2);
+
+        // unwrap
+        $x = 1;
+        $x = $actual($x);
+        $x = $actual($x);
+        $x = $actual($x);
+        $x->is(8);
 
         $object = new class() {
             public function __invoke($x = 1)
@@ -600,7 +616,10 @@ Nzxc ');
             $z = 3;
             return $x + $y + $z;
         });
-        $actual(0, 0, 0)->list(0)->is(0)->exit()->list(1)->is(2)->exit()->list(2)->is(0);
+        $actual(0, 0, 0)
+            ->list(0)->is(0)->exit()
+            ->list(1)->is(2)->exit()
+            ->list(2)->is(0);
         $actual(0, 0, 0)->list()->is([0, 2, 0]);
     }
 

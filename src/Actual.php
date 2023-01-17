@@ -640,7 +640,10 @@ class Actual implements \ArrayAccess
     {
         $callable = $this->use($methodname);
         if ($bindings) {
-            $callable = Util::selfDescribingCallable(fn(...$args) => $callable(...($args + $bindings)), Util::callableToString($callable));
+            $callable = Util::selfDescribingCallable(function (&...$arguments) use ($callable, $bindings) {
+                $arguments += $bindings;
+                return $callable(...$this->unwrap($arguments));
+            }, Util::callableToString($callable));
         }
         return $this->create($callable);
     }
@@ -652,7 +655,7 @@ class Actual implements \ArrayAccess
 
     public function do(?string $methodname, ...$arguments): Actual
     {
-        return $this->create($this->use($methodname)(...$arguments));
+        return $this->create($this->use($methodname)(...$this->unwrap($arguments)));
     }
 
     public function new(...$arguments): Actual
@@ -677,7 +680,7 @@ class Actual implements \ArrayAccess
                 }
             });
             $time = microtime(true);
-            $return = $this->use($methodname)(...$arguments);
+            $return = $this->use($methodname)(...$this->unwrap($arguments));
         }
         catch (\Throwable $t) {
             $return = $t;
@@ -894,6 +897,14 @@ class Actual implements \ArrayAccess
         ]);
 
         return $this;
+    }
+
+    private function &unwrap(array &$arguments): array
+    {
+        foreach ($arguments as &$argument) {
+            $argument = $argument instanceof Actual ? $argument->return() : $argument;
+        }
+        return $arguments;
     }
 
     private function functionArgument($function): ?string
