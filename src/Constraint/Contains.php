@@ -24,7 +24,7 @@ class Contains extends Composite
     {
         $contraints = [];
 
-        if (is_stringable($other) && is_readable($other)) {
+        if (is_stringable($other) && @is_readable($other)) {
             $contraints[] = new FileContains($this->needle, !($this->strict === null) && !$this->strict);
         }
 

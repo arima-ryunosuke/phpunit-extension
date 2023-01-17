@@ -16,6 +16,7 @@ class LengthEqualsTest extends \ryunosuke\Test\AbstractTestCase
         $this->assertFalse($constraint->evaluate($filename2, '', true));
         $this->assertTrue($constraint->evaluate('xyz', '', true));
         $this->assertFalse($constraint->evaluate('AxyzZ', '', true));
+        $this->assertTrue($constraint->evaluate("7\09", '', true));
         $this->assertTrue($constraint->evaluate([1, 2, 3], '', true));
         $this->assertFalse($constraint->evaluate([1], '', true));
         $this->assertTrue($constraint->evaluate(new \ArrayObject([1, 2, 3]), '', true));

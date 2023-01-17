@@ -18,6 +18,7 @@ class ContainsTest extends \ryunosuke\Test\AbstractTestCase
         $this->assertTrue($constraint->evaluate('A789Z', '', true));
         $this->assertFalse($constraint->evaluate(['123', '456', 789], '', true));
         $this->assertTrue($constraint->evaluate(['456', '789'], '', true));
+        $this->assertFalse($constraint->evaluate("78\09", '', true));
 
         $constraint = new Contains(' 789', false);
         $this->assertTrue($constraint->evaluate($filename2, '', true));

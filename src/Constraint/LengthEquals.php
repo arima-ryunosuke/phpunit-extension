@@ -29,7 +29,7 @@ class LengthEquals extends Composite
             $contraints[] = new StringLengthEquals($this->length);
         }
 
-        if (is_stringable($other) && is_readable($other)) {
+        if (is_stringable($other) && @is_readable($other)) {
             $contraints[] = new FileSizeIs($this->length);
         }
 
