@@ -432,8 +432,8 @@ class Actual implements \ArrayAccess
 
     public function __call($name, $arguments)
     {
-        if ($name === 'debug') {
-            return self::$debugMode ? $this->assert([$this->___actual], new StringContains(...$arguments)) : null;
+        if (self::$debugMode && $name === 'debug') {
+            return $this->assert([$this->___actual], new StringContains(...$arguments));
         }
 
         $callee = $name;
