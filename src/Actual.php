@@ -321,42 +321,90 @@ class Actual implements \ArrayAccess
         return "/**\n" . implode("\n", $result) . "\n */";
     }
 
-    public static function generateStub(string $inputdir, string $outputdir)
+    public static function generateStub(string $inputdir, string $outputdir, int $dependLevel = 0)
     {
-        @mkdir($outputdir, 0777, true);
-
         $v = fn($v) => $v;
         $namespace = __NAMESPACE__;
         $classname = Actual::class;
 
+        $classes = [];
         foreach (file_list($inputdir, ['extension' => 'php']) as $file) {
             $current = get_declared_classes();
             ob_start();
             require_once $file;
             ob_end_clean();
-            $classes = array_diff(get_declared_classes(), $current);
+            $classes += array_flip(array_diff(get_declared_classes(), $current));
+        }
 
-            foreach ($classes as $class) {
+        // gather recursive
+        $foundClasses = $classes;
+        for ($i = 0; $i < $dependLevel && count($foundClasses) > 0; $i++) {
+            $dependsClasses = [];
+            foreach ($foundClasses as $class => $dummy) {
                 $refclass = new \ReflectionClass($class);
-                if ($refclass->isAnonymous()) {
-                    continue;
+
+                if ($refclass->getParentClass()) {
+                    $dependsClasses[$refclass->getParentClass()->getName()] = true;
                 }
-                $properties = [];
+                $dependsClasses += array_flip($refclass->getTraitNames());
+                $dependsClasses += array_flip($refclass->getInterfaceNames());
+
                 foreach ($refclass->getProperties() as $property) {
+                    $dependsClasses += array_flip(array_filter(array_map(fn($v) => $v->getName(), reflect_types($property->getType())->getTypes()), 'class_exists'));
+                }
+
+                foreach ($refclass->getMethods() as $method) {
+                    $dependsClasses += array_flip(array_filter(array_map(fn($v) => $v->getName(), reflect_types($method->getReturnType())->getTypes()), 'class_exists'));
+                }
+            }
+            $foundClasses = $dependsClasses;
+            $classes += $dependsClasses;
+        }
+
+        foreach ($classes as $class => $dummy) {
+            $refclass = new \ReflectionClass($class);
+            if ($refclass->isAnonymous()) {
+                continue;
+            }
+
+            $stubname = "$outputdir/" . strtr($refclass->name, ['\\' => DIRECTORY_SEPARATOR]) . '.stub.php';
+            if (
+                ($refclass->isInternal() && file_exists($stubname)) ||
+                (!$refclass->isInternal() && file_exists($stubname) && filemtime($stubname) > filemtime($refclass->getFileName()))
+            ) {
+                continue;
+            }
+
+            $properties = [];
+            foreach ($refclass->getProperties() as $property) {
+                if (!$property->isPublic() && $property->getDeclaringClass()->getName() === $refclass->getName()) {
                     $properties[] = "/** @see \\$refclass->name::\$$property->name */";
                     $properties[] = "public {$v($property->isStatic() ? 'static ' : '')}\\$classname \$$property->name;";
                 }
+            }
 
-                $methods = [];
-                foreach ($refclass->getMethods() as $method) {
-                    if (substr($method->name, 0, 2) === '__') {
-                        continue;
-                    }
-                    $methods[] = "/** @see \\$refclass->name::$method->name() */";
-                    $methods[] = "public {$v($method->isStatic() ? 'static ' : '')}function $method->name(...\$arguments): \\$classname { }";
+            $methods = [];
+            foreach ($refclass->getMethods() as $method) {
+                if (substr($method->name, 0, 2) === '__') {
+                    continue;
                 }
+                if (!$method->isPublic() && $method->getDeclaringClass()->getName() === $refclass->getName()) {
+                    $arguments = function_parameter($method);
+                    try {
+                        if ($arguments === function_parameter($method->getPrototype())) {
+                            continue;
+                        }
+                    }
+                    catch (\ReflectionException $e) {
+                        // through (because ReflectionMethod::hasPrototype is from php8.2)
+                    }
 
-                file_put_contents("$outputdir/" . strtr($refclass->name, ['\\' => '-']) . '.php', <<<PHP
+                    $methods[] = "/** @see \\$refclass->name::$method->name() */";
+                    $methods[] = "public {$v($method->isStatic() ? 'static ' : '')}function $method->name({$v(implode(', ', $arguments))}): \\$classname { }";
+                }
+            }
+
+            file_set_contents($stubname, <<<PHP
                 <?php
                 
                 namespace $namespace;
@@ -367,10 +415,8 @@ class Actual implements \ArrayAccess
 
                     {$v(implode("\n    ", $methods))}
                 }
-
-                PHP
-                );
-            }
+                
+                PHP,);
         }
     }
 

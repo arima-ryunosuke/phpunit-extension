@@ -6,6 +6,7 @@ use PHPUnit\Framework\Constraint\IsEqual;
 use PHPUnit\Framework\RiskyTestError;
 use ryunosuke\PHPUnit\Actual;
 use ryunosuke\PHPUnit\Util;
+use function ryunosuke\PHPUnit\file_set_contents;
 use function ryunosuke\PHPUnit\rm_rf;
 
 class ActualTest extends \ryunosuke\Test\AbstractTestCase
@@ -17,6 +18,48 @@ class ActualTest extends \ryunosuke\Test\AbstractTestCase
         Actual::$constraintVariations['isFoo'] = new IsEqual('foo', 9.9, 99, true);
         Actual::$constraintVariations['isBar'] = function ($other, $expected = '') { return $other == $expected; };
         Actual::$constraintVariations['isBaz'] = [IsEqual::class => [1 => 1.0]];
+
+        $input = __DIR__ . '/../tmp/input';
+        file_set_contents("$input/A.php", <<<'PHP'
+            <?php
+            namespace stub;
+            
+            class A
+            {
+                private \RuntimeException $runtimeException;
+                private                   $testPrivateProperty;
+                public                    $testPublicProperty;
+            
+                public function __clone() { }
+            
+                private function testPrivateMethod() { }
+            
+                public function testPublicMethod() { }
+            
+                protected function testProtectedMethod1() { }
+            
+                protected function testProtectedMethod2() { }
+            
+                private static function testPrivateStaticMethod() { }
+            
+                public static function testPublicStaticMethod() { }
+            }
+            PHP,);
+        file_set_contents("$input/nest/X.php", <<<'PHP'
+            <?php
+            namespace stub\nest;
+            
+            class X extends \stub\A
+            {
+                private function originalMethod(int $a, string $b, \RuntimeException $ex) { }
+            
+                protected function testProtectedMethod1() { }
+            
+                protected function testProtectedMethod2($mode = 0) { }
+            }
+            
+            return new class { };
+            PHP,);
     }
 
     /**
@@ -51,15 +94,80 @@ class ActualTest extends \ryunosuke\Test\AbstractTestCase
         $this->assertStringContainsString('equalsCanonicalizing($value, float $delta = 0.0, bool $canonicalize = true, bool $ignoreCase = false)', $annotations);
     }
 
+    /**
+     * @runInSeparateProcess
+     */
     function test_generateStub()
     {
-        $input = __DIR__ . '/../tmp/inpuut';
+        $input = __DIR__ . '/../tmp/input';
+        $output = __DIR__ . '/../tmp/output';
+        rm_rf($output);
+
+        file_set_contents("$output/RuntimeException.stub.php", 'dummy');
+
+        Actual::generateStub($input, $output, 1);
+        $this->assertFileExists("$output/stub/A.stub.php");
+        $this->assertFileExists("$output/stub/nest/X.stub.php");
+        $this->assertFileExists("$output/RuntimeException.stub.php");
+
+        $a = file_get_contents("$output/stub/A.stub.php");
+        $this->assertStringNotContainsString('__clone', $a);          // magic method
+        $this->assertStringNotContainsString('getArrayCopy', $a);     // same method
+        $this->assertStringNotContainsString('testPublicMethod', $a); // public method
+
+        $x = file_get_contents("$output/stub/nest/X.stub.php");
+        $this->assertStringContainsString('originalMethod(int $a, string $b, \RuntimeException $ex)', $x); // arguments
+        $this->assertStringNotContainsString('testProtectedMethod1', $x); // same method
+        $this->assertStringContainsString('testProtectedMethod2', $x);    // override method
+
+        $this->assertStringEqualsFile("$output/RuntimeException.stub.php", 'dummy'); // no output by mtime
+    }
+
+    /**
+     * @runInSeparateProcess
+     */
+    function test_generateStub_0()
+    {
+        $input = __DIR__ . '/../tmp/input';
         $output = __DIR__ . '/../tmp/output';
         rm_rf($output);
 
         Actual::generateStub($input, $output);
-        $this->assertFileExists("$output/stub-A.php");
-        $this->assertFileExists("$output/stub-X.php");
+        $this->assertFileExists("$output/stub/A.stub.php");
+        $this->assertFileExists("$output/stub/nest/X.stub.php");
+        $this->assertFileDoesNotExist("$output/stub/RuntimeException.stub.php");
+    }
+
+    /**
+     * @runInSeparateProcess
+     */
+    function test_generateStub_1()
+    {
+        $input = __DIR__ . '/../tmp/input';
+        $output = __DIR__ . '/../tmp/output';
+        rm_rf($output);
+
+        Actual::generateStub($input, $output, 1);
+        $this->assertFileExists("$output/stub/A.stub.php");
+        $this->assertFileExists("$output/stub/nest/X.stub.php");
+        $this->assertFileExists("$output/RuntimeException.stub.php");
+        $this->assertFileDoesNotExist("$output/Exception.stub.php");
+    }
+
+    /**
+     * @runInSeparateProcess
+     */
+    function test_generateStub_2()
+    {
+        $input = __DIR__ . '/../tmp/input';
+        $output = __DIR__ . '/../tmp/output';
+        rm_rf($output);
+
+        Actual::generateStub($input, $output, 2);
+        $this->assertFileExists("$output/stub/A.stub.php");
+        $this->assertFileExists("$output/stub/nest/X.stub.php");
+        $this->assertFileExists("$output/RuntimeException.stub.php");
+        $this->assertFileExists("$output/Exception.stub.php");
     }
 
     function test___destruct()
