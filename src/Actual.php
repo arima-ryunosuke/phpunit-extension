@@ -572,7 +572,7 @@ class Actual implements \ArrayAccess
             $this->___actual[$name] = $value;
             return;
         }
-        $this->___actual->$name = $value;
+        (fn() => $this->$name = $value)->call($this->___actual);
     }
 
     public function __unset($name)

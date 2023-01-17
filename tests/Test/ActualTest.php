@@ -215,6 +215,10 @@ Nzxc ');
             }
         });
         $actual->privateProperty->isEqual('this is private');
+
+        $actual->privateProperty = 'this is modified';
+        $actual->privateProperty->isEqual('this is modified');
+
         $actual->getter->isEqual('getter is __get property');
         $actual->name->isEqual('testname');
 
@@ -257,7 +261,7 @@ Nzxc ');
     {
         $actuals = [
             $this->actual(['a' => null, 'x' => null]),
-            $this->actual(new \ArrayObject(['a' => null, 'x' => null], \ArrayObject::ARRAY_AS_PROPS)),
+            $this->actual(new class ( (['a' => null, 'x' => null]), \ArrayObject::ARRAY_AS_PROPS ) extends \ArrayObject { }),
         ];
         foreach ($actuals as $actual) {
             $actual['a']->isNull();
