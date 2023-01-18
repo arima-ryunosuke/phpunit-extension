@@ -185,6 +185,15 @@ namespace ryunosuke\PHPUnit;
  * @method \ryunosuke\PHPUnit\Actual lengthNotEqualsAny(array $lengths)
  * @method \ryunosuke\PHPUnit\Actual lengthNotEqualsAll(array $lengths)
  *
+ * @see \ryunosuke\PHPUnit\Constraint\MatchesCountEquals
+ * @method \ryunosuke\PHPUnit\Actual eachMatchesCountEquals(array $patternCounts)
+ * @method \ryunosuke\PHPUnit\Actual matchesCountEquals(array $patternCounts)
+ * @method \ryunosuke\PHPUnit\Actual notMatchesCountNotEquals(array $patternCounts)
+ * @method \ryunosuke\PHPUnit\Actual matchesCountEqualsAny(array $patternCountss)
+ * @method \ryunosuke\PHPUnit\Actual matchesCountEqualsAll(array $patternCountss)
+ * @method \ryunosuke\PHPUnit\Actual notMatchesCountNotEqualsAny(array $patternCountss)
+ * @method \ryunosuke\PHPUnit\Actual notMatchesCountNotEqualsAll(array $patternCountss)
+ *
  * @see \ryunosuke\PHPUnit\Constraint\OutputMatches
  * @method \ryunosuke\PHPUnit\Actual eachOutputMatches($value, $raw = false, $with = ["", ""])
  * @method \ryunosuke\PHPUnit\Actual outputMatches($value, $raw = false, $with = ["", ""])
