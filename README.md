@@ -31,6 +31,7 @@ Simplified chart:
 | __invoke           | call original __invoke no thrown    | actual of __invoke's return or expcetion
 | __invoke(...[])    | get original __invoke's callable    | actual of __invoke's callable (with bindings)
 | __get              | get original property no thrown     | actual of property or expcetion
+| __set              | set original property publicly      | void
 | offsetGet          | get ArrayAccess by key              | actual of key's value
 | var                | get property                        | original property
 | use                | get original method's callable      | original method as Closure
@@ -275,6 +276,7 @@ Internals:
 | IsValid            | assert value by filter_var
 | JsonMatchesArray   | assert json string based on array
 | LengthEquals       | assert string/iterable/file length/count/size
+| MatchesCountEquals | assert matched count element per array
 | OutputMatches      | assert output of STDOUT
 | StringLengthEquals | assert length of string
 | SubsetEquals       | assert array by subarray
@@ -326,6 +328,11 @@ User defined:
 ```php
 // This ables to use: $actual->yourConstraint()
 \ryunosuke\PHPUnit\Actual::$constraintNamespaces['your\\namespace'] = 'your/constraint/directory';
+```
+
+```php
+// Disable. chain case function call
+\ryunosuke\PHPUnit\Actual::$functionNamespaces = [];
 ```
 
 ### Code completion
@@ -397,6 +404,18 @@ ryunosuke\PHPUnit\Exporter\Exporter::insteadOf();
 ## Release
 
 Versioning is Semantic Versioning.
+
+### 3.10.0
+
+- [feature] implove generateStub
+- [feature] added MatchesCountEquals constaint
+- [feature] added unwrapping original value if Actual argument
+- [feature] added disable function option
+- [change] deprecated static calls with __toString of object
+- [fixbug] fixed caused exceptions to be implicitly through
+- [fixbug] fixed filesystem function denies null string
+- [fixbug] fixed __set private field
+- [fixbug] fixed "debug" method returns null always
 
 ### 3.9.0
 
