@@ -11,12 +11,14 @@ $excludeList->getExcludedDirectories();
 $excludeList->addDirectory(__DIR__ . '/../src');
 
 // declare that function
-/**
- * @template T
- * @param T $value
- * @return T|\ryunosuke\PHPUnit\Actual
- */
-function that($value)
-{
-    return new \ryunosuke\PHPUnit\Actual($value);
+if (!function_exists('that')) {
+    /**
+     * @template T
+     * @param T $value
+     * @return T|\ryunosuke\PHPUnit\Actual|\stub\All
+     */
+    function that($value)
+    {
+        return new \ryunosuke\PHPUnit\Actual($value);
+    }
 }

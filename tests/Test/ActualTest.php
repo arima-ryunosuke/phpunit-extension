@@ -106,6 +106,7 @@ class ActualTest extends \ryunosuke\Test\AbstractTestCase
         file_set_contents("$output/RuntimeException.stub.php", 'dummy');
 
         Actual::generateStub($input, $output, 1);
+        $this->assertFileExists("$output/All.stub.php");
         $this->assertFileExists("$output/stub/A.stub.php");
         $this->assertFileExists("$output/stub/nest/X.stub.php");
         $this->assertFileExists("$output/RuntimeException.stub.php");

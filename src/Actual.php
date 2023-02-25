@@ -324,7 +324,6 @@ class Actual implements \ArrayAccess
     public static function generateStub(string $inputdir, string $outputdir, int $dependLevel = 0)
     {
         $v = fn($v) => $v;
-        $namespace = __NAMESPACE__;
         $classname = Actual::class;
 
         $classes = [];
@@ -361,6 +360,8 @@ class Actual implements \ArrayAccess
             $classes += $dependsClasses;
         }
 
+        $generated = [];
+        $classes[$classname] = true;
         foreach ($classes as $class => $dummy) {
             $refclass = new \ReflectionClass($class);
             if ($refclass->isAnonymous()) {
@@ -420,13 +421,22 @@ class Actual implements \ArrayAccess
                 }
             }
 
+            $stubspace = "stub{$v($refclass->getNamespaceName() ? "\\" . $refclass->getNamespaceName() : '')}";
+            $stubclass = "{$v($refclass->getShortName())}Stub";
+            $stubparent = "{$v($refclass->getParentClass() ? "\\stub\\{$v($refclass->getParentClass()->getName())}Stub" : '')}";
+            $generated[] = "\\$stubspace\\$stubclass";
             file_set_contents($stubname, <<<PHP
                 <?php /** @noinspection PhpLanguageLevelInspection */
                 
-                namespace $namespace;
+                namespace $stubspace;
                 
-                trait Annotation
+                /**
+                 * @mixin \\stub\\ryunosuke\\PHPUnit\\ActualStub
+                 */
+                class $stubclass{$v($stubparent ? " extends $stubparent" : '')}
                 {
+                    use \\ryunosuke\\PHPUnit\\Annotation;
+                
                     {$v(implode("\n    ", $properties))}
 
                     {$v(implode("\n    ", $methods))}
@@ -434,6 +444,20 @@ class Actual implements \ArrayAccess
                 
                 PHP,);
         }
+
+        file_set_contents("$outputdir/All.stub.php", <<<PHP
+            <?php /** @noinspection PhpLanguageLevelInspection */
+
+            namespace stub;
+            
+            /**
+            {$v(implode("\n", array_map(fn($g) => " * @mixin $g", $generated)))}
+             */
+            class All
+            {
+            }
+            
+            PHP,);
     }
 
     private function create($actual, $arguments = []): Actual
