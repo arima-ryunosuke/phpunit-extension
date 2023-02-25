@@ -27,8 +27,8 @@ class ActualTest extends \ryunosuke\Test\AbstractTestCase
             class A
             {
                 private \RuntimeException $runtimeException;
-                private                   $testPrivateProperty;
-                public                    $testPublicProperty;
+                private int               $testPrivateProperty;
+                public  string            $testPublicProperty;
             
                 public function __clone() { }
             
@@ -111,6 +111,9 @@ class ActualTest extends \ryunosuke\Test\AbstractTestCase
         $this->assertFileExists("$output/RuntimeException.stub.php");
 
         $a = file_get_contents("$output/stub/A.stub.php");
+        $this->assertStringContainsString('\\RuntimeException|\\stub\\RuntimeExceptionStub|\\ryunosuke\\PHPUnit\\Actual', $a);
+        $this->assertStringContainsString('int|\\ryunosuke\\PHPUnit\\Actual', $a);
+        $this->assertStringContainsString('string|\\ryunosuke\\PHPUnit\\Actual', $a);
         $this->assertStringNotContainsString('__clone', $a);          // magic method
         $this->assertStringNotContainsString('getArrayCopy', $a);     // same method
         $this->assertStringContainsString('testPublicMethod', $a);    // public method

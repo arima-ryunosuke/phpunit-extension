@@ -375,11 +375,27 @@ class Actual implements \ArrayAccess
                 continue;
             }
 
+            $mixTypes = function (?\ReflectionType $type) use ($classname) {
+                $types = [];
+                foreach (reflect_types($type)->getTypes() as $type) {
+                    $name = $type->getName();
+                    if ($type->isBuiltin()) {
+                        $types[] = $name;
+                    }
+                    else {
+                        $types[] = "\\$name";
+                        $types[] = "\\stub\\{$name}Stub";
+                    }
+                }
+                $types[] = "\\$classname";
+                return implode('|', $types);
+            };
+
             $properties = [];
             foreach ($refclass->getProperties() as $property) {
                 if ($property->getDeclaringClass()->getName() === $refclass->getName()) {
                     $properties[] = "/** @see \\$refclass->name::\$$property->name */";
-                    $properties[] = "public {$v($property->isStatic() ? 'static ' : '')}\\$classname \$$property->name;";
+                    $properties[] = "public {$v($property->isStatic() ? 'static ' : '')}{$v($mixTypes($property->getType()))} \$$property->name;";
                 }
             }
 
@@ -400,12 +416,12 @@ class Actual implements \ArrayAccess
                     }
 
                     $methods[] = "/** @see \\$refclass->name::$method->name() */";
-                    $methods[] = "public {$v($method->isStatic() ? 'static ' : '')}function $method->name({$v(implode(', ', $arguments))}): \\$classname { }";
+                    $methods[] = "public {$v($method->isStatic() ? 'static ' : '')}function $method->name({$v(implode(', ', $arguments))}): {$v($mixTypes($method->getReturnType()))} { }";
                 }
             }
 
             file_set_contents($stubname, <<<PHP
-                <?php
+                <?php /** @noinspection PhpLanguageLevelInspection */
                 
                 namespace $namespace;
                 
