@@ -36,6 +36,35 @@ class Util
         );
     }
 
+    /**
+     * @noinspection PhpRedundantCatchClauseInspection
+     * @return \ReflectionProperty[]
+     */
+    public static function reflectProperty($object, string $property): array
+    {
+        try {
+            $refclass = is_string($object) ? new \ReflectionClass($object) : new \ReflectionObject($object);
+        }
+        catch (\ReflectionException $ex) {
+            throw new UndefinedException($ex->getMessage(), 0, $ex);
+        }
+
+        $result = [];
+        for ($class = $refclass; $class; $class = $class->getParentClass()) {
+            if ($class->hasProperty($property)) {
+                try {
+                    $refproperty = $class->getProperty($property);
+                    $refproperty->setAccessible(true);
+                    $result[$class->getName()] = $refproperty;
+                }
+                catch (\ReflectionException $ex) {
+                    // ArrayObject's hasProperty returns true, but getProperty may throw ReflectionException
+                }
+            }
+        }
+        return $result;
+    }
+
     public static function propertyToValue($object, string $property)
     {
         if (is_object($object)) {
@@ -45,17 +74,8 @@ class Util
             }
         }
 
-        try {
-            $refclass = is_string($object) ? new \ReflectionClass($object) : new \ReflectionObject($object);
-        }
-        catch (\ReflectionException $ex) {
-            throw new UndefinedException($ex->getMessage(), 0, $ex);
-        }
-
-        for ($class = $refclass; $class; $class = $class->getParentClass()) {
-            if ($class->hasProperty($property)) {
-                $refproperty = $class->getProperty($property);
-                $refproperty->setAccessible(true);
+        foreach (self::reflectProperty($object, $property) as $refproperty) {
+            if ($refproperty->isStatic() || is_object($object)) {
                 return $refproperty->isStatic() ? $refproperty->getValue() : $refproperty->getValue($object);
             }
         }
@@ -64,7 +84,7 @@ class Util
             return $object->$property;
         }
 
-        throw new UndefinedException($refclass->name . '::$' . $property . ' is not defined.');
+        throw new UndefinedException((is_string($object) ? $object : get_class($object)) . '::$' . $property . ' is not defined.');
     }
 
     public static function methodToCallable($object, string $method = null): callable

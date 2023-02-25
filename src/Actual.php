@@ -654,7 +654,16 @@ class Actual implements \ArrayAccess
             $this->___actual[$name] = $value;
             return;
         }
-        (fn() => $this->$name = $value)->call($this->___actual);
+
+        $refproperties = Util::reflectProperty($this->___actual, $name);
+        foreach ($refproperties as $refproperty) {
+            if ($refproperty->isStatic() || is_object($this->___actual)) {
+                $refproperty->isStatic() ? $refproperty->setValue($value) : $refproperty->setValue($this->___actual, $value);
+            }
+        }
+        if (!$refproperties) {
+            $this->___actual->$name = $value;
+        }
     }
 
     public function __unset($name)

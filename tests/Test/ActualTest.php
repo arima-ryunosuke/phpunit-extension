@@ -397,6 +397,15 @@ Nzxc ');
 
             $actual->notHasKeyAll(['a', 'x']);
         }
+
+        $actual = that($object = new class() extends \ProtectedMember {
+            protected $x = 'this is anonymouse';
+        });
+
+        $actual->x = 'XX';
+
+        $actual->x->is('XX');
+        $this->assertEquals(['XX', 'XX', 'XX'], array_values(get_mangled_object_vars($object)));
     }
 
     function test_var()

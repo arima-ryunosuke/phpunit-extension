@@ -3,6 +3,8 @@
 namespace ryunosuke\Test;
 
 use PHPUnit\Framework\SelfDescribing;
+use PrivateMember;
+use ProtectedMember;
 use ryunosuke\PHPUnit\Util;
 
 class UtilTest extends \ryunosuke\Test\AbstractTestCase
@@ -27,6 +29,25 @@ class UtilTest extends \ryunosuke\Test\AbstractTestCase
         $ref = new \ReflectionClass($this);
         $this->assertEquals("tests{$DS}Test{$DS}UtilTest.php#" . $ref->getStartLine() . '-' . $ref->getEndLine(), Util::reflectFile($ref));
         $this->assertEquals("tests{$DS}Test{$DS}UtilTest.php", Util::reflectFile($ref, '%s'));
+    }
+
+    function test_reflectProperty()
+    {
+        $object = new class() extends \ProtectedMember {
+            protected $x = 'this is anonymouse';
+        };
+
+        $refproperties = Util::reflectProperty($object, 'x');
+        $this->assertEquals([get_class($object), ProtectedMember::class, PrivateMember::class], array_keys($refproperties));
+        $this->assertEquals([get_class($object), ProtectedMember::class, PrivateMember::class], array_values(array_map(fn($r) => $r->class, $refproperties)));
+
+        try {
+            Util::propertyToValue('NeverUndefinedClass', 'undefined');
+            $this->fail('not thrown');
+        }
+        catch (\Throwable $t) {
+            $this->assertStringContainsString('does not exist', $t->getMessage());
+        }
     }
 
     function test_propertyToValue()

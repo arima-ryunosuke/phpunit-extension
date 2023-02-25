@@ -70,3 +70,23 @@ class PublicConstructor
         return $this->x * 2;
     }
 }
+
+class PrivateMember
+{
+    private $x;
+
+    public function X()
+    {
+        return $this->x;
+    }
+}
+
+class ProtectedMember extends PrivateMember
+{
+    private $x;
+
+    public function X()
+    {
+        return $this->x;
+    }
+}
