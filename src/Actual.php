@@ -377,7 +377,7 @@ class Actual implements \ArrayAccess
 
             $properties = [];
             foreach ($refclass->getProperties() as $property) {
-                if (!$property->isPublic() && $property->getDeclaringClass()->getName() === $refclass->getName()) {
+                if ($property->getDeclaringClass()->getName() === $refclass->getName()) {
                     $properties[] = "/** @see \\$refclass->name::\$$property->name */";
                     $properties[] = "public {$v($property->isStatic() ? 'static ' : '')}\\$classname \$$property->name;";
                 }
@@ -388,7 +388,7 @@ class Actual implements \ArrayAccess
                 if (substr($method->name, 0, 2) === '__') {
                     continue;
                 }
-                if (!$method->isPublic() && $method->getDeclaringClass()->getName() === $refclass->getName()) {
+                if ($method->getDeclaringClass()->getName() === $refclass->getName()) {
                     $arguments = function_parameter($method);
                     try {
                         if ($arguments === function_parameter($method->getPrototype())) {

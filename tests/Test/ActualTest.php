@@ -113,7 +113,7 @@ class ActualTest extends \ryunosuke\Test\AbstractTestCase
         $a = file_get_contents("$output/stub/A.stub.php");
         $this->assertStringNotContainsString('__clone', $a);          // magic method
         $this->assertStringNotContainsString('getArrayCopy', $a);     // same method
-        $this->assertStringNotContainsString('testPublicMethod', $a); // public method
+        $this->assertStringContainsString('testPublicMethod', $a);    // public method
 
         $x = file_get_contents("$output/stub/nest/X.stub.php");
         $this->assertStringContainsString('originalMethod(int $a, string $b, \RuntimeException $ex)', $x); // arguments
