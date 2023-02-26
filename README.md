@@ -248,6 +248,45 @@ class ActualTest extends \PHPUnit\Framework\TestCase
 }
 ```
 
+A return value or argument of Actual can transparently use the original method, as shown below.
+
+```php
+class Example
+{
+    private int $privateField = 0;
+
+    public function getPrivate()
+    {
+        return $this->privateField;
+    }
+
+    public function setPrivate(int $field)
+    {
+        $this->privateField = $field;
+    }
+}
+
+class ExampleTest extends \PHPUnit\Framework\TestCase
+{
+    function test()
+    {
+        // test object
+        $example = that(new Example());
+
+        // directry private access
+        $example->privateField = 3;
+        $example->privateField->is(3);
+
+        // $field is actual
+        $field = $example->getPrivate();
+        $field->is(3);
+
+        // but, $field can use to arguments
+        $example->setPrivate($field);
+    }
+}
+```
+
 ### Custom constraints
 
 Internals:
@@ -404,6 +443,13 @@ ryunosuke\PHPUnit\Exporter\Exporter::insteadOf();
 ## Release
 
 Versioning is Semantic Versioning.
+
+### 3.10.1
+
+- [change] changed stub class is hierarchized
+- [fixbug] fixed __set does not set ancestor private field
+- [fixbug] fixed generateStub losts original type
+- [fixbug] fixed generateStub ignores public member
 
 ### 3.10.0
 
