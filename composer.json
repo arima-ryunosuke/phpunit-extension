@@ -39,7 +39,12 @@
   },
   "scripts": {
     "build": [
+      "@export",
       "@test"
+    ],
+    "export": [
+      "export-function",
+      "exclude-internal"
     ],
     "test": [
       "vendor/bin/phpunit --configuration=tests/phpunit.xml"
