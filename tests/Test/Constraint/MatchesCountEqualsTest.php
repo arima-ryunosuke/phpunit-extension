@@ -1,6 +1,6 @@
 <?php
 
-namespace Test\Constraint;
+namespace ryunosuke\Test\Constraint;
 
 use ryunosuke\PHPUnit\Constraint\MatchesCountEquals;
 
