@@ -4,6 +4,7 @@ namespace ryunosuke\PHPUnit;
 
 use ArrayAccess;
 use PHPUnit\Framework\Assert;
+use PHPUnit\Framework\AssertionFailedError;
 use PHPUnit\Framework\Constraint\Constraint;
 use PHPUnit\Framework\Constraint\GreaterThan;
 use PHPUnit\Framework\Constraint\IsEqual;
@@ -18,6 +19,7 @@ use PHPUnit\Framework\Constraint\StringEndsWith;
 use PHPUnit\Framework\Constraint\StringStartsWith;
 use PHPUnit\Framework\Error\Error;
 use PHPUnit\Framework\RiskyTestError;
+use PHPUnit\Framework\TestCase;
 use ryunosuke\PHPUnit\Constraint\HtmlMatchesArray;
 use ryunosuke\PHPUnit\Constraint\IsCType;
 use ryunosuke\PHPUnit\Constraint\IsThrowable;
@@ -120,6 +122,8 @@ class Actual implements \ArrayAccess
     private bool $___doneSomething = false;
 
     private string $___message = '';
+
+    private bool $___breakable = false;
 
     private array $___results = [];
 
@@ -968,6 +972,12 @@ class Actual implements \ArrayAccess
         return self::$debugMode ? $this->create($receiver) : $this;
     }
 
+    public function break(bool $breakable = true): Actual
+    {
+        $this->___breakable = $breakable;
+        return $this;
+    }
+
     private function assert($actuals, Constraint ...$constraints): Actual
     {
         $constraint = LogicalOr::fromConstraints(...$constraints);
@@ -980,7 +990,24 @@ class Actual implements \ArrayAccess
 
         $this->___doneSomething = true;
         foreach ($actuals as $actual) {
-            Assert::assertThat($actual, $constraint, $this->___message);
+            try {
+                Assert::assertThat($actual, $constraint, $this->___message);
+            }
+            catch (AssertionFailedError $e){
+                if (!$this->___breakable) {
+                    throw $e;
+                }
+
+                $prev = null;
+                foreach (debug_backtrace() as $step) {
+                    if (($step['object'] ?? null) instanceof TestCase) {
+                        assert($step['object'] instanceof TestCase);
+                        $step['object']->addWarning($e->getMessage() . " in {$prev['file']}:{$prev['line']}");
+                        break;
+                    }
+                    $prev = $step;
+                }
+            }
         }
 
         $after = getrusage();

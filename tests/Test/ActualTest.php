@@ -918,6 +918,12 @@ Nzxc ');
         }, "is equal to 0.09 or is less than 0.09");
     }
 
+    function test_break()
+    {
+        $this->actual(1)->break()->is(2);
+        $this->actual(1)->is(1);
+    }
+
     function test_declare()
     {
         Actual::$debugMode = true;
