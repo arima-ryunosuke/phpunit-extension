@@ -2,12 +2,74 @@
 
 namespace ryunosuke\Test;
 
+use DomainException;
+use InvalidArgumentException;
 use PHPUnit\Framework\SkippedTestError;
+use RuntimeException;
 use ryunosuke\PHPUnit\TestCaseTrait;
+use UnexpectedValueException;
 
 class TestCaseTraitTest extends \ryunosuke\Test\AbstractTestCase
 {
     use TestCaseTrait;
+
+    function test_trapThrowable_string_and_do_nothing()
+    {
+        $this->trapThrowable(RuntimeException::class);
+
+        $this->assertEquals('dummy', 'dummy');
+        throw new RuntimeException();
+    }
+
+    function test_trapThrowable_string_and_skip()
+    {
+        $this->trapThrowable(RuntimeException::class, SkippedTestError::class);
+
+        $this->assertEquals('dummy', 'dummy');
+        throw new RuntimeException();
+    }
+
+    function test_trapThrowable_string_nomatch()
+    {
+        $this->trapThrowable(RuntimeException::class);
+
+        $this->expectException(UnexpectedValueException::class);
+        throw new UnexpectedValueException();
+    }
+
+    function test_trapThrowable_notype()
+    {
+        $this->trapThrowable(function ($t) {
+            $this->assertEquals(RuntimeException::class, get_class($t));
+        });
+
+        throw new RuntimeException();
+    }
+
+    function test_trapThrowable_type_match()
+    {
+        $this->trapThrowable(function (RuntimeException $t) {
+            $this->assertEquals(UnexpectedValueException::class, get_class($t));
+        });
+
+        throw new UnexpectedValueException();
+    }
+
+    function test_trapThrowable_type_nomatch()
+    {
+        $this->trapThrowable(function (DomainException $t) {
+            $this->fail();
+        });
+
+        $this->expectException(UnexpectedValueException::class);
+        throw new UnexpectedValueException();
+    }
+
+    function test_trapThrowable_canceled()
+    {
+        $this->expectException(InvalidArgumentException::class);
+        throw new InvalidArgumentException();
+    }
 
     /**
      * @backupGlobals enabled

@@ -7,10 +7,58 @@ use PHPUnit\Framework\SkippedTestError;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use ReflectionClass;
+use ReflectionFunction;
 use RuntimeException;
+use Throwable;
 
 trait TestCaseTrait
 {
+    private Closure $throwableHandler;
+
+    /**
+     * set Throwable trap handler
+     *
+     * trap allows handling of the specified exception
+     * when class-string specified, catch it and throw $thrownClass
+     * when other string specified, catch it's message and throw $thrownClass
+     * if $thrownObject is null then do nothing
+     *
+     * @param callable|string $handler
+     * @param Throwable|string $thrownObject
+     */
+    public function trapThrowable($handler, $thrownObject = null): void
+    {
+        if (is_string($handler)) {
+            $handler = function (Throwable $t) use ($handler, $thrownObject) {
+                if (!(class_exists($handler) && $t instanceof $handler) && (strpos($t->getMessage(), $handler) === false)) {
+                    throw $t; // @codeCoverageIgnore
+                }
+                if ($thrownObject !== null) {
+                    throw is_object($thrownObject) ? $thrownObject : new $thrownObject("trapped recognized $handler"); // @codeCoverageIgnore
+                }
+            };
+        }
+
+        $this->throwableHandler = Closure::fromCallable($handler);
+    }
+
+    protected function onNotSuccessfulTest(Throwable $t): void
+    {
+        if (!isset($this->throwableHandler)) {
+            throw $t; // @codeCoverageIgnore
+        }
+
+        $refhandler = new ReflectionFunction($this->throwableHandler);
+        $param = $refhandler->getParameters()[0] ?? null;
+        if ($param && $param->hasType()) {
+            $type = reflect_types($param);
+            if (!$type->allows($t)) {
+                throw $t; // @codeCoverageIgnore
+            }
+        }
+        ($this->throwableHandler)($t);
+    }
+
     /**
      * reset function base's value on temporary scope
      *
