@@ -101,6 +101,9 @@ class Actual implements \ArrayAccess
         ],
     ];
 
+    /**
+     * @deprecated
+     */
     public static $functionNamespaces = [
         "\\"                   => ['*'],
         "\\ryunosuke\\PHPUnit" => ['*'],
@@ -801,6 +804,8 @@ class Actual implements \ArrayAccess
     }
 
     /**
+     * @deprecated
+     *
      * @param callable $function
      * @param mixed ...$arguments
      * @return Actual
@@ -1002,6 +1007,9 @@ class Actual implements \ArrayAccess
         return $arguments;
     }
 
+    /**
+     * @deprecated
+     */
     private function functionArgument($function): ?string
     {
         if (strpos($function, '->') === 0 || strpos($function, '::') === 0) {
