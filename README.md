@@ -47,6 +47,7 @@ Simplified chart:
 | echo               | dump original                       | $this
 | eval               | assert constraint directly          | $this
 | as                 | set assertion message               | $this
+| break              | mark breakable test                 | $this
 | and                | return latest asserted actual       | actual of latest asserted
 | final              | return assertion statistic          | actual of assertion statistic
 | declare            | rewrite source by actual value      | $this
@@ -220,6 +221,13 @@ class ActualTest extends \PHPUnit\Framework\TestCase
         # "as" describes failure text
         // means: assertThat('x', equalTo('notX'), 'this is failure message');
         that('x')->as('this is failure message')->isEqual('notX');
+    }
+
+    function test_break()
+    {
+        # "break" mark breakable test (converting Failure to Warning)
+        that('x')->break()->isEqual('notX');
+        // ...continued this case
     }
 
     function test_and_exit()
@@ -404,6 +412,8 @@ This method returns annotation via `$constraintVariations` and `$constraintNames
 
 This Trait provides testing utility.
 
+- trapThrowable
+    - If specified exception is thrown then skip the test.
 - restorer
     - Reset function base's value. When unset return value recovery prev value.
 - rewriteProperty
@@ -443,6 +453,14 @@ ryunosuke\PHPUnit\Exporter\Exporter::insteadOf();
 ## Release
 
 Versioning is Semantic Versioning.
+
+### 3.11.0
+
+- [change] changed ProgressPrinter format and support breakable test
+- [feature] added trapThrowable
+- [feature] added breakable
+- [change] deprecated function caller
+- [refactor] fixed wrong namespace
 
 ### 3.10.1
 
