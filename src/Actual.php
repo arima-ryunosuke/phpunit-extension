@@ -334,7 +334,7 @@ class Actual implements \ArrayAccess
         $classname = Actual::class;
 
         $classes = [];
-        foreach (file_list($inputdir, ['extension' => 'php']) as $file) {
+        foreach (is_dir($inputdir) ? file_list($inputdir, ['extension' => 'php']) : [$inputdir] as $file) {
             $current = get_declared_classes();
             ob_start();
             require_once $file;
@@ -376,6 +376,11 @@ class Actual implements \ArrayAccess
             }
 
             $stubname = "$outputdir/" . strtr($refclass->name, ['\\' => DIRECTORY_SEPARATOR]) . '.stub.php';
+            $stubspace = "stub{$v($refclass->getNamespaceName() ? "\\" . $refclass->getNamespaceName() : '')}";
+            $stubclass = "{$v($refclass->getShortName())}Stub";
+            $stubparent = "{$v($refclass->getParentClass() ? "\\stub\\{$v($refclass->getParentClass()->getName())}Stub" : '')}";
+            $generated[] = "\\$stubspace\\$stubclass";
+
             if (
                 ($refclass->isInternal() && file_exists($stubname)) ||
                 (!$refclass->isInternal() && file_exists($stubname) && filemtime($stubname) > filemtime($refclass->getFileName()))
@@ -428,10 +433,6 @@ class Actual implements \ArrayAccess
                 }
             }
 
-            $stubspace = "stub{$v($refclass->getNamespaceName() ? "\\" . $refclass->getNamespaceName() : '')}";
-            $stubclass = "{$v($refclass->getShortName())}Stub";
-            $stubparent = "{$v($refclass->getParentClass() ? "\\stub\\{$v($refclass->getParentClass()->getName())}Stub" : '')}";
-            $generated[] = "\\$stubspace\\$stubclass";
             file_set_contents($stubname, <<<PHP
                 <?php /** @noinspection PhpLanguageLevelInspection */
                 
