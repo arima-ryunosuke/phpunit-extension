@@ -9,6 +9,7 @@ use RecursiveIteratorIterator;
 use ReflectionClass;
 use ReflectionFunction;
 use RuntimeException;
+use stdClass;
 use Throwable;
 
 trait TestCaseTrait
@@ -242,5 +243,29 @@ trait TestCaseTrait
         }
 
         return realpath($directory);
+    }
+
+    /**
+     * do closure asynchronous
+     *
+     * @param Closure $closure
+     * @return \ProcessAsync
+     */
+    public function backgroundTask(Closure $closure)
+    {
+        // unset $this bind. because TestCase is huge object
+        if (is_bindable_closure($closure)) {
+            $closure = $closure->bindTo(new stdClass(), 'static');
+        }
+
+        $autoloder = var_export(auto_loader(), true);
+        $task = var_export3($closure, [
+            'format'  => 'pretty',
+            'outmode' => null,
+            'return'  => true,
+        ]);
+        $scriptfile = sys_get_temp_dir() . '/backgroundTask' . spl_object_id($closure) . '.php';
+        file_put_contents($scriptfile, "<?php\nrequire_once $autoloder;\n$task();");
+        return process_async(PHP_BINARY, [$scriptfile]);
     }
 }

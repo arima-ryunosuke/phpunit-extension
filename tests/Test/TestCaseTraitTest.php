@@ -179,4 +179,22 @@ class TestCaseTraitTest extends \ryunosuke\Test\AbstractTestCase
 
         $this->assertFileDoesNotExist($dummy);
     }
+
+    function test_backgroundTask()
+    {
+        $dir = $this->emptyDirectory();
+        $task = $this->backgroundTask(function () use ($dir) {
+            while (true) {
+                sleep(1);
+                file_put_contents("$dir/log.txt", "added\n", FILE_APPEND);
+            }
+        });
+
+        that("$dir/log.txt")->fileNotExists();
+
+        usleep(1000 * 1500);
+        that("$dir/log.txt")->fileEquals("added\n");
+
+        $task->terminate();
+    }
 }
