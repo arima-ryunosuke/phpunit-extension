@@ -7103,7 +7103,7 @@ if (!isset($excluded_functions["reflect_types"]) && (!function_exists("ryunosuke
      * ```
      *
      * @param \ReflectionFunctionAbstract|\ReflectionType|\ReflectionType[]|null $reflection_type getType 等で得られるインスタンス
-     * @return \Traversable|\ArrayAccess|\Countable|\ReflectionNamedType|\ReflectionUnionType
+     * @return \ReflectionAnyType|object
      */
     function reflect_types($reflection_type = null)
     {
@@ -7847,7 +7847,10 @@ if (!isset($excluded_functions["date_timestamp"]) && (!function_exists("ryunosuk
             }
         }
 
-        return $parts['fraction'] ? $timestamp + $parts['fraction'] : $timestamp;
+        if ($parts['fraction']) {
+            $timestamp += ($timestamp >= 0 ? +$parts['fraction'] : -$parts['fraction']);
+        }
+        return $timestamp;
     }
 }
 if (function_exists("ryunosuke\\PHPUnit\\date_timestamp") && !defined("ryunosuke\\PHPUnit\\date_timestamp")) {
@@ -9516,7 +9519,13 @@ if (!isset($excluded_functions["dir_diff"]) && (!function_exists("ryunosuke\\PHP
         $differ = $options['differ'] ?? fn($file1, $file2) => '';
 
         $list1 = file_list($path1, $filter_condition);
+        if ($list1 === false) {
+            throw new \UnexpectedValueException("$path1 does not exists");
+        }
         $list2 = file_list($path2, $filter_condition);
+        if ($list2 === false) {
+            $list2 = [];
+        }
 
         $files1 = array_combine($list1, $list1);
         $files2 = array_combine($list2, $list2);
@@ -10049,6 +10058,10 @@ if (!isset($excluded_functions["rm_rf"]) && (!function_exists("ryunosuke\\PHPUni
             return !$self || rmdir($dirname);
         };
 
+        if (is_file($dirname) || is_link($dirname)) {
+            return unlink($dirname);
+        }
+
         $result = true;
         $targets = glob($dirname, GLOB_BRACE | GLOB_NOCHECK | ($self ? 0 : GLOB_ONLYDIR));
         foreach ($targets as $target) {
@@ -10143,7 +10156,7 @@ if (!isset($excluded_functions["get_modified_files"]) && (!function_exists("ryun
      *     }
      * }
      * // 全ループすると10秒かかるが、大体3秒程度で抜けているはず
-     * that(microtime(true) - $time)->lt(3.9);
+     * that(microtime(true) - $time)->break()->lt(3.9);
      * unset($p);
      * ```
      *
@@ -11026,21 +11039,13 @@ if (!isset($excluded_functions["callable_code"]) && (!function_exists("ryunosuke
         $end = $ref->getEndLine();
         $codeblock = implode('', array_slice($contents, $start - 1, $end - $start + 1));
 
-        $arrow = true;
         $meta = parse_php("<?php $codeblock", [
-            'begin' => T_FN,
-            'end'   => T_DOUBLE_ARROW,
+            'begin' => [T_FN, T_FUNCTION],
+            'end'   => ['{', T_DOUBLE_ARROW],
         ]);
-        if (!$meta) {
-            $arrow = false;
-            $meta = parse_php("<?php $codeblock", [
-                'begin' => T_FUNCTION,
-                'end'   => '{',
-            ]);
-        }
-        array_pop($meta);
+        $end = array_pop($meta);
 
-        if ($arrow) {
+        if ($end[0] === T_DOUBLE_ARROW) {
             $body = parse_php("<?php $codeblock", [
                 'begin'  => T_DOUBLE_ARROW,
                 'end'    => [';', ',', ')'],
@@ -13174,6 +13179,8 @@ if (!isset($excluded_functions["http_request"]) && (!function_exists("ryunosuke\
      *
      * - `raw` (bool): curl インスタンスと変換クロージャを返すだけになる
      *     - ただし、ほぼデバッグや内部用なので指定することはほぼ無いはず
+     * - `nobody` (bool): ヘッダーの受信が完了したらただちに処理を返す
+     *     - ボディは空文字になる（CURLOPT_NOBODY とは全く性質が異なるので注意）
      * - `throw` (bool): ステータスコードが 400 以上のときに例外を投げる
      *     - `CURLOPT_FAILONERROR` は原則使わないほうがいいと思う
      * - `retry` (float[]|callable): エラーが出た場合にリトライする
@@ -13245,6 +13252,7 @@ if (!isset($excluded_functions["http_request"]) && (!function_exists("ryunosuke\
 
             // custom options
             'raw'                  => false,
+            'nobody'               => false,
             'throw'                => true,
             'retry'                => [],
             'atfile'               => true,
@@ -13266,6 +13274,16 @@ if (!isset($excluded_functions["http_request"]) && (!function_exists("ryunosuke\
         if (isset($options['cookie_file'])) {
             $options[CURLOPT_COOKIEJAR] = $options['cookie_file'];
             $options[CURLOPT_COOKIEFILE] = $options['cookie_file'];
+        }
+        if ($options['nobody']) {
+            $headers = '';
+            $options[CURLOPT_HEADERFUNCTION] = function ($curl, $header) use (&$headers) {
+                if (trim($header) === '') {
+                    return -1;
+                }
+                $headers .= $header;
+                return strlen($header);
+            };
         }
 
         // ヘッダは後段の判定に頻出するので正規化して取得しておく
@@ -13297,7 +13315,7 @@ if (!isset($excluded_functions["http_request"]) && (!function_exists("ryunosuke\
                 $info['request_header'] = str_array($info['request_header'], ':', true);
             }
 
-            if (!($options[CURLOPT_NOBODY] ?? false)) {
+            if (!($options[CURLOPT_NOBODY] ?? false) && !$options['nobody']) {
                 $content_type = split_noempty(';', $info['content_type'] ?? '');
                 if ($convert = ($options['parser'][strtolower($content_type[0] ?? '')]['response'] ?? null)) {
                     $body = $convert($body, ...$content_type);
@@ -13438,7 +13456,11 @@ if (!isset($excluded_functions["http_request"]) && (!function_exists("ryunosuke\
         try {
             $retry_count = 0;
             do {
+                $headers = '';
                 $response = curl_exec($ch);
+                if ($options['nobody']) {
+                    $response = $headers;
+                }
                 $info = curl_getinfo($ch);
                 $info['retry'] = $retry_count++;
                 $info['errno'] = curl_errno($ch);
@@ -13446,7 +13468,7 @@ if (!isset($excluded_functions["http_request"]) && (!function_exists("ryunosuke\
                 usleep($time * 1000 * 1000);
             } while ($time);
 
-            if ($response === false) {
+            if (!($info['errno'] === CURLE_OK || ($options['nobody'] && $info['errno'] === CURLE_WRITE_ERROR))) {
                 throw new \RuntimeException(curl_error($ch), curl_errno($ch));
             }
         }
@@ -22753,13 +22775,19 @@ if (!isset($excluded_functions["parse_namespace"]) && (!function_exists("ryunosu
      */
     function parse_namespace($filename, $options = [])
     {
+        $filename = realpath($filename);
+        $filemtime = filemtime($filename);
         $options += [
-            'cache' => true,
+            'cache' => null,
         ];
-        if (!$options['cache']) {
-            cache(realpath($filename), null, __FUNCTION__);
+        if ($options['cache'] === null) {
+            $options['cache'] = cache($filename, fn() => $filemtime, 'filemtime') >= $filemtime;
         }
-        return cache(realpath($filename), function () use ($filename) {
+        if (!$options['cache']) {
+            cache($filename, null, 'filemtime');
+            cache($filename, null, __FUNCTION__);
+        }
+        return cache($filename, function () use ($filename) {
             $stringify = function ($tokens) {
                 // @codeCoverageIgnoreStart
                 if (version_compare(PHP_VERSION, '8.0.0') >= 0) {
@@ -23365,7 +23393,7 @@ if (!isset($excluded_functions["process_async"]) && (!function_exists("ryunosuke
      * @param string|resource $stderr 標準エラー（string を渡すと参照渡しで格納される。resource を渡すと fwrite される）
      * @param ?string $cwd 作業ディレクトリ
      * @param ?array $env 環境変数
-     * @return callable プロセスオブジェクト
+     * @return \ProcessAsync|object プロセスオブジェクト
      */
     function process_async($command, $args = [], $stdin = '', &$stdout = '', &$stderr = '', $cwd = null, array $env = null)
     {
@@ -23406,10 +23434,13 @@ if (!isset($excluded_functions["process_async"]) && (!function_exists("ryunosuke
 
         stream_set_blocking($pipes[1], false);
         stream_set_blocking($pipes[2], false);
+        stream_set_read_buffer($pipes[1], 4096);
+        stream_set_read_buffer($pipes[2], 4096);
 
         return new class($proc, $pipes, $stdout, $stderr) {
             private $proc;
             private $pipes;
+            private $status;
             public  $stdout;
             public  $stderr;
 
@@ -23433,47 +23464,76 @@ if (!isset($excluded_functions["process_async"]) && (!function_exists("ryunosuke
             public function __invoke()
             {
                 try {
-                    while (feof($this->pipes[1]) === false || feof($this->pipes[2]) === false) {
-                        $read = [$this->pipes[1], $this->pipes[2]];
-                        $write = $except = null;
-                        if (stream_select($read, $write, $except, 1) === false) {
-                            // （システムコールが別のシグナルによって中断された場合などに起こりえます）
-                            throw new \RuntimeException('stream_select failed.'); // @codeCoverageIgnore
-                        }
-                        foreach ($read as $fp) {
-                            $buffer = fread($fp, 1024);
-                            if ($fp === $this->pipes[1]) {
-                                if (!is_resource($this->stdout)) {
-                                    $this->stdout .= $buffer;
-                                }
-                                else {
-                                    fwrite($this->stdout, $buffer);
-                                }
-                            }
-                            elseif ($fp === $this->pipes[2]) {
-                                if (!is_resource($this->stderr)) {
-                                    $this->stderr .= $buffer;
-                                }
-                                else {
-                                    fwrite($this->stderr, $buffer);
-                                }
-                            }
-                        }
+                    /** @noinspection PhpStatementHasEmptyBodyInspection */
+                    while ($this->update()) {
+                        // noop
                     }
                 }
                 finally {
+                    $this->status = proc_get_status($this->proc);
                     fclose($this->pipes[1]);
                     fclose($this->pipes[2]);
                     $rc = proc_close($this->proc);
                     $this->proc = null;
                 }
 
-                return $rc;
+                return $this->status['running'] ? $rc : $this->status['exitcode'];
+            }
+
+            public function update()
+            {
+                if ($this->proc === null || (feof($this->pipes[1]) && feof($this->pipes[2]))) {
+                    return false;
+                }
+
+                $read = [$this->pipes[1], $this->pipes[2]];
+                $write = $except = null;
+                if (stream_select($read, $write, $except, 1) === false) {
+                    // （システムコールが別のシグナルによって中断された場合などに起こりえます）
+                    throw new \RuntimeException('stream_select failed.'); // @codeCoverageIgnore
+                }
+                foreach ($read as $fp) {
+                    $buffer = fread($fp, 1024);
+                    if ($fp === $this->pipes[1]) {
+                        if (!is_resource($this->stdout)) {
+                            $this->stdout .= $buffer;
+                        }
+                        else {
+                            fwrite($this->stdout, $buffer);
+                        }
+                    }
+                    elseif ($fp === $this->pipes[2]) {
+                        if (!is_resource($this->stderr)) {
+                            $this->stderr .= $buffer;
+                        }
+                        else {
+                            fwrite($this->stderr, $buffer);
+                        }
+                    }
+                }
+                return true;
             }
 
             public function status()
             {
-                return proc_get_status($this->proc);
+                $this->update();
+                return $this->status ?? proc_get_status($this->proc);
+            }
+
+            public function terminate()
+            {
+                fclose($this->pipes[1]);
+                fclose($this->pipes[2]);
+                proc_terminate($this->proc);
+                // terminate はシグナルを送るだけなので終了を待つ（さらに SIGTERM なので終わらないかもしれないので1秒ほどで打ち切る）
+                for ($i = 0; $i < 100; $i++, usleep(10_000)) {
+                    $this->status = proc_get_status($this->proc);
+                    if (!$this->status['running']) {
+                        break;
+                    }
+                }
+                $this->proc = null;
+                return !$this->status['running'];
             }
         };
     }
@@ -23502,7 +23562,7 @@ if (!isset($excluded_functions["process_parallel"]) && (!function_exists("ryunos
      *     return $arg1 + $arg2;
      * }, ['a' => [1, 2], 'b' => [2, 3], [3, 4]]);
      * // 1000ms かかる処理を3本実行するが、トータル時間は 3000ms ではなくそれ以下になる（多少のオーバーヘッドはある）
-     * that(microtime(true) - $t)->lessThan(2.0);
+     * that(microtime(true) - $t)->break()->lessThan(2.0);
      * // 実行結果は下記のような配列で返ってくる（その際キーは維持される）
      * that($result)->isSame([
      *     'a' => [
@@ -23541,7 +23601,7 @@ if (!isset($excluded_functions["process_parallel"]) && (!function_exists("ryunos
      *     },
      * ], ['a' => [1, 2], 'b' => [2, 3], [127]]);
      * // 300,500,1000ms かかる処理を3本実行するが、トータル時間は 1800ms ではなくそれ以下になる（多少のオーバーヘッドはある）
-     * that(microtime(true) - $t)->lessThan(1.5);
+     * that(microtime(true) - $t)->break()->lessThan(1.5);
      * // 実行結果は下記のような配列で返ってくる（その際キーは維持される）
      * that($result)->isSame([
      *     'a' => [
@@ -26368,6 +26428,10 @@ if (!isset($excluded_functions["var_export3"]) && (!function_exists("ryunosuke\\
         // 再帰用クロージャ
         $vars = [];
         $export = function ($value, $nest = 0) use (&$export, &$vars, $var_manager) {
+            $spacer0 = str_repeat(" ", 4 * ($nest + 0));
+            $spacer1 = str_repeat(" ", 4 * ($nest + 1));
+            $raw_export = fn($v) => $v;
+            $var_export = fn($v) => var_export($v, true);
             $neighborToken = function ($n, $d, $tokens) {
                 for ($i = $n + $d; isset($tokens[$i]); $i += $d) {
                     if ($tokens[$i][0] !== T_WHITESPACE) {
@@ -26375,23 +26439,31 @@ if (!isset($excluded_functions["var_export3"]) && (!function_exists("ryunosuke\\
                     }
                 }
             };
-            $resolveSymbol = function ($token, $prev, $next, $filename) {
+            $resolveSymbol = function ($token, $prev, $next, $ref) use ($var_export) {
                 if ($token[0] === T_STRING) {
                     if ($prev[0] === T_NEW || $next[0] === T_DOUBLE_COLON || $next[0] === T_VARIABLE || $next[1] === '{') {
-                        $token[1] = resolve_symbol($token[1], $filename, 'alias') ?? $token[1];
+                        $token[1] = resolve_symbol($token[1], $ref->getFileName(), 'alias') ?? $token[1];
                     }
                     elseif ($next[1] === '(') {
-                        $token[1] = resolve_symbol($token[1], $filename, 'function') ?? $token[1];
+                        $token[1] = resolve_symbol($token[1], $ref->getFileName(), 'function') ?? $token[1];
                     }
                     else {
-                        $token[1] = resolve_symbol($token[1], $filename, 'const') ?? $token[1];
+                        $token[1] = resolve_symbol($token[1], $ref->getFileName(), 'const') ?? $token[1];
                     }
+                }
+
+                // マジック定数の解決（__CLASS__, __TRAIT__ も書き換えなければならないが、非常に大変なので下記のみ）
+                if ($token[0] === T_FILE) {
+                    $token[1] = $var_export($ref->getFileName());
+                }
+                if ($token[0] === T_DIR) {
+                    $token[1] = $var_export(dirname($ref->getFileName()));
+                }
+                if ($token[0] === T_NS_C) {
+                    $token[1] = $var_export($ref->getNamespaceName());
                 }
                 return $token;
             };
-            $var_export = fn($v) => var_export($v, true);
-            $spacer0 = str_repeat(" ", 4 * ($nest + 0));
-            $spacer1 = str_repeat(" ", 4 * ($nest + 1));
 
             $vid = $var_manager->varId($value);
             if ($vid) {
@@ -26440,7 +26512,7 @@ if (!isset($excluded_functions["var_export3"]) && (!function_exists("ryunosuke\\
                 $arrow = starts_with($meta, 'fn') ? ' => ' : ' ';
                 $tokens = array_slice(parse_php("$meta{$arrow}$body;", TOKEN_PARSE), 1, -1);
 
-                $uses = "";
+                $uses = [];
                 $context = [
                     'class' => 0,
                     'brace' => 0,
@@ -26476,13 +26548,13 @@ if (!isset($excluded_functions["var_export3"]) && (!function_exists("ryunosuke\\
                     if ($token[0] === T_VARIABLE) {
                         $varname = substr($token[1], 1);
                         // クロージャ内クロージャの use に反応してしまうので存在するときのみとする
-                        if (array_key_exists($varname, $statics)) {
+                        if (array_key_exists($varname, $statics) && !isset($uses[$varname])) {
                             $recurself = $statics[$varname] === $value ? '&' : '';
-                            $uses .= "$spacer1\$$varname = $recurself{$export($statics[$varname], $nest + 1)};\n";
+                            $uses[$varname] = "$spacer1\$$varname = $recurself{$export($statics[$varname], $nest + 1)};\n";
                         }
                     }
 
-                    $tokens[$n] = $resolveSymbol($token, $prev, $next, $ref->getFileName());
+                    $tokens[$n] = $resolveSymbol($token, $prev, $next, $ref);
                 }
 
                 $code = indent_php(implode('', array_column($tokens, 1)), [
@@ -26497,7 +26569,7 @@ if (!isset($excluded_functions["var_export3"]) && (!function_exists("ryunosuke\\
                     $code = "static $code";
                 }
 
-                return "\$this->$vid = (function () {\n{$uses}{$spacer1}return $code;\n$spacer0})->call(\$this)";
+                return "\$this->$vid = (function () {\n{$raw_export(implode('', $uses))}{$spacer1}return $code;\n$spacer0})->call(\$this)";
             }
             if (is_object($value)) {
                 $ref = new \ReflectionObject($value);
@@ -26554,7 +26626,7 @@ if (!isset($excluded_functions["var_export3"]) && (!function_exists("ryunosuke\\
                             $token[1] = "replaced__construct";
                         }
 
-                        $block[] = $resolveSymbol($token, $prev, $next, $ref->getFileName());
+                        $block[] = $resolveSymbol($token, $prev, $next, $ref);
 
                         if ($token[1] === '{') {
                             $nesting++;
