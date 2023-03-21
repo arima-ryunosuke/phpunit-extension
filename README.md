@@ -424,6 +424,8 @@ This Trait provides testing utility.
     - Return constant(). If undefined then skip the test.
 - emptyDirectory
     - Ready temporary directory and clean contents.
+- backgroundTask
+    - Run closure asynchronously
 
 ### Custom printer
 
@@ -453,6 +455,12 @@ ryunosuke\PHPUnit\Exporter\Exporter::insteadOf();
 ## Release
 
 Versioning is Semantic Versioning.
+
+### 3.12.0
+
+- [change] suppressed warning at warning test
+- [feature] added backgroundTask
+- [fixbug] fixed mixin doesn't append no generated stub
 
 ### 3.11.0
 
