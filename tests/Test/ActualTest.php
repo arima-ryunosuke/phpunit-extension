@@ -4,6 +4,7 @@ namespace ryunosuke\Test;
 
 use PHPUnit\Framework\Constraint\IsEqual;
 use PHPUnit\Framework\RiskyTestError;
+use PHPUnit\Framework\TestCase;
 use ryunosuke\PHPUnit\Actual;
 use ryunosuke\PHPUnit\Util;
 use function ryunosuke\PHPUnit\file_set_contents;
@@ -921,7 +922,11 @@ Nzxc ');
     function test_break()
     {
         $this->actual(1)->break()->is(2);
-        $this->actual(1)->is(1);
+
+        $ref = new \ReflectionProperty(TestCase::class, 'warnings');
+        $ref->setAccessible(true);
+        $this->assertCount(1, $ref->getValue($this));
+        $ref->setValue($this, []);
     }
 
     function test_declare()
