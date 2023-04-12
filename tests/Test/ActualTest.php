@@ -131,6 +131,23 @@ class ActualTest extends \ryunosuke\Test\AbstractTestCase
     /**
      * @runInSeparateProcess
      */
+    function test_generateStub_file()
+    {
+        $input = __DIR__ . '/../tmp/input';
+        $output = __DIR__ . '/../tmp/output';
+        rm_rf($output);
+
+        file_set_contents("$output/RuntimeException.stub.php", 'dummy');
+
+        Actual::generateStub("$input/A.php", $output, 1);
+        $this->assertFileExists("$output/All.stub.php");
+        $this->assertFileExists("$output/stub/A.stub.php");
+        $this->assertFileDoesNotExist("$output/stub/nest/X.stub.php");
+    }
+
+    /**
+     * @runInSeparateProcess
+     */
     function test_generateStub_0()
     {
         $input = __DIR__ . '/../tmp/input';

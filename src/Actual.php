@@ -334,7 +334,7 @@ class Actual implements \ArrayAccess
         $classname = Actual::class;
 
         $classes = [];
-        foreach (is_dir($inputdir) ? file_list($inputdir, ['extension' => 'php']) : [$inputdir] as $file) {
+        foreach (is_file($inputdir) ? [$inputdir] : file_list($inputdir, ['extension' => 'php']) as $file) {
             $current = get_declared_classes();
             ob_start();
             require_once $file;
