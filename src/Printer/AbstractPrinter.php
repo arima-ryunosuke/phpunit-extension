@@ -2,6 +2,7 @@
 
 namespace ryunosuke\PHPUnit\Printer;
 
+use Exception;
 use PHPUnit\Framework\AssertionFailedError;
 use PHPUnit\Framework\ExpectationFailedException;
 use PHPUnit\Framework\IncompleteTest;
@@ -10,6 +11,7 @@ use PHPUnit\Framework\SkippedTestError;
 use PHPUnit\Framework\Test;
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\TestFailure;
+use PHPUnit\Framework\TestResult;
 use PHPUnit\Framework\TestSuite;
 use PHPUnit\Framework\Warning;
 use PHPUnit\Runner\PhptTestCase;
@@ -26,6 +28,8 @@ class AbstractPrinter extends DefaultResultPrinter
         AssertionFailedError::class => ['bg-red, fg-white', 'Failure'],
         Throwable::class            => ['fg-red, bold', 'Error'],
     ];
+
+    private static array $reports = [];
 
     protected int $numberOfColumns;
 
@@ -215,6 +219,44 @@ class AbstractPrinter extends DefaultResultPrinter
         }
 
         parent::printDefectTrace($defect);
+    }
+
+    protected function printFooter(TestResult $result): void
+    {
+        $print = function_exists('\\ryunosuke\\PHPUnit\\var_pretty')
+            ? fn($v) => \ryunosuke\PHPUnit\var_pretty($v, ['return' => true, 'context' => $this->colors ? 'cli' : 'plain'])
+            : fn($v) => print_r($v, true);
+
+        $defects = [];
+
+        foreach (self::$reports as ['testCase' => $testCase, 'messages' => $messages]) {
+            foreach ($messages as $n => $message) {
+                if (!(is_string($message) || (is_object($message) && method_exists($message, '__toString')))) {
+                    $message = $print($message);
+                }
+                $messages[$n] = trim($message, "\n");
+            }
+            $defects[] = new TestFailure($testCase, new class(implode("\n", $messages) . "\n") extends Exception {
+                public function __toString()
+                {
+                    return $this->getMessage();
+                }
+            });
+        }
+
+        $this->printDefects($defects, 'report');
+
+        parent::printFooter($result);
+    }
+
+    public static function report(TestCase $testCase, $message)
+    {
+        $id = spl_object_id($testCase);
+        self::$reports[$id] ??= [
+            'testCase' => $testCase,
+            'messages' => [],
+        ];
+        self::$reports[$id]['messages'][] = $message;
     }
 
     public function addError(Test $test, Throwable $t, float $time): void

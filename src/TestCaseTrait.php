@@ -4,11 +4,14 @@ namespace ryunosuke\PHPUnit;
 
 use Closure;
 use PHPUnit\Framework\SkippedTestError;
+use PHPUnit\Framework\TestCase;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use ReflectionClass;
 use ReflectionFunction;
+use ReflectionProperty;
 use RuntimeException;
+use ryunosuke\PHPUnit\Printer\AbstractPrinter;
 use stdClass;
 use Throwable;
 
@@ -267,5 +270,16 @@ trait TestCaseTrait
         $scriptfile = sys_get_temp_dir() . '/backgroundTask' . spl_object_id($closure) . '.php';
         file_put_contents($scriptfile, "<?php\nrequire_once $autoloder;\n$task();");
         return process_async(PHP_BINARY, [$scriptfile]);
+    }
+
+    /**
+     * report as phpunit's final header (only ProgressPrinter)
+     *
+     * @param mixed $message report content
+     */
+    public function report($message)
+    {
+        // delegate to AbstractPrinter for portability
+        AbstractPrinter::report($this, $message);
     }
 }

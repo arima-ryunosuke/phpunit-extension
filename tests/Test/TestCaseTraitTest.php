@@ -197,4 +197,13 @@ class TestCaseTraitTest extends \ryunosuke\Test\AbstractTestCase
 
         $task->terminate();
     }
+
+    function test_report()
+    {
+        $this->report('string report');
+        $this->report('string report2');
+        $this->report(['array', 'report']);
+        $this->report(['array', 'report2']);
+        $this->assertEquals(1, 1);
+    }
 }
