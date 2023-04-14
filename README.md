@@ -425,7 +425,9 @@ This Trait provides testing utility.
 - emptyDirectory
     - Ready temporary directory and clean contents.
 - backgroundTask
-    - Run closure asynchronously
+    - Run closure asynchronously.
+- report
+    - Report message to test result footer.
 
 ### Custom printer
 
@@ -455,6 +457,11 @@ ryunosuke\PHPUnit\Exporter\Exporter::insteadOf();
 ## Release
 
 Versioning is Semantic Versioning.
+
+### 3.13.0
+
+- [feature] add after report
+- [feature] generateStub supports glob pattern
 
 ### 3.12.0
 
