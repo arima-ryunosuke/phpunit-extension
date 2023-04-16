@@ -493,7 +493,7 @@ class Actual implements \ArrayAccess
         if (is_object($actual)) {
             static::$___objects[spl_object_id($this)] = get_class($actual);
         }
-        elseif (is_string($actual) && @class_exists($actual)) {
+        elseif (is_string($actual) && !is_callable(trim($actual, '\\')) && class_exists(trim($actual, '\\'))) {
             static::$___objects[spl_object_id($this)] = (string) $actual;
         }
     }
