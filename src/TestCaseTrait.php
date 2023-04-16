@@ -269,7 +269,17 @@ trait TestCaseTrait
         ]);
         $scriptfile = sys_get_temp_dir() . '/backgroundTask' . spl_object_id($closure) . '.php';
         file_put_contents($scriptfile, "<?php\nrequire_once $autoloder;\n$task();");
-        return process_async(PHP_BINARY, [$scriptfile]);
+        $process = process_async(PHP_BINARY, [$scriptfile]);
+
+        $ref = new ReflectionClass($this);
+        $refprop = $ref->getProperty('backupGlobals');
+        $refprop->setAccessible(true);
+        if ($refprop->getValue($this)) {
+            $process->setDestructAction('terminate');
+            $GLOBALS[__FUNCTION__][] = $process;
+        }
+
+        return $process;
     }
 
     /**

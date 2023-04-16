@@ -180,10 +180,13 @@ class TestCaseTraitTest extends \ryunosuke\Test\AbstractTestCase
         $this->assertFileDoesNotExist($dummy);
     }
 
+    /**
+     * @backupGlobals enabled
+     */
     function test_backgroundTask()
     {
         $dir = $this->emptyDirectory();
-        $task = $this->backgroundTask(function () use ($dir) {
+        $this->backgroundTask(function () use ($dir) {
             while (true) {
                 sleep(1);
                 file_put_contents("$dir/log.txt", "added\n", FILE_APPEND);
@@ -194,8 +197,6 @@ class TestCaseTraitTest extends \ryunosuke\Test\AbstractTestCase
 
         usleep(1000 * 1500);
         that("$dir/log.txt")->fileEquals("added\n");
-
-        $task->terminate();
     }
 
     function test_report()
