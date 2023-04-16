@@ -458,6 +458,11 @@ ryunosuke\PHPUnit\Exporter\Exporter::insteadOf();
 
 Versioning is Semantic Versioning.
 
+### 3.13.1
+
+- [fixbug] fixed sub-processes did not terminate when test failed.
+- [fixbug] fixed single backquote noticed on Windows
+
 ### 3.13.0
 
 - [feature] add after report
