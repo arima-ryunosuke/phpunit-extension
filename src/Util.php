@@ -15,6 +15,7 @@ class Util
         while ($dirname !== dirname($dirname)) {
             if (file_exists("$dirname/$markfile")) {
                 $root = $dirname;
+                break;
             }
             $dirname = dirname($dirname);
         }
