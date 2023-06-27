@@ -10,6 +10,9 @@ $excludeList = new \PHPUnit\Util\ExcludeList();
 $excludeList->getExcludedDirectories();
 $excludeList->addDirectory(__DIR__ . '/../src');
 
+// register comparator
+\SebastianBergmann\Comparator\Factory::getInstance()->register(new \ryunosuke\PHPUnit\Comparator\TraversableComparator());
+
 // declare that function
 if (!function_exists('that')) {
     /**

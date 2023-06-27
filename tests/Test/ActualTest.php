@@ -1044,6 +1044,32 @@ Nzxc ');
         DUMMY, file_get_contents($tmpfile));
     }
 
+    function test_comparator()
+    {
+        $abc = ['a', 'b', 'c'];
+        $cba = ['c', 'b', 'a'];
+        $fnabc = fn() => yield from $abc;
+        $fncba = fn() => yield from $cba;
+        $this->actual($abc)->is($abc);
+        $this->actual($fnabc())->is($abc);
+        $this->actual($fnabc())->is($fnabc());
+        $this->actual($fncba())->isNot($abc);
+        $this->actual($fncba())->is($abc, null, true);
+        $this->actual($fncba())->is($fncba(), null, true);
+
+        $abc = ['a' => 'A', 'b' => 'B', 'c' => 'C'];
+        $cba = ['c' => 'C', 'b' => 'B', 'a' => 'A'];
+        $fnabc = fn() => yield from $abc;
+        $fncba = fn() => yield from $cba;
+        $this->actual($abc)->is($abc);
+        $this->actual($fnabc())->is($abc);
+        $this->actual($fnabc())->is($fnabc());
+        $this->actual($fncba())->is($abc);
+        $this->actual($fncba())->is($fnabc());
+        $this->actual($fncba())->is($abc, null, true);
+        $this->actual($fncba())->is($fnabc(), null, true);
+    }
+
     function test_variation()
     {
         $this->actual('hoge')->isHoge();
