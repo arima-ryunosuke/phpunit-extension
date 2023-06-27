@@ -27,9 +27,13 @@ class ActualTest extends \ryunosuke\Test\AbstractTestCase
             
             class A
             {
+                private self              $self;
+            
                 private \RuntimeException $runtimeException;
                 private int               $testPrivateProperty;
                 public  string            $testPublicProperty;
+            
+                public static function create(): ?self { }
             
                 public function __clone() { }
             
@@ -114,6 +118,7 @@ class ActualTest extends \ryunosuke\Test\AbstractTestCase
 
         $a = file_get_contents("$output/stub/A.stub.php");
         $this->assertStringContainsString('\\RuntimeException|\\stub\\RuntimeExceptionStub|\\ryunosuke\\PHPUnit\\Actual', $a);
+        $this->assertStringContainsString('\\stub\\A|self|\\ryunosuke\\PHPUnit\\Actual', $a);
         $this->assertStringContainsString('int|\\ryunosuke\\PHPUnit\\Actual', $a);
         $this->assertStringContainsString('string|\\ryunosuke\\PHPUnit\\Actual', $a);
         $this->assertStringNotContainsString('__clone', $a);          // magic method

@@ -388,11 +388,15 @@ class Actual implements \ArrayAccess
                 continue;
             }
 
-            $mixTypes = function (?\ReflectionType $type) use ($classname) {
+            $mixTypes = function (?\ReflectionType $type, \ReflectionClass $self) use ($classname) {
                 $types = [];
                 foreach (reflect_types($type)->getTypes() as $type) {
                     $name = $type->getName();
                     if ($type->isBuiltin()) {
+                        $types[] = $name;
+                    }
+                    elseif (in_array($name, ['self', 'static'], true)) {
+                        $types[] = "\\$self->name";
                         $types[] = $name;
                     }
                     else {
@@ -408,7 +412,7 @@ class Actual implements \ArrayAccess
             foreach ($refclass->getProperties() as $property) {
                 if ($property->getDeclaringClass()->getName() === $refclass->getName()) {
                     $properties[] = "/** @see \\$refclass->name::\$$property->name */";
-                    $properties[] = "public {$v($property->isStatic() ? 'static ' : '')}{$v($mixTypes($property->getType()))} \$$property->name;";
+                    $properties[] = "public {$v($property->isStatic() ? 'static ' : '')}{$v($mixTypes($property->getType(), $refclass))} \$$property->name;";
                 }
             }
 
@@ -429,7 +433,7 @@ class Actual implements \ArrayAccess
                     }
 
                     $methods[] = "/** @see \\$refclass->name::$method->name() */";
-                    $methods[] = "public {$v($method->isStatic() ? 'static ' : '')}function $method->name({$v(implode(', ', $arguments))}): {$v($mixTypes($method->getReturnType()))} { }";
+                    $methods[] = "public {$v($method->isStatic() ? 'static ' : '')}function $method->name({$v(implode(', ', $arguments))}): {$v($mixTypes($method->getReturnType(), $refclass))} { }";
                 }
             }
 
