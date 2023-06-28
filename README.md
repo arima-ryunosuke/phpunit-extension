@@ -458,6 +458,12 @@ ryunosuke\PHPUnit\Exporter\Exporter::insteadOf();
 
 Versioning is Semantic Versioning.
 
+### 3.14.0
+
+- [feature] added TraversableComparator
+- [fixbug] fixed self/static type
+- [fixbug] fixed multiple markfile
+
 ### 3.13.1
 
 - [fixbug] fixed sub-processes did not terminate when test failed.
