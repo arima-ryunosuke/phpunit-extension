@@ -127,8 +127,8 @@ class ActualTest extends \ryunosuke\Test\AbstractTestCase
 
         $x = file_get_contents("$output/stub/nest/X.stub.php");
         $this->assertStringContainsString('originalMethod(int $a, string $b, \RuntimeException $ex)', $x); // arguments
-        $this->assertStringNotContainsString('testProtectedMethod1', $x); // same method
-        $this->assertStringContainsString('testProtectedMethod2', $x);    // override method
+        $this->assertStringNotContainsString('testProtectedMethod1', $x);                                  // same method
+        $this->assertStringContainsString('testProtectedMethod2', $x);                                     // override method
 
         $this->assertStringEqualsFile("$output/RuntimeException.stub.php", 'dummy'); // no output by mtime
     }
@@ -612,14 +612,14 @@ Nzxc ');
             $this->actual($object)->method(2)->is(20);
             $this->actual($object)->method(null)->getMessage()->is('this is message.');
             $this->actual($object)->method(null)->wasThrown('this is message');
+
+            $this->actual($object)->print(...[])->outputEquals('10');
+            $this->actual($object)->print(...[2])->outputEquals('20');
+
+            $array = [1, 2, 3];
+            $this->actual($array)->maximum()->is(3);
+            $this->actual($array)->implode1(',')->is('1,2,3');
         }
-
-        $this->actual($object)->print(...[])->outputEquals('10');
-        $this->actual($object)->print(...[2])->outputEquals('20');
-
-        $array = [1, 2, 3];
-        $this->actual($array)->maximum()->is(3);
-        $this->actual($array)->implode1(',')->is('1,2,3');
     }
 
     /**
@@ -653,9 +653,12 @@ Nzxc ');
     {
         Actual::$functionNamespaces = ['' => ['str_*', '!str_split', '!str_rot13']];
 
-        $this->actual('string')->str_repeat(3)->is('stringstringstring');
-        $this->actual('string')->str_split()->wasThrown();
-        $this->actual('string')->str_rot13()->wasThrown();
+        /** @noinspection PhpUndefinedMethodInspection */
+        {
+            $this->actual('string')->str_repeat(3)->is('stringstringstring');
+            $this->actual('string')->str_split()->wasThrown();
+            $this->actual('string')->str_rot13()->wasThrown();
+        }
     }
 
     function test_do()
@@ -767,13 +770,13 @@ Nzxc ');
             $this->actual($thrower)(10, 2)->is(5);
             $this->actual($thrower)(10, 0)->getMessage()->is('Division by zero');
             $this->actual($thrower)(10, 0)->wasThrown('Division by zero');
+
+            $this->actual($thrower)->undefined()->isUndefined();
         }
 
         $this->ng(function () use ($thrower) {
             $this->actual($thrower)(10, 0);
         }, 'Division by zero');
-
-        $this->actual($thrower)->undefined()->isUndefined();
     }
 
     function test_list()

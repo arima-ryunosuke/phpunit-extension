@@ -1003,7 +1003,7 @@ class Actual implements \ArrayAccess
             try {
                 Assert::assertThat($actual, $constraint, $this->___message);
             }
-            catch (AssertionFailedError $e){
+            catch (AssertionFailedError $e) {
                 if (!$this->___breakable) {
                     throw $e;
                 }

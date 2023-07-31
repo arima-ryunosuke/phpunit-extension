@@ -4,12 +4,10 @@ namespace ryunosuke\PHPUnit;
 
 use Closure;
 use PHPUnit\Framework\SkippedTestError;
-use PHPUnit\Framework\TestCase;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use ReflectionClass;
 use ReflectionFunction;
-use ReflectionProperty;
 use RuntimeException;
 use ryunosuke\PHPUnit\Printer\AbstractPrinter;
 use stdClass;

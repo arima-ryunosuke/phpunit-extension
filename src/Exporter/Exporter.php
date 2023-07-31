@@ -34,12 +34,12 @@
  */
 namespace ryunosuke\PHPUnit\Exporter;
 
-// @formatter:off
-
-use function ryunosuke\PHPUnit\mb_ellipsis;
 use LogicException;
 use SebastianBergmann\RecursionContext\Context;
 use SplObjectStorage;
+use function ryunosuke\PHPUnit\mb_ellipsis;
+
+// @formatter:off
 
 /**
  * fixes:
