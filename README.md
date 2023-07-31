@@ -458,6 +458,13 @@ ryunosuke\PHPUnit\Exporter\Exporter::insteadOf();
 
 Versioning is Semantic Versioning.
 
+### 3.15.0
+
+- [refactor] code format and fix inspection
+- [feature] added clear state to that
+- [fixbug] fixed Constraints and method calls is mixed
+- [fixbug] changed getXXXOrSkip to static
+
 ### 3.14.0
 
 - [feature] added TraversableComparator
