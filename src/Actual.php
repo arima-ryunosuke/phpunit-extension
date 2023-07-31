@@ -571,71 +571,76 @@ class Actual implements \ArrayAccess
 
         $actuals = $modes['each'] ? $this->___actual : [$this->___actual];
 
-        $callee = lcfirst($callee);
-        if (isset(self::$constraintVariations[$callee])) {
-            $variation = self::$constraintVariations[$callee];
-            if ($variation === false) {
-                goto SKIP;
-            }
-            if ($variation instanceof \Closure) {
-                $constraint = new class($variation, $arguments) extends Constraint {
-                    private $callback;
-                    private $arguments;
+        try {
+            $callee = lcfirst($callee);
+            if (isset(self::$constraintVariations[$callee])) {
+                $variation = self::$constraintVariations[$callee];
+                if ($variation === false) {
+                    goto SKIP;
+                }
+                if ($variation instanceof \Closure) {
+                    $constraint = new class($variation, $arguments) extends Constraint {
+                        private $callback;
+                        private $arguments;
 
-                    public function __construct(callable $callback, array $arguments)
-                    {
-                        $this->callback = $callback;
-                        $this->arguments = $arguments;
-                    }
-
-                    public function toString(): string
-                    {
-                        $args = [];
-                        $ref = new \ReflectionFunction($this->callback);
-                        foreach (array_slice($ref->getParameters(), 1) as $n => $p) {
-                            $args[$p->getName()] = array_key_exists($n, $this->arguments) ? $this->arguments[$n] : $p->getDefaultValue();
+                        public function __construct(callable $callback, array $arguments)
+                        {
+                            $this->callback = $callback;
+                            $this->arguments = $arguments;
                         }
-                        array_walk_recursive($args, function (&$v) {
-                            if (is_string($v)) {
-                                $v = strtr($v, ["\r\n" => '\r\n', "\r" => '\r', "\n" => '\n']);
+
+                        public function toString(): string
+                        {
+                            $args = [];
+                            $ref = new \ReflectionFunction($this->callback);
+                            foreach (array_slice($ref->getParameters(), 1) as $n => $p) {
+                                $args[$p->getName()] = array_key_exists($n, $this->arguments) ? $this->arguments[$n] : $p->getDefaultValue();
                             }
-                        });
-                        return sprintf('is accepted by function (%s) %s', paml_export($args), callable_code($this->callback)[1]);
-                    }
+                            array_walk_recursive($args, function (&$v) {
+                                if (is_string($v)) {
+                                    $v = strtr($v, ["\r\n" => '\r\n', "\r" => '\r', "\n" => '\n']);
+                                }
+                            });
+                            return sprintf('is accepted by function (%s) %s', paml_export($args), callable_code($this->callback)[1]);
+                        }
 
-                    protected function matches($other): bool
-                    {
-                        return ($this->callback)($other, ...$this->arguments);
-                    }
-                };
-                return $this->assert($actuals, $constraint);
-            }
-            if ($variation instanceof Constraint) {
-                $constraint = clone $variation;
-                if ($arguments) {
-                    $refclass = new \ReflectionClass($constraint);
-                    $refclass->getConstructor()->invokeArgs($constraint, $arguments);
+                        protected function matches($other): bool
+                        {
+                            return ($this->callback)($other, ...$this->arguments);
+                        }
+                    };
+                    return $this->assert($actuals, $constraint);
                 }
-                return $this->assert($actuals, $constraint);
+                if ($variation instanceof Constraint) {
+                    $constraint = clone $variation;
+                    if ($arguments) {
+                        $refclass = new \ReflectionClass($constraint);
+                        $refclass->getConstructor()->invokeArgs($constraint, $arguments);
+                    }
+                    return $this->assert($actuals, $constraint);
+                }
+
+                $constraints = [];
+                foreach ((array) $variation as $classname => $args) {
+                    if (is_int($classname)) {
+                        $classname = $args;
+                        $args = [];
+                    }
+                    $constraints[] = $this->newConstraint($classname, $arguments + $args, $modes);
+                }
+                return $this->assert($actuals, ...$constraints);
             }
 
-            $constraints = [];
-            foreach ((array) $variation as $classname => $args) {
-                if (is_int($classname)) {
-                    $classname = $args;
-                    $args = [];
+            $callee = ucfirst($callee);
+            foreach (self::$constraintNamespaces as $namespace => $directory) {
+                if (class_exists($constraintClass = trim($namespace, '\\') . '\\' . $callee)) {
+                    $constraint = $this->newConstraint($constraintClass, $arguments, $modes);
+                    return $this->assert($actuals, $constraint);
                 }
-                $constraints[] = $this->newConstraint($classname, $arguments + $args, $modes);
             }
-            return $this->assert($actuals, ...$constraints);
         }
-
-        $callee = ucfirst($callee);
-        foreach (self::$constraintNamespaces as $namespace => $directory) {
-            if (class_exists($constraintClass = trim($namespace, '\\') . '\\' . $callee)) {
-                $constraint = $this->newConstraint($constraintClass, $arguments, $modes);
-                return $this->assert($actuals, $constraint);
-            }
+        catch (\TypeError|\ArgumentCountError $e) {
+            // do nothing, fallback user method (e.g. count, isReadable, etc)
         }
 
         SKIP:

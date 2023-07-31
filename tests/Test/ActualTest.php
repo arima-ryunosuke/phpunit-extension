@@ -625,6 +625,30 @@ Nzxc ');
     /**
      * @backupStaticAttributes enabled
      */
+    function test_call_same_constraint()
+    {
+        $object = new class() {
+            public function count()
+            {
+                return 1;
+            }
+
+            public function isReadable()
+            {
+                return true;
+            }
+        };
+
+        Actual::$functionNamespaces = [];
+
+        /** @noinspection PhpParamsInspection */
+        $this->actual($object)->count()->is(1);
+        $this->actual($object)->isReadable()->is(true);
+    }
+
+    /**
+     * @backupStaticAttributes enabled
+     */
     function test_call_function()
     {
         Actual::$functionNamespaces = ['' => ['str_*', '!str_split', '!str_rot13']];
