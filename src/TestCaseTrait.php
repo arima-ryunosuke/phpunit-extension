@@ -191,7 +191,7 @@ trait TestCaseTrait
      * @param string $envName
      * @return string
      */
-    public function getEnvOrSkip(string $envName): ?string
+    public static function getEnvOrSkip(string $envName): ?string
     {
         $envvar = getenv($envName);
         if (strlen("$envvar") === 0) {
@@ -206,7 +206,7 @@ trait TestCaseTrait
      * @param string $constantName
      * @return mixed
      */
-    public function getConstOrSkip(string $constantName)
+    public static function getConstOrSkip(string $constantName)
     {
         if (!defined($constantName)) {
             throw new SkippedTestError("constant '$constantName' is not defined");
