@@ -809,6 +809,11 @@ class Actual implements \ArrayAccess
         return $that;
     }
 
+    public function insteadof(callable $callback)
+    {
+        return $this->create($callback($this->___actual));
+    }
+
     public function list($index = null): Actual
     {
         if ($index === null) {

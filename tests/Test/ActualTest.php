@@ -779,6 +779,11 @@ Nzxc ');
         }, 'Division by zero');
     }
 
+    function test_insteadof()
+    {
+        $this->actual('hello')->insteadof('strtoupper')->is('HELLO');
+    }
+
     function test_list()
     {
         $actual = $this->actual(function ($x, &$y, $z) {
