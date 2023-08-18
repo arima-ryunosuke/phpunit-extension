@@ -40,6 +40,7 @@ Simplified chart:
 | do                 | call original method                | actual of method's return
 | try                | call original method no thrown      | actual of method's return or expcetion
 | new                | call class construct no thrown      | actual of object or expcetion
+| insteadof          | apply callable                      | actual of applied value
 | function           | apply global function               | actual of applied value
 | foreach            | apply global function each element  | actual of applied value
 | list               | return reference argument           | actual of reference argument
@@ -457,6 +458,11 @@ ryunosuke\PHPUnit\Exporter\Exporter::insteadOf();
 ## Release
 
 Versioning is Semantic Versioning.
+
+### 3.16.0
+
+- [feature] added insteadof
+- [change] obsolete clear global states
 
 ### 3.15.0
 
