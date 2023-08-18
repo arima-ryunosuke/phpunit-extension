@@ -22,12 +22,6 @@ if (!function_exists('that')) {
      */
     function that($value)
     {
-        // clear global states
-        error_clear_last();
-        libxml_clear_errors();
-        json_encode(null);
-        preg_match("#.*#", '');
-
         return new \ryunosuke\PHPUnit\Actual($value);
     }
 }
