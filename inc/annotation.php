@@ -158,6 +158,15 @@ namespace ryunosuke\PHPUnit;
  * @method \ryunosuke\PHPUnit\Actual isTruthy()
  * @method \ryunosuke\PHPUnit\Actual isNotTruthy()
  *
+ * @see \ryunosuke\PHPUnit\Constraint\IsTypeOf
+ * @method \ryunosuke\PHPUnit\Actual eachIsTypeOf(string $type)
+ * @method \ryunosuke\PHPUnit\Actual isTypeOf(string $type)
+ * @method \ryunosuke\PHPUnit\Actual isNotTypeOf(string $type)
+ * @method \ryunosuke\PHPUnit\Actual isTypeOfAny(array $types)
+ * @method \ryunosuke\PHPUnit\Actual isTypeOfAll(array $types)
+ * @method \ryunosuke\PHPUnit\Actual isNotTypeOfAny(array $types)
+ * @method \ryunosuke\PHPUnit\Actual isNotTypeOfAll(array $types)
+ *
  * @see \ryunosuke\PHPUnit\Constraint\IsValid
  * @method \ryunosuke\PHPUnit\Actual eachIsValid(string $type, $flags = 0)
  * @method \ryunosuke\PHPUnit\Actual isValid(string $type, $flags = 0)

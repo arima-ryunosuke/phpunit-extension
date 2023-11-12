@@ -849,6 +849,29 @@ if (!function_exists('ryunosuke\\PHPUnit\\auto_loader')) {
     }
 }
 
+assert(!function_exists('ryunosuke\\PHPUnit\\class_loader') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\class_loader'))->isUserDefined());
+if (!function_exists('ryunosuke\\PHPUnit\\class_loader')) {
+    /**
+     * composer のクラスローダを返す
+     *
+     * かなり局所的な実装で vendor ディレクトリを変更していたりするとそれだけで例外になる。
+     *
+     * Example:
+     * ```php
+     * that(class_loader())->isInstanceOf(\Composer\Autoload\ClassLoader::class);
+     * ```
+     *
+     * @package ryunosuke\Functions\Package\classobj
+     *
+     * @param ?string $startdir 高速化用の検索開始ディレクトリを指定するが、どちらかと言えばテスト用
+     * @return \Composer\Autoload\ClassLoader クラスローダ
+     */
+    function class_loader($startdir = null)
+    {
+        return require auto_loader($startdir);
+    }
+}
+
 assert(!function_exists('ryunosuke\\PHPUnit\\get_object_properties') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\get_object_properties'))->isUserDefined());
 if (!function_exists('ryunosuke\\PHPUnit\\get_object_properties')) {
     /**
@@ -926,6 +949,50 @@ if (!function_exists('ryunosuke\\PHPUnit\\get_object_properties')) {
         }
 
         return $result;
+    }
+}
+
+assert(!function_exists('ryunosuke\\PHPUnit\\type_exists') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\type_exists'))->isUserDefined());
+if (!function_exists('ryunosuke\\PHPUnit\\type_exists')) {
+    /**
+     * 型が存在するか返す
+     *
+     * class/interface/trait/enum exists の合せ技。
+     * trait/enum のように今後型的なものがさらに増えるかもしれないし、class_exists だけして interface/trait が抜けているコードを何度も見てきた。
+     * それを一元管理するような関数となる。
+     *
+     * Example:
+     * ```php
+     * that(class_exists(\Throwable::class))->isFalse();     // class_exists は class にしか反応しない
+     * that(interface_exists(\Exception::class))->isFalse(); // interface_exists は interface にしか反応しない
+     * that(trait_exists(\Error::class))->isFalse();         // trait_exists は trait にしか反応しない
+     * // type_exists であれば全てに反応する
+     * that(type_exists(\Throwable::class))->isTrue();
+     * that(type_exists(\Exception::class))->isTrue();
+     * that(type_exists(\Error::class))->isTrue();
+     * ```
+     *
+     * @package ryunosuke\Functions\Package\classobj
+     *
+     * @param string $typename 調べる型名
+     * @param bool $autoload オートロードを行うか
+     * @return bool 型が存在するなら true
+     */
+    function type_exists($typename, $autoload = true)
+    {
+        if (class_exists($typename, $autoload)) {
+            return true;
+        }
+        if (interface_exists($typename, $autoload)) {
+            return true;
+        }
+        if (trait_exists($typename, $autoload)) {
+            return true;
+        }
+        if (function_exists('enum_exists') && enum_exists($typename, $autoload)) {
+            return true; // @codeCoverageIgnore
+        }
+        return false;
     }
 }
 
@@ -2425,7 +2492,8 @@ if (!function_exists('ryunosuke\\PHPUnit\\chain')) {
     function chain($source = null)
     {
         if (function_configure('chain.version') === 2) {
-            return new class($source) implements \Countable, \ArrayAccess, \IteratorAggregate, \JsonSerializable {
+            $chain_object = new class($source) implements \Countable, \ArrayAccess, \IteratorAggregate, \JsonSerializable {
+                public static  $__CLASS__;
                 private static $metadata = [];
 
                 private $data;
@@ -2524,6 +2592,10 @@ if (!function_exists('ryunosuke\\PHPUnit\\chain')) {
                         || (is_callable(__NAMESPACE__ . "\\$name", false, $fname))
                         || ($isiterable && is_callable(__NAMESPACE__ . "\\array_$name", false, $fname))
                         || ($isstringable && is_callable(__NAMESPACE__ . "\\str_$name", false, $fname))
+                        // for class
+                        || (is_callable([self::$__CLASS__, $name], false, $fname))
+                        || ($isiterable && is_callable([self::$__CLASS__, "array_$name"], false, $fname))
+                        || ($isstringable && is_callable([self::$__CLASS__, "str_$name"], false, $fname))
                     ) {
                         return $fname;
                     }
@@ -2609,6 +2681,8 @@ if (!function_exists('ryunosuke\\PHPUnit\\chain')) {
                     return $callback(...$realargs);
                 }
             };
+            $chain_object::$__CLASS__ = __CLASS__;
+            return $chain_object;
         }
 
         // @codeCoverageIgnoreStart
@@ -7111,6 +7185,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\var_pretty')) {
             'maxlength'     => null,  // スカラー・非複合配列の文字数
             'maxlistcolumn' => 120,   // 通常配列を1行化する文字数
             'limit'         => null,  // 最終出力の文字数
+            'excludeclass'  => [],    // 除外するクラス名
         ];
 
         if ($options['context'] === null) {
@@ -7398,7 +7473,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\var_pretty')) {
                     }
                     elseif ($tableofarray) {
                         $markdown = markdown_table(array_map(fn($v) => $this->array($v), $value), [
-                            'keylabel' => "",
+                            'keylabel' => "#",
                             'context'  => $this->options['context'],
                         ]);
                         $this->plain($tableofarray, 'green');
@@ -7492,6 +7567,12 @@ if (!function_exists('ryunosuke\\PHPUnit\\var_pretty')) {
                 }
                 elseif (is_object($value)) {
                     $this->value($value);
+
+                    foreach ((array) $this->options['excludeclass'] as $class) {
+                        if ($value instanceof $class) {
+                            goto FINALLY_;
+                        }
+                    }
 
                     if ($this->options['minify']) {
                         goto FINALLY_;

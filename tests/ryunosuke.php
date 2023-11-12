@@ -10800,6 +10800,80 @@ if (!function_exists('ryunosuke\\PHPUnit\\error')) {
     }
 }
 
+assert(!function_exists('ryunosuke\\PHPUnit\\set_trace_logger') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\set_trace_logger'))->isUserDefined());
+if (!function_exists('ryunosuke\\PHPUnit\\set_trace_logger')) {
+    /**
+     * メソッド呼び出しロガーを仕込む
+     *
+     * この関数はかなり実験的なもので、互換性を考慮しない。
+     *
+     * @package ryunosuke\Functions\Package\errorfunc
+     *
+     * @param resource|string $logfile 書き出すファイル名
+     * @param string $target 仕込むクラスの正規表現
+     * @return mixed
+     */
+    function set_trace_logger($logfile, $liner, string $target)
+    {
+        $logfile = is_string($logfile) ? fopen($logfile, 'a') : $logfile; // for testing
+        $liner ??= function ($values) {
+            $stringify = function ($value, &$total = 0) use (&$stringify) {
+                if (is_array($value)) {
+                    $result = [];
+                    $n = 0;
+                    foreach ($value as $k => $v) {
+                        if (++$total > 10) {
+                            $result[] = '...';
+                            break;
+                        }
+                        $v = $stringify($v, $total);
+                        if ($k === $n) {
+                            $result[] = $v;
+                        }
+                        else {
+                            $result[] = "$k:$v";
+                        }
+                        $n++;
+                    }
+                    return "[" . implode(",", $result) . "]";
+                }
+                if (is_object($value)) {
+                    return get_class($value) . "#" . spl_object_id($value);
+                }
+                if (is_resource($value)) {
+                    return (string) $value;
+                }
+                return json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            };
+            $values['time'] = $values['time']->format('Y-m-d\TH:i:s.v');
+            $values['args'] = implode(', ', array_map($stringify, $values['args']));
+            return vsprintf("[%s] %s %s::%s(%s);%s:%d\n", $values);
+        };
+
+        $GLOBALS['___trace_log_internal'] = function (string $file, int $line, string $class, string $method) use ($logfile, $liner) {
+            fwrite($logfile, $liner([
+                'id'     => $_SERVER['UNIQUE_ID'] ?? str_pad($_SERVER['REQUEST_TIME_FLOAT'], 15, STR_PAD_RIGHT),
+                'time'   => new \DateTime(),
+                'class'  => $class,
+                'method' => $method,
+                'args'   => debug_backtrace(DEBUG_BACKTRACE_PROVIDE_OBJECT, 2)[1]['args'] ?? [],
+                'file'   => $file,
+                'line'   => $line,
+            ]));
+        };
+
+        return register_autoload_function(function ($classname, $filename, $contents) use ($target) {
+            if (preg_match($target, $classname)) {
+                $contents ??= file_get_contents($filename);
+                $contents = preg_replace_callback('#((final|public|protected|private|static)\s+){0,3}function\s+[_0-9a-z]+?\([^{]+\{#usmi', function ($m) {
+                    return $m[0] . "(\$GLOBALS['___trace_log_internal'] ?? fn() => null)(__FILE__, __LINE__ - 1, __CLASS__, __FUNCTION__);";
+                }, $contents);
+                return $contents;
+            }
+        });
+    }
+}
+
 assert(!function_exists('ryunosuke\\PHPUnit\\stacktrace') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\stacktrace'))->isUserDefined());
 if (!function_exists('ryunosuke\\PHPUnit\\stacktrace')) {
     /**
@@ -13473,7 +13547,8 @@ if (!function_exists('ryunosuke\\PHPUnit\\chain')) {
     function chain($source = null)
     {
         if (function_configure('chain.version') === 2) {
-            return new class($source) implements \Countable, \ArrayAccess, \IteratorAggregate, \JsonSerializable {
+            $chain_object = new class($source) implements \Countable, \ArrayAccess, \IteratorAggregate, \JsonSerializable {
+                public static  $__CLASS__;
                 private static $metadata = [];
 
                 private $data;
@@ -13572,6 +13647,10 @@ if (!function_exists('ryunosuke\\PHPUnit\\chain')) {
                         || (is_callable(__NAMESPACE__ . "\\$name", false, $fname))
                         || ($isiterable && is_callable(__NAMESPACE__ . "\\array_$name", false, $fname))
                         || ($isstringable && is_callable(__NAMESPACE__ . "\\str_$name", false, $fname))
+                        // for class
+                        || (is_callable([self::$__CLASS__, $name], false, $fname))
+                        || ($isiterable && is_callable([self::$__CLASS__, "array_$name"], false, $fname))
+                        || ($isstringable && is_callable([self::$__CLASS__, "str_$name"], false, $fname))
                     ) {
                         return $fname;
                     }
@@ -13657,6 +13736,8 @@ if (!function_exists('ryunosuke\\PHPUnit\\chain')) {
                     return $callback(...$realargs);
                 }
             };
+            $chain_object::$__CLASS__ = __CLASS__;
+            return $chain_object;
         }
 
         // @codeCoverageIgnoreStart
@@ -20664,6 +20745,102 @@ if (!function_exists('ryunosuke\\PHPUnit\\kvsprintf')) {
     }
 }
 
+assert(!function_exists('ryunosuke\\PHPUnit\\mb_compatible_encoding') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\mb_compatible_encoding'))->isUserDefined());
+if (!function_exists('ryunosuke\\PHPUnit\\mb_compatible_encoding')) {
+    /**
+     * 指定エンコーディング間に互換性があるかを返す
+     *
+     * ※ ユースケースとして多い utf8,sjis 以外はほぼ実装していないので注意（かなり適当なのでそれすらも怪しい）
+     *
+     * mb_convert_encoding/mb_convert_variables は実際に変換が行われなくても処理が走ってしまうので、それを避けるための関数。
+     * エンコーディングはただでさえカオスなのに utf8, UTF-8, sjis, sjis-win, cp932 などの表記揺れやエイリアスがあるので判定が結構しんどい。
+     *
+     * Example:
+     * ```php
+     * // ほぼ唯一のユースケース（互換性があるなら変換しない）
+     * if (!mb_compatible_encoding(mb_internal_encoding(), 'utf8')) {
+     *     mb_convert_encoding('utf8 string', 'utf8');
+     * }
+     * ```
+     *
+     * @package ryunosuke\Functions\Package\strings
+     *
+     * @param string $from 変換元エンコーディング
+     * @param string $to 変換先エンコーディング
+     * @return ?bool from が to に対して互換性があるなら true（8bit binary の時のみ例外的に null を返す）
+     */
+    function mb_compatible_encoding($from, $to)
+    {
+        static $encmap = [];
+        if (!$encmap) {
+            foreach (mb_list_encodings() as $encoding) {
+                $encmap[strtolower($encoding)] = [
+                    'aliases'  => array_flip(array_map('strtolower', mb_encoding_aliases($encoding))),
+                    'mimename' => strtolower((string) @mb_preferred_mime_name($encoding)),
+                ];
+            }
+        }
+
+        // php 世界のエンコーディング名に正規化
+        $normalize = function ($encoding) use ($encmap) {
+            $encoding = strtolower($encoding);
+
+            static $cache = [];
+
+            if (isset($cache[$encoding])) {
+                return $cache[$encoding];
+            }
+
+            if (isset($encmap[$encoding])) {
+                return $cache[$encoding] = $encoding;
+            }
+            foreach ($encmap as $encname => ['aliases' => $aliases]) {
+                if (isset($aliases[$encoding])) {
+                    return $cache[$encoding] = $encname;
+                }
+            }
+            foreach ($encmap as $encname => ['mimename' => $mimename]) {
+                if ($mimename === $encoding) {
+                    return $cache[$encoding] = $encname;
+                }
+            }
+
+            throw new \InvalidArgumentException("$encoding is not supported encoding");
+        };
+
+        $from = $normalize($from);
+        $to = $normalize($to);
+
+        // 他方が 8bit(binary) は全く互換性がない（互換性がないというか、そもそもテキストではない）
+        // false を返すべきだが呼び元で特殊な処理をしたいことがあると思うので null にする
+        if ($from === '8bit' xor $to === '8bit') {
+            return null;
+        }
+
+        // 同じなら完全互換だろう
+        if ($from === $to) {
+            return true;
+        }
+
+        // ucs 系以外は大抵は ASCII 互換
+        if ($from === 'ascii' && !preg_match('#^(ucs-2|ucs-4|utf-16|utf-32)#', $to)) {
+            return true;
+        }
+
+        // utf8 派生
+        if ($from === 'utf-8' && strpos($to, 'utf-8') === 0) {
+            return true;
+        }
+
+        // sjis 派生
+        if ($from === 'sjis' && (strpos($to, 'sjis') === 0 || $to === 'cp932')) {
+            return true;
+        }
+
+        return false;
+    }
+}
+
 assert(!function_exists('ryunosuke\\PHPUnit\\mb_ellipsis') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\mb_ellipsis'))->isUserDefined());
 if (!function_exists('ryunosuke\\PHPUnit\\mb_ellipsis')) {
     /**
@@ -21112,17 +21289,19 @@ if (!function_exists('ryunosuke\\PHPUnit\\pascal_case')) {
      * Example:
      * ```php
      * that(pascal_case('this_is_a_pen'))->isSame('ThisIsAPen');
+     * that(pascal_case('this_is-a-pen', '-_'))->isSame('ThisIsAPen');
      * ```
      *
      * @package ryunosuke\Functions\Package\strings
      *
      * @param string $string 対象文字列
-     * @param string $delimiter デリミタ
+     * @param string $delimiter デリミタ（複数可）
      * @return string 変換した文字列
      */
     function pascal_case($string, $delimiter = '_')
     {
-        return strtr(ucwords(strtr($string, [$delimiter => ' '])), [' ' => '']);
+        $replacemap = array_combine(str_split($delimiter), array_pad([], strlen($delimiter), ' '));
+        return strtr(ucwords(strtr($string, $replacemap)), [' ' => '']);
     }
 }
 
@@ -21392,17 +21571,21 @@ if (!function_exists('ryunosuke\\PHPUnit\\snake_case')) {
      * Example:
      * ```php
      * that(snake_case('ThisIsAPen'))->isSame('this_is_a_pen');
+     * that(snake_case('URLEncode', '-'))->isSame('u-r-l-encode');     // デフォルトでは略語も分割される
+     * that(snake_case('URLEncode', '-', true))->isSame('url-encode'); // 第3引数 true で略語は維持される
      * ```
      *
      * @package ryunosuke\Functions\Package\strings
      *
      * @param string $string 対象文字列
      * @param string $delimiter デリミタ
+     * @param bool $keep_abbr すべて大文字の単語を1単語として扱うか
      * @return string 変換した文字列
      */
-    function snake_case($string, $delimiter = '_')
+    function snake_case($string, $delimiter = '_', $keep_abbr = false)
     {
-        return ltrim(strtolower(preg_replace('/[A-Z]/', $delimiter . '\0', $string)), $delimiter);
+        $pattern = $keep_abbr ? '/[A-Z]([A-Z](?![a-z]))*/' : '/[A-Z]/';
+        return ltrim(strtolower(preg_replace($pattern, $delimiter . '\0', $string)), $delimiter);
     }
 }
 
@@ -23986,6 +24169,133 @@ if (!function_exists('ryunosuke\\PHPUnit\\build_uri')) {
         $uri .= concat('?', $parts['query']);
         $uri .= concat('#', $parts['fragment']);
         return $uri;
+    }
+}
+
+assert(!function_exists('ryunosuke\\PHPUnit\\dataurl_decode') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\dataurl_decode'))->isUserDefined());
+if (!function_exists('ryunosuke\\PHPUnit\\dataurl_decode')) {
+    /**
+     * DataURL をデコードする
+     *
+     * Example:
+     * ```php
+     * that(dataurl_decode("data:text/plain;charset=US-ASCII,hello%2C%20world"))->isSame('hello, world');
+     * that(dataurl_decode("data:text/plain;charset=US-ASCII;base64,aGVsbG8sIHdvcmxk", $metadata))->isSame('hello, world');
+     * that($metadata)->is([
+     *     "mimetype" => "text/plain",
+     *     "charset"  => "US-ASCII",
+     *     "base64"   => true,
+     * ]);
+     * ```
+     *
+     * @package ryunosuke\Functions\Package\url
+     *
+     * @param string $url DataURL
+     * @param array $metadata スキームのメタ情報が格納される
+     * @return ?string 元データ。失敗時は null
+     */
+    function dataurl_decode($url, &$metadata = [])
+    {
+        $pos = strpos($url, ',');
+        $head = substr($url, 0, $pos);
+        $body = substr($url, $pos + 1);
+
+        if (!preg_match('#^data:(?<mimetype>[^;]+?)?(;charset=(?<charset>[^;]+?))?(;(?<base64>[^;]+?))?$#iu', $head, $matches, PREG_UNMATCHED_AS_NULL)) {
+            return null;
+        }
+
+        $metadata = [
+            'mimetype' => $matches['mimetype'] ?? null,
+            'charset'  => $matches['charset'] ?? null,
+            'base64'   => isset($matches['base64']),
+        ];
+
+        $decoder = function ($data) use ($metadata) {
+            if ($metadata['base64']) {
+                return base64_decode($data, true);
+            }
+            else {
+                return rawurldecode($data);
+            }
+        };
+
+        $decoded = $decoder($body);
+        if ($decoded === false) {
+            return null;
+        }
+
+        if ($metadata['charset'] !== null) {
+            if (!(mb_compatible_encoding($metadata['charset'], mb_internal_encoding()) ?? true)) {
+                $decoded = mb_convert_encoding($decoded, mb_internal_encoding(), $metadata['charset']);
+            }
+        }
+
+        return $decoded;
+    }
+}
+
+assert(!function_exists('ryunosuke\\PHPUnit\\dataurl_encode') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\dataurl_encode'))->isUserDefined());
+if (!function_exists('ryunosuke\\PHPUnit\\dataurl_encode')) {
+    /**
+     * DataURL をエンコードする
+     *
+     * $metadata で mimetype や エンコード等を指定できる。
+     * 指定されていない場合、自動検出して埋め込まれる。
+     *
+     * - mimetype(?string): 特筆無し
+     * - charset(?string): 自動検出は mime 名になる。明示指定はそのまま埋め込まれる
+     * - base64(?bool): true:base64encode, false:urlencode, null: raw
+     *   - null の raw はスキームとしては base64 となる。つまり既に base64 の文字列が手元にある場合（変換したくない場合）に指定する
+     *
+     * Example:
+     * ```php
+     * that(dataurl_encode("hello, world", ['base64' => false]))->isSame("data:text/plain;charset=US-ASCII,hello%2C%20world");
+     * that(dataurl_encode("hello, world", ['mimetype' => 'text/csv', 'charset' => 'hoge']))->isSame("data:text/csv;charset=hoge;base64,aGVsbG8sIHdvcmxk");
+     * ```
+     *
+     * @package ryunosuke\Functions\Package\url
+     *
+     * @param string $data エンコードするデータ
+     * @param array $metadata エンコードオプション
+     * @return string DataURL
+     */
+    function dataurl_encode($data, $metadata = [])
+    {
+        if (!isset($metadata['mimetype'], $metadata['charset'])) {
+            try {
+                $finfo = finfo_open();
+                [$mimetype, $charset] = preg_split('#;\\s#', finfo_buffer($finfo, $data, FILEINFO_MIME), 2, PREG_SPLIT_NO_EMPTY);
+
+                $metadata['mimetype'] ??= $mimetype;
+                $metadata['charset'] ??= mb_preferred_mime_name(explode('=', $charset, 2)[1]);
+            }
+            finally {
+                finfo_close($finfo);
+            }
+        }
+
+        if (!array_key_exists('base64', $metadata)) {
+            $metadata['base64'] = true;
+        }
+
+        $encoder = function ($data) use ($metadata) {
+            if ($metadata['base64'] === null) {
+                return $data;
+            }
+
+            if ($metadata['base64']) {
+                return base64_encode($data);
+            }
+            else {
+                return rawurlencode($data);
+            }
+        };
+
+        return "data:"
+            . $metadata['mimetype']
+            . (strlen($metadata['charset']) ? ";charset=" . $metadata['charset'] : "")
+            . (($metadata['base64'] ?? true) ? ';base64' : '')
+            . "," . $encoder($data);
     }
 }
 
@@ -26858,6 +27168,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\var_pretty')) {
             'maxlength'     => null,  // スカラー・非複合配列の文字数
             'maxlistcolumn' => 120,   // 通常配列を1行化する文字数
             'limit'         => null,  // 最終出力の文字数
+            'excludeclass'  => [],    // 除外するクラス名
         ];
 
         if ($options['context'] === null) {
@@ -27145,7 +27456,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\var_pretty')) {
                     }
                     elseif ($tableofarray) {
                         $markdown = markdown_table(array_map(fn($v) => $this->array($v), $value), [
-                            'keylabel' => "",
+                            'keylabel' => "#",
                             'context'  => $this->options['context'],
                         ]);
                         $this->plain($tableofarray, 'green');
@@ -27239,6 +27550,12 @@ if (!function_exists('ryunosuke\\PHPUnit\\var_pretty')) {
                 }
                 elseif (is_object($value)) {
                     $this->value($value);
+
+                    foreach ((array) $this->options['excludeclass'] as $class) {
+                        if ($value instanceof $class) {
+                            goto FINALLY_;
+                        }
+                    }
 
                     if ($this->options['minify']) {
                         goto FINALLY_;
