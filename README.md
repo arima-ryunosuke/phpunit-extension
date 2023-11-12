@@ -423,6 +423,12 @@ This Trait provides testing utility.
     - Return getenv(). If novalue then skip the test.
 - getConstOrSkip
     - Return constant(). If undefined then skip the test.
+- getClassMap
+    - Return all class => file array based on composer
+- getClassByDirectory
+    - Return class names by directory
+- getClassByNamespace
+    - Return class names by namespace
 - emptyDirectory
     - Ready temporary directory and clean contents.
 - backgroundTask
@@ -458,6 +464,11 @@ ryunosuke\PHPUnit\Exporter\Exporter::insteadOf();
 ## Release
 
 Versioning is Semantic Versioning.
+
+### 3.17.0
+
+- [feature] added getClassMap/getClassByDirectory/getClassByNamespace
+- [feature] added IsTypeOf constraint
 
 ### 3.16.0
 
