@@ -165,6 +165,41 @@ class TestCaseTraitTest extends \ryunosuke\Test\AbstractTestCase
         $this->getConstOrSkip('UNDEFINED_CONST');
     }
 
+    function test_getClassMap()
+    {
+        $classmap = $this->getClassMap();
+        $this->assertArrayHasKey(\DeepCopy\TypeFilter\ShallowCopyFilter::class, $classmap);
+        $this->assertEquals(realpath(__DIR__ . '/../../vendor/myclabs/deep-copy/src/DeepCopy/TypeFilter/ShallowCopyFilter.php'),$classmap[\DeepCopy\TypeFilter\ShallowCopyFilter::class]);
+        $this->assertArrayHasKey(\DeepCopy\TypeFilter\ShallowCopyFilter::class, $classmap);
+        $this->assertEquals(realpath(__DIR__ . '/../../vendor/phpunit/phpunit/src/Framework/Constraint/Traversable/ArrayHasKey.php'),$classmap[\PHPUnit\Framework\Constraint\ArrayHasKey::class]);
+    }
+
+    function test_getClassByDirectory()
+    {
+        $psr4 = $this->getClassByDirectory(__DIR__ . '/../../vendor/myclabs/deep-copy/src/DeepCopy/TypeFilter');
+        $this->assertContains(\DeepCopy\TypeFilter\ShallowCopyFilter::class, $psr4);
+        $this->assertContains(\DeepCopy\TypeFilter\Spl\ArrayObjectFilter::class, $psr4);
+        $this->assertNotContains(\DeepCopy\TypeMatcher\TypeMatcher::class, $psr4);
+
+        $classmap = $this->getClassByDirectory(__DIR__ . '/../../vendor/phpunit/phpunit/src/Framework/Constraint');
+        $this->assertContains(\PHPUnit\Framework\Constraint\ArrayHasKey::class, $classmap);
+        $this->assertContains(\PHPUnit\Framework\Constraint\BinaryOperator::class, $classmap);
+        $this->assertNotContains(\PHPUnit\Framework\Assert::class, $classmap);
+    }
+
+    function test_getClassByNamespace()
+    {
+        $psr4 = $this->getClassByNamespace(\DeepCopy\TypeFilter\TypeFilter::class);
+        $this->assertContains(\DeepCopy\TypeFilter\TypeFilter::class, $psr4);
+        $this->assertContains(\DeepCopy\TypeFilter\Spl\ArrayObjectFilter::class, $psr4);
+        $this->assertNotContains(\DeepCopy\TypeMatcher\TypeMatcher::class, $psr4);
+
+        $classmap = $this->getClassByNamespace(\PHPUnit\Framework\Constraint\Constraint::class);
+        $this->assertContains(\PHPUnit\Framework\Constraint\ArrayHasKey::class, $classmap);
+        $this->assertContains(\PHPUnit\Framework\Constraint\BinaryOperator::class, $classmap);
+        $this->assertNotContains(\PHPUnit\Framework\Assert::class, $classmap);
+    }
+
     function test_emptyDirectory()
     {
         $directory = $this->emptyDirectory();

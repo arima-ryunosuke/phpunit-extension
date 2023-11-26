@@ -212,6 +212,47 @@ trait TestCaseTrait
         return constant($constantName);
     }
 
+    public static function getClassMap()
+    {
+        $result = [];
+
+        // psr4
+        $psr4 = array_map(fn($dirs) => array_map('realpath', $dirs), class_loader()->getPrefixesPsr4());
+        foreach ($psr4 as $namespace => $dirs) {
+            foreach ($dirs as $dir) {
+                if (is_dir($dir)) {
+                    foreach (array_map('realpath', file_list($dir, ['name' => '#^[a-z_\x80-\xff][a-z0-9_\x80-\xff]*\.php$#ui'])) as $phpfile) {
+                        $prefix = preg_quote($dir . DIRECTORY_SEPARATOR, '#');
+                        $suffix = preg_quote('.php', '#');
+                        $classname = preg_replace_callback("#^$prefix(.*?)$suffix$#", fn($m) => $namespace . strtr($m[1], [DIRECTORY_SEPARATOR => '\\']), $phpfile, 1);
+                        $result[$classname] = $phpfile;
+                    }
+                }
+            }
+        }
+
+        // classmap
+        $result += array_map('realpath', class_loader()->getClassMap());
+
+        return $result;
+    }
+
+    public static function getClassByDirectory(string $directory): array
+    {
+        $directory = realpath($directory) . DIRECTORY_SEPARATOR;
+
+        return array_keys(array_filter(self::getClassMap(), fn($filename) => starts_with($filename, $directory)));
+    }
+
+    public static function getClassByNamespace(string $namespace): array
+    {
+        if (type_exists($namespace)) {
+            $namespace = (new ReflectionClass($namespace))->getNamespaceName();
+        }
+
+        return array_keys(array_filter(self::getClassMap(), fn($classname) => starts_with($classname, $namespace), ARRAY_FILTER_USE_KEY));
+    }
+
     /**
      * ready empty directory
      *
