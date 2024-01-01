@@ -2,6 +2,7 @@
 
 namespace ryunosuke\Test;
 
+use ArrayObject;
 use PHPUnit\Framework\Constraint\IsEqual;
 use PHPUnit\Framework\RiskyTestError;
 use PHPUnit\Framework\TestCase;
@@ -1100,6 +1101,31 @@ Nzxc ');
         $this->actual($fncba())->is($fnabc());
         $this->actual($fncba())->is($abc, null, true);
         $this->actual($fncba())->is($fnabc(), null, true);
+
+        $fnabc = function () {
+            yield 1 => 'a';
+            yield 2 => 'a';
+            yield 2 => 'b';
+            yield 3 => 'a';
+            yield 3 => 'b';
+            yield 3 => 'c';
+        };
+        $fncba = function () {
+            yield 1 => 'a';
+            yield 2 => 'a';
+            yield 2 => 'b';
+            yield 3 => 'a';
+            yield 3 => 'b';
+            yield 3 => 'X';
+        };
+        $this->actual($fnabc())->is($fnabc());
+        $this->actual($fnabc())->isNot($fncba());
+        $this->actual($fnabc())->isNot($fncba(), null, true);
+
+        $this->actual(new ArrayObject(['a', 'b', 'c']))->is(['a', 'b', 'c']);
+        $this->ng(function () {
+            $this->actual(new ArrayObject(['a', 'b', 'c']))->is(['a', 'b', 'X']);
+        }, 'ArrayObject');
     }
 
     function test_variation()

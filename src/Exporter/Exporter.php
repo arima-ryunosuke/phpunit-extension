@@ -34,7 +34,9 @@
  */
 namespace ryunosuke\PHPUnit\Exporter;
 
+use Iterator;
 use LogicException;
+use NoRewindIterator;
 use SebastianBergmann\RecursionContext\Context;
 use SplObjectStorage;
 use function ryunosuke\PHPUnit\mb_ellipsis;
@@ -181,6 +183,18 @@ class Exporter
         }
 
         $array = [];
+
+        if ($value instanceof Iterator && $value->valid() && !$value instanceof SplObjectStorage) {
+            foreach (new NoRewindIterator($value) as $key => $val) {
+                if (is_scalar($key) || is_resource($key)) {
+                    $array["$key"] = $val;
+                } else {
+                    $array[json_encode($key, JSON_UNESCAPED_UNICODE)] = $val;
+                }
+            }
+
+            return $array;
+        }
 
         foreach ((array) $value as $key => $val) {
             // Exception traces commonly reference hundreds to thousands of

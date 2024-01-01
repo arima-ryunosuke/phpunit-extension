@@ -152,5 +152,18 @@ class ExporterTest extends \ryunosuke\Test\AbstractTestCase
                 'inf' => 'std2',
             ],
         ], $actual);
+
+        $actual = $exporter->toArray((function () {
+            yield 0 => '0';
+            yield [1] => 'A';
+            yield [1, 2] => 'AB';
+            yield [1, 2, 3] => 'ABC';
+        })());
+        $this->assertSame([
+            '0'       => "0",
+            '[1]'     => 'A',
+            '[1,2]'   => 'AB',
+            '[1,2,3]' => 'ABC',
+        ], $actual);
     }
 }
