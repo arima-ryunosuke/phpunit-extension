@@ -465,6 +465,10 @@ ryunosuke\PHPUnit\Exporter\Exporter::insteadOf();
 
 Versioning is Semantic Versioning.
 
+### 3.18.0
+
+- [feature] added VALID_DOMAIN/VALID_HOSTNAME to IsValid
+
 ### 3.17.0
 
 - [feature] added getClassMap/getClassByDirectory/getClassByNamespace
