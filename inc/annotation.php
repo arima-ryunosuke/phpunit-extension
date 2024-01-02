@@ -470,6 +470,15 @@ namespace ryunosuke\PHPUnit;
  * @method \ryunosuke\PHPUnit\Actual objectNotHasAttributeAny(array $attributeNames)
  * @method \ryunosuke\PHPUnit\Actual objectNotHasAttributeAll(array $attributeNames)
  *
+ * @see \PHPUnit\Framework\Constraint\ObjectHasProperty
+ * @method \ryunosuke\PHPUnit\Actual eachObjectHasProperty(string $propertyName)
+ * @method \ryunosuke\PHPUnit\Actual objectHasProperty(string $propertyName)
+ * @method \ryunosuke\PHPUnit\Actual objectNotHasProperty(string $propertyName)
+ * @method \ryunosuke\PHPUnit\Actual objectHasPropertyAny(array $propertyNames)
+ * @method \ryunosuke\PHPUnit\Actual objectHasPropertyAll(array $propertyNames)
+ * @method \ryunosuke\PHPUnit\Actual objectNotHasPropertyAny(array $propertyNames)
+ * @method \ryunosuke\PHPUnit\Actual objectNotHasPropertyAll(array $propertyNames)
+ *
  * @see \PHPUnit\Framework\Constraint\IsJson
  * @method \ryunosuke\PHPUnit\Actual eachIsJson()
  * @method \ryunosuke\PHPUnit\Actual isJson()
@@ -869,6 +878,16 @@ namespace ryunosuke\PHPUnit;
  * @method \ryunosuke\PHPUnit\Actual eachIsValidUrl($flags = 0)
  * @method \ryunosuke\PHPUnit\Actual isValidUrl($flags = 0)
  * @method \ryunosuke\PHPUnit\Actual isNotValidUrl($flags = 0)
+ *
+ * @see \ryunosuke\PHPUnit\Constraint\IsValid::__construct() ["domain"]
+ * @method \ryunosuke\PHPUnit\Actual eachIsValidDomain($flags = 0)
+ * @method \ryunosuke\PHPUnit\Actual isValidDomain($flags = 0)
+ * @method \ryunosuke\PHPUnit\Actual isNotValidDomain($flags = 0)
+ *
+ * @see \ryunosuke\PHPUnit\Constraint\IsValid::__construct() ["hostname"]
+ * @method \ryunosuke\PHPUnit\Actual eachIsValidHostname($flags = 0)
+ * @method \ryunosuke\PHPUnit\Actual isValidHostname($flags = 0)
+ * @method \ryunosuke\PHPUnit\Actual isNotValidHostname($flags = 0)
  *
  * @see tests/bootstrap.php#18-20
  * @method \ryunosuke\PHPUnit\Actual eachLineCount(int $lineCount, string $delimiter = "\\R")
