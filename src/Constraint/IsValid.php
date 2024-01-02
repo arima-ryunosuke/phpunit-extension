@@ -4,39 +4,47 @@ namespace ryunosuke\PHPUnit\Constraint;
 
 class IsValid extends AbstractConstraint
 {
-    public const VALID_INT   = 'int';
-    public const VALID_FLOAT = 'float';
-    public const VALID_EMAIL = 'email';
-    public const VALID_IP    = 'ip';
-    public const VALID_IPV4  = 'ipv4';
-    public const VALID_IPV6  = 'ipv6';
-    public const VALID_MAC   = 'mac';
-    public const VALID_URL   = 'url';
+    public const VALID_INT      = 'int';
+    public const VALID_FLOAT    = 'float';
+    public const VALID_EMAIL    = 'email';
+    public const VALID_IP       = 'ip';
+    public const VALID_IPV4     = 'ipv4';
+    public const VALID_IPV6     = 'ipv6';
+    public const VALID_MAC      = 'mac';
+    public const VALID_URL      = 'url';
+    public const VALID_DOMAIN   = 'domain';
+    public const VALID_HOSTNAME = 'hostname';
 
     private const KNOWN_TYPES = [
-        self::VALID_INT   => [
+        self::VALID_INT      => [
             FILTER_VALIDATE_INT => 0,
         ],
-        self::VALID_FLOAT => [
+        self::VALID_FLOAT    => [
             FILTER_VALIDATE_FLOAT => 0,
         ],
-        self::VALID_EMAIL => [
+        self::VALID_EMAIL    => [
             FILTER_VALIDATE_EMAIL => 0,
         ],
-        self::VALID_IP    => [
+        self::VALID_IP       => [
             FILTER_VALIDATE_IP => 0,
         ],
-        self::VALID_IPV4  => [
+        self::VALID_IPV4     => [
             FILTER_VALIDATE_IP => FILTER_FLAG_IPV4,
         ],
-        self::VALID_IPV6  => [
+        self::VALID_IPV6     => [
             FILTER_VALIDATE_IP => FILTER_FLAG_IPV6,
         ],
-        self::VALID_MAC   => [
+        self::VALID_MAC      => [
             FILTER_VALIDATE_MAC => 0,
         ],
-        self::VALID_URL   => [
+        self::VALID_URL      => [
             FILTER_VALIDATE_URL => 0,
+        ],
+        self::VALID_DOMAIN   => [
+            FILTER_VALIDATE_DOMAIN => 0,
+        ],
+        self::VALID_HOSTNAME => [
+            FILTER_VALIDATE_DOMAIN => FILTER_FLAG_HOSTNAME,
         ],
     ];
 

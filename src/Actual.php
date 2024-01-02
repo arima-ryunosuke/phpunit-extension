@@ -93,6 +93,8 @@ class Actual implements \ArrayAccess
         'isValidIpv6'          => [IsValid::class => [IsValid::VALID_IPV6]],
         'isValidMac'           => [IsValid::class => [IsValid::VALID_MAC]],
         'isValidUrl'           => [IsValid::class => [IsValid::VALID_URL]],
+        'isValidDomain'        => [IsValid::class => [IsValid::VALID_DOMAIN]],
+        'isValidHostname'      => [IsValid::class => [IsValid::VALID_HOSTNAME]],
     ];
 
     public static $constraintNamespaces = [

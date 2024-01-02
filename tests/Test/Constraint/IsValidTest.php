@@ -22,6 +22,22 @@ class IsValidTest extends \ryunosuke\Test\AbstractTestCase
         $this->assertTrue($constraint->evaluate(1.23, '', true));
         $this->assertTrue($constraint->evaluate(123, '', true));
 
+        $constraint = new IsValid(IsValid::VALID_DOMAIN);
+        $this->assertFalse($constraint->evaluate('ho..ge', '', true));
+        $this->assertTrue($constraint->evaluate('ho_ge', '', true));
+        $this->assertTrue($constraint->evaluate('hoge', '', true));
+        $this->assertTrue($constraint->evaluate('hoge.example.com', '', true));
+        $this->assertTrue($constraint->evaluate('192.168.1.1', '', true));
+        $this->assertTrue($constraint->evaluate('192.168.1', '', true)); // ???
+
+        $constraint = new IsValid(IsValid::VALID_HOSTNAME);
+        $this->assertFalse($constraint->evaluate('ho..ge', '', true));
+        $this->assertFalse($constraint->evaluate('ho_ge', '', true));
+        $this->assertTrue($constraint->evaluate('hoge', '', true));
+        $this->assertTrue($constraint->evaluate('hoge.example.com', '', true));
+        $this->assertTrue($constraint->evaluate('192.168.1.1', '', true));
+        $this->assertTrue($constraint->evaluate('192.168.1', '', true)); // ???
+
         $constraint = new IsValid(IsValid::VALID_IPV4);
         $this->assertFalse($constraint->evaluate(null, '', true));
         $this->assertFalse($constraint->evaluate(123, '', true));
