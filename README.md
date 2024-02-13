@@ -417,6 +417,8 @@ This Trait provides testing utility.
     - If specified exception is thrown then skip the test.
 - restorer
     - Reset function base's value. When unset return value recovery prev value.
+- finalize
+    - Run closure at Test end.
 - rewriteProperty
     - Rewrite private/protected property. When unset return value recovery prev value.
 - getEnvOrSkip
@@ -464,6 +466,11 @@ ryunosuke\PHPUnit\Exporter\Exporter::insteadOf();
 ## Release
 
 Versioning is Semantic Versioning.
+
+### 3.19.0
+
+- [feature] added finalize
+- [feature] improved Traversable
 
 ### 3.18.0
 
