@@ -18,6 +18,40 @@ if (!defined('ryunosuke\\PHPUnit\\IS_PRIVATE')) {
     define('ryunosuke\\PHPUnit\\IS_PRIVATE', 16);
 }
 
+if (!defined('ryunosuke\\PHPUnit\\EN_MONTH_SHORT')) {
+    define('ryunosuke\\PHPUnit\\EN_MONTH_SHORT', [
+        1  => "jan",
+        2  => "feb",
+        3  => "mar",
+        4  => "apr",
+        5  => "may",
+        6  => "jun",
+        7  => "jul",
+        8  => "aug",
+        9  => "sep",
+        10 => "oct",
+        11 => "nov",
+        12 => "dec",
+    ]);
+}
+
+if (!defined('ryunosuke\\PHPUnit\\EN_MONTH_LONG')) {
+    define('ryunosuke\\PHPUnit\\EN_MONTH_LONG', [
+        1  => "january",
+        2  => "february",
+        3  => "march",
+        4  => "april",
+        5  => "may",
+        6  => "june",
+        7  => "july",
+        8  => "august",
+        9  => "september",
+        10 => "october",
+        11 => "november",
+        12 => "december",
+    ]);
+}
+
 if (!defined('ryunosuke\\PHPUnit\\JP_ERA')) {
     define('ryunosuke\\PHPUnit\\JP_ERA', [
         [
@@ -3437,6 +3471,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\array_random')) {
      * - 第2引数に null を与えると単一の値として返す
      * - 第2引数に数値を与えると配列で返す（たとえ1でも配列で返す）
      * - 第2引数に 0 を与えてもエラーにはならない（空配列を返す）
+     * - 第2引数に負数を与えるとその個数に満たなくても例外にならない
      * - 第3引数に true を与えるとキーを維持して返す
      *
      * Example:
@@ -3448,6 +3483,8 @@ if (!function_exists('ryunosuke\\PHPUnit\\array_random')) {
      * that(array_random(['a' => 'A', 'b' => 'B', 'c' => 'C'], 2))->isSame(['B', 'C']);
      * // 配列からランダムに値2件取得（キーを維持）
      * that(array_random(['a' => 'A', 'b' => 'B', 'c' => 'C'], 2, true))->isSame(['a' => 'A', 'c' => 'C']);
+     * // 配列からランダムに値N件取得（負数指定。配列数を超えた指定は例外になるので負数にする必要がある）
+     * that(array_random(['a' => 'A', 'b' => 'B', 'c' => 'C'], -999, true))->isSame(['a' => 'A', 'b' => 'B', 'c' => 'C']);
      * ```
      *
      * @package ryunosuke\Functions\Package\array
@@ -3466,8 +3503,15 @@ if (!function_exists('ryunosuke\\PHPUnit\\array_random')) {
             return [];
         }
 
-        if ($count < 0 || count($array) < $count) {
+        if ($count > 0 && count($array) < $count) {
             throw new \InvalidArgumentException('Argument #2 ($count) must be between 1 and the number of elements in argument #1 ($array)');
+        }
+        if ($count < 0) {
+            $count = min(count($array), -$count);
+        }
+
+        if (count($array) === 0) {
+            return [];
         }
 
         $result = [];
@@ -3658,11 +3702,28 @@ if (!function_exists('ryunosuke\\PHPUnit\\array_range')) {
             && ($step instanceof \DateInterval || is_string($step))
         ) {
             try {
+                if ($options['format'] === 'auto') {
+                    $options['format'] = (function (...$dts) {
+                        foreach ($dts as $dt) {
+                            if (is_string($dt) && ($format = date_parse_format($dt)) !== null) {
+                                return $format;
+                            }
+                        }
+                        throw new \InvalidArgumentException("failed to auto detect dateformat");
+                    })($start, $end);
+                }
+
                 if (is_string($start)) {
                     $start = date_convert(\DateTimeImmutable::class, $start);
                 }
+                if ($start instanceof \DateTime) {
+                    $start = \DateTimeImmutable::createFromMutable($start);
+                }
                 if (is_string($end)) {
                     $end = date_convert(\DateTimeImmutable::class, $end);
+                }
+                if ($end instanceof \DateTime) {
+                    $end = \DateTimeImmutable::createFromMutable($end);
                 }
                 if (is_string($step)) {
                     $step = @\DateInterval::createFromDateString($step) ?: date_interval($step);
@@ -4667,6 +4728,54 @@ if (!function_exists('ryunosuke\\PHPUnit\\array_unset')) {
     }
 }
 
+assert(!function_exists('ryunosuke\\PHPUnit\\array_walk_recursive2') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\array_walk_recursive2'))->isUserDefined());
+if (!function_exists('ryunosuke\\PHPUnit\\array_walk_recursive2')) {
+    /**
+     * array_walk_recursive の改善版
+     *
+     * 違いは下記。
+     *
+     * - 第3引数はなし
+     *     - クロージャの use で十分だしそちらの方が優れている
+     * - コールバックは ($value, $key, $array, $keys) が渡ってくる
+     *     - $value, $array はリファレンスにすることで書き換え可能
+     * - 返り値で返す
+     *     - 元の array_walk_recursive の返り値はほとんど意味がない
+     *     - 返り値が空いてるなら変に参照を使わず返り値の方がシンプル
+     *
+     * array_walk_recursive で「この要素は伏せたいのに…」「このノードだけ触りたいのに…」ということはままあるが、
+     * - $array が渡ってくるので unset したり他のキーを生やしたりすることが可能
+     * - $keys が渡ってくるのでツリー構造の特定のノードだけ触ることが可能
+     * になっている。
+     *
+     * 「map も filter も可能」という少しマッチョな関数。
+     * 実質的には「再帰的な array_kvmap」のように振る舞う。
+     *
+     * @package ryunosuke\Functions\Package\array
+     *
+     * @param array $array 対象配列
+     * @param callable $callback コールバック
+     * @return array walk 後の配列
+     */
+    function array_walk_recursive2($array, $callback)
+    {
+        $callback = func_user_func_array($callback);
+
+        $main = function (&$array, $keys) use (&$main, $callback) {
+            foreach ($array as $k => &$v) {
+                if (is_array($v)) {
+                    $main($v, array_merge($keys, [$k]));
+                }
+                else {
+                    $callback($v, $k, $array, $keys);
+                }
+            }
+        };
+        $main($array, []);
+        return $array;
+    }
+}
+
 assert(!function_exists('ryunosuke\\PHPUnit\\array_where') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\array_where'))->isUserDefined());
 if (!function_exists('ryunosuke\\PHPUnit\\array_where')) {
     /**
@@ -5275,9 +5384,13 @@ if (!function_exists('ryunosuke\\PHPUnit\\kvsort')) {
     /**
      * 比較関数にキーも渡ってくる安定ソート
      *
-     * 比較関数は ($avalue, $bvalue, $akey, $bkey) という引数を取る。
+     * 比較関数は ($valueA, $valueB, $keyA, $keyB) という引数を取る。
      * 「値で比較して同値だったらキーも見たい」という状況はまれによくあるはず。
      * さらに安定ソートであり、同値だとしても元の並び順は維持される。
+     *
+     * $schwartzians を指定した場合は呼び出しが ($schwartzianA, $schwartzianB, $valueA, $valueB, $keyA, $keyB) になる。
+     * $schwartzianX は単一値の場合はその結果、配列の場合はキー構造が維持されて渡ってくる。
+     * このあたりは表現しにくいので Example を参照。
      *
      * $comparator は省略できる。省略した場合、型に基づいてよしなにソートする。
      * （が、比較のたびに型チェックが入るので指定したほうが高速に動く）。
@@ -5313,32 +5426,86 @@ if (!function_exists('ryunosuke\\PHPUnit\\kvsort')) {
      *     'b'  => 1,
      *     'a'  => 3,
      * ]);
+     * // シュワルツ変換を使用したソート（引数説明のために全て列挙している）
+     * that(kvsort($array, fn($hashA, $hashB, $av, $bv, $ak, $bk) => ($hashA['md5'] <=> $hashB['md5']) ?: ($hashA['sha1'] <=> $hashB['sha1']), [
+     *     'md5'  => fn($v) => md5($v),
+     *     'sha1' => fn($v) => sha1($v),
+     * ]))->isSame([
+     *     'x1' => 9,
+     *     'x2' => 9,
+     *     'x3' => 9,
+     *     'b'  => 1,
+     *     'c'  => 2,
+     *     'a'  => 3,
+     * ]);
+     * // シュワルツ変換の場合 $comparator は省略可能（昇順）で、配列ではなく単一値を渡せばその結果値が渡ってくる（これは要するに md5 での昇順ソート）
+     * that(kvsort($array, null, fn($v) => md5($v)))->isSame([
+     *     'x1' => 9,
+     *     'x2' => 9,
+     *     'x3' => 9,
+     *     'b'  => 1,
+     *     'c'  => 2,
+     *     'a'  => 3,
+     * ]);
      * ```
      *
      * @package ryunosuke\Functions\Package\array
      *
-     * @param iterable|array $array 対象配列
+     * @template T of iterable|array
+     * @param T $array 対象配列
      * @param callable|int|null $comparator 比較関数。SORT_XXX も使える
-     * @return array ソートされた配列
+     * @param callable|callable[] $schwartzians シュワルツ変換に使用する仮想列
+     * @return T ソートされた配列
      */
-    function kvsort($array, $comparator = null)
+    function kvsort($array, $comparator = null, $schwartzians = [])
     {
-        if ($comparator === null || is_int($comparator)) {
-            $sort_flg = $comparator;
-            $comparator = fn($av, $bv, $ak, $bk) => varcmp($av, $bv, $sort_flg);
+        // シュワルツ変換の準備（単一であるとかピッタリ呼び出しとか）
+        $is_array = is_array($schwartzians) && !is_callable($schwartzians);
+        $schwartzians = arrayize($schwartzians);
+        foreach ($schwartzians as $s => $schwartzian) {
+            $schwartzians[$s] = func_user_func_array($schwartzian);
         }
 
+        // $comparator が定数あるいは省略時は自動導出
+        if ($comparator === null || is_int($comparator)) {
+            // シュワルツ変換のときは型は意識しなくてよい（呼び元の責務）ので昇順降順だけ見る
+            if ($schwartzians) {
+                if (($comparator ?? SORT_ASC) === SORT_ASC) {
+                    $comparator = fn($as, $bs) => $as <=> $bs;
+                }
+                else {
+                    $comparator = fn($as, $bs) => -($as <=> $bs);
+                }
+            }
+            // そうでない場合は varcmp に委譲
+            else {
+                $sort_flg = $comparator;
+                $comparator = fn($av, $bv, $ak, $bk) => varcmp($av, $bv, $sort_flg);
+            }
+        }
+
+        // 一時配列の準備
         $n = 0;
         $tmp = [];
         foreach ($array as $k => $v) {
-            $tmp[$k] = [$n++, $k, $v];
+            $virtuals = [];
+            if ($is_array) {
+                foreach ($schwartzians as $s => $schwartzian) {
+                    $virtuals[$s] = $schwartzian($v, $k, $n);
+                }
+            }
+            else {
+                $virtuals = $schwartzians[0]($v, $k, $n);
+            }
+            $tmp[] = [$n++, $k, $v, $virtuals];
         }
 
-        uasort($tmp, function ($a, $b) use ($comparator) {
-            $com = $comparator($a[2], $b[2], $a[1], $b[1]);
+        // ソートしてから元の配列の体裁で返す
+        usort($tmp, function ($a, $b) use ($comparator, $schwartzians) {
+            $virtuals = $schwartzians ? [$a[3], $b[3]] : [];
+            $com = $comparator(...$virtuals, ...[$a[2], $b[2], $a[1], $b[1]]);
             return $com !== 0 ? $com : ($a[0] - $b[0]);
         });
-
         return array_column($tmp, 2, 1);
     }
 }
@@ -6722,9 +6889,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\type_exists')) {
         if (trait_exists($typename, $autoload)) {
             return true;
         }
-        if (function_exists('enum_exists') && enum_exists($typename, $autoload)) {
-            return true; // @codeCoverageIgnore
-        }
+        // enum は class で実装されているので enum_exists は不要
         return false;
     }
 }
@@ -9846,6 +10011,16 @@ if (!function_exists('ryunosuke\\PHPUnit\\markdown_table')) {
         ];
 
         $stringify = fn($v) => strtr(trim(is_stringable($v) ? $v : $option['stringify']($v)), ["\t" => '    ']);
+        $is_numeric = function ($v) {
+            $v = trim($v);
+            if (strlen($v) === 0) {
+                return true;
+            }
+            if (is_numeric($v)) {
+                return true;
+            }
+            return preg_match('#^-?[1-9][0-9]{0,2}(,[0-9]{3})*(\.[0-9]+)?$#', $v);
+        };
 
         $rows = [];
         $defaults = [];
@@ -9867,7 +10042,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\markdown_table')) {
                 foreach ($v as $i => $t) {
                     $e = ansi_strip($t);
                     $rows["{$n}_{$i}"][$k] = $t;
-                    $numerics[$k] = ($numerics[$k] ?? true) && (is_numeric($e) || strlen($e) === 0);
+                    $numerics[$k] = ($numerics[$k] ?? true) && $is_numeric($e);
                     $lengths[$k] = max($lengths[$k] ?? 3, mb_monospace(ansi_strip($k)), mb_monospace($e)); // 3 は markdown の最低見出し長
                 }
             }
@@ -10847,6 +11022,238 @@ if (!function_exists('ryunosuke\\PHPUnit\\date_match')) {
     }
 }
 
+assert(!function_exists('ryunosuke\\PHPUnit\\date_modulate') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\date_modulate'))->isUserDefined());
+if (!function_exists('ryunosuke\\PHPUnit\\date_modulate')) {
+    /**
+     * 日時を加減算する
+     *
+     * フォーマットを維持しつつ日時文字列の最小単位でよしなに加算する。
+     * 具体的には Example を参照。
+     *
+     * Example:
+     * ```php
+     * // 年加算
+     * that(date_modulate('2014', 1))->isSame('2015');
+     * // 月加算
+     * that(date_modulate('2014/12', 1))->isSame('2015/01');
+     * // 日加算
+     * that(date_modulate('2014/12/24', 1))->isSame('2014/12/25');
+     * // 時加算
+     * that(date_modulate('2014/12/24 12', 1))->isSame('2014/12/24 13');
+     * // 分加算
+     * that(date_modulate('2014/12/24 12:34', 1))->isSame('2014/12/24 12:35');
+     * // 秒加算
+     * that(date_modulate('2014/12/24 12:34:56', 1))->isSame('2014/12/24 12:34:57');
+     * // ミリ秒加算
+     * that(date_modulate('2014/12/24 12:34:56.789', 1))->isSame('2014/12/24 12:34:56.790');
+     * ```
+     *
+     * @package ryunosuke\Functions\Package\datetime
+     *
+     * @param string $datetimedata 日時文字列
+     * @param int|string|\DateInterval $modify 加減算値
+     * @return string 加算された日時文字列
+     */
+    function date_modulate($datetimedata, $modify)
+    {
+        $format = date_parse_format($datetimedata, $parseinfo);
+        if ($format === null) {
+            throw new \UnexpectedValueException("failed parse date format ($datetimedata)");
+        }
+
+        if (is_string($modify) && !ctype_digit(ltrim($modify, '+-'))) {
+            $modify = date_interval($modify);
+        }
+
+        $dt = new \DateTime();
+        $dt->setDate($parseinfo['Y'] ?? 1, $parseinfo['M'] ?? 1, $parseinfo['D'] ?? 1);
+        $dt->setTime($parseinfo['h'] ?? 0, $parseinfo['m'] ?? 0, $parseinfo['s'] ?? 0, ($parseinfo['f'] ?? 0) * 1000);
+        if ($modify instanceof \DateInterval) {
+            $dt->add($modify);
+        }
+        else {
+            $unitmap = [
+                'Y' => 'year',
+                'M' => 'month',
+                'D' => 'day',
+                'h' => 'hour',
+                'm' => 'minute',
+                's' => 'second',
+                'f' => 'millisecond',
+            ];
+            $unit = $unitmap[array_key_last(array_filter($unitmap, fn($key) => $parseinfo[$key] !== null, ARRAY_FILTER_USE_KEY))];
+            $dt->modify("$modify $unit");
+        }
+        return $dt->format($format);
+    }
+}
+
+assert(!function_exists('ryunosuke\\PHPUnit\\date_parse_format') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\date_parse_format'))->isUserDefined());
+if (!function_exists('ryunosuke\\PHPUnit\\date_parse_format')) {
+    /**
+     * 日時文字列のフォーマットを返す
+     *
+     * 例えば "2014/12/24 12:34:56" から "Y/m/d H:i:s" を逆算して返す。
+     * 精度は非常に低く、相対表現なども未対応（そもそも逆算は一意に決まるものでもない）。
+     *
+     *  Example:
+     * ```php
+     * // RFC3339
+     * that(date_parse_format('2014-12-24T12:34:56'))->isSame('Y-m-d\TH:i:s');
+     * // 日本式
+     * that(date_parse_format('2014/12/24 12:34:56'))->isSame('Y/m/d H:i:s');
+     * // アメリカ式
+     * that(date_parse_format('12/24/2014 12:34:56'))->isSame('m/d/Y H:i:s');
+     * // イギリス式
+     * that(date_parse_format('24.12.2014 12:34:56'))->isSame('d.m.Y H:i:s');
+     * ```
+     *
+     * @package ryunosuke\Functions\Package\datetime
+     *
+     * @param string $datetimestring 日時文字列
+     * @param array $parsed パースの参考情報が格納される（内部向け）
+     * @return ?string フォーマット文字列
+     */
+    function date_parse_format($datetimestring, &$parsed = [])
+    {
+        $datetimestring = trim($datetimestring);
+        $parsed = (function ($datetimestring) {
+            $date_parse = function ($datetimestring) {
+                $parsed = date_parse($datetimestring);
+                $parsed['datetimestring'] = $datetimestring;
+                $parsed += [
+                    'has:Y' => $parsed['year'] !== false,
+                    'has:M' => $parsed['month'] !== false,
+                    'has:D' => $parsed['day'] !== false,
+                    'has:h' => $parsed['hour'] !== false,
+                    'has:m' => $parsed['minute'] !== false,
+                    'has:s' => $parsed['second'] !== false,
+                    'has:f' => $parsed['fraction'] !== false,
+                    'has:z' => ($parsed['zone'] ?? false) !== false,
+                ];
+                return $parsed;
+            };
+
+            $parsed = $date_parse($datetimestring);
+
+            // エラーがあってもある程度は救うことができる
+            if ($parsed['error_count']) {
+                // スラッシュの扱いに難があるので統一して再チャレンジ（2014/12 と 2014-12 は扱いがまったく異なる）
+                $parsed = $date_parse(str_replace('/', '-', $datetimestring));
+                if (!$parsed['error_count']) {
+                    $parsed['warnings'][] = 'replace "/" -> "-"';
+                    return $parsed;
+                }
+                // 例えば fraction で誤検知している場合（20140202T123456.789123 は Y:7891 になる）
+                if ($parsed['has:Y'] && $parsed['has:M'] && $parsed['has:D'] && $parsed['has:h'] && $parsed['has:m'] && $parsed['has:s'] && $parsed['has:f']) {
+                    $rdot = strrpos($datetimestring, '.');
+                    if ($rdot !== false) {
+                        $parsed = $date_parse(substr($datetimestring, 0, $rdot));
+                        if (!$parsed['error_count']) {
+                            $parsed['warnings'][] = 'remove fraction';
+                            $parsed['fraction'] = '0' . substr($datetimestring, $rdot);
+                            return $parsed;
+                        }
+                    }
+                }
+                // 例えば minute が足りない場合（20140202T12, 2014-02-02T12 のような分無しはパース自体が失敗する）
+                if ($parsed['has:Y'] && $parsed['has:M'] && $parsed['has:D'] && !$parsed['has:h'] && !$parsed['has:m'] && !$parsed['has:s'] && !$parsed['has:f']) {
+                    $parsed = $date_parse($datetimestring . ':00');
+                    if (!$parsed['error_count']) {
+                        $parsed['warnings'][] = 'add minute';
+                        return $parsed;
+                    }
+                }
+                return $parsed;
+            }
+
+            // 日付ありきとする
+            if (!$parsed['has:Y'] && !$parsed['has:M'] && !$parsed['has:D'] && $parsed['has:h'] && $parsed['has:m'] && $parsed['has:s']) {
+                // 例えば 201412 は h:20,m:14,s:12 と解釈される
+                $parsed = $date_parse($datetimestring . '01T00:00:00');
+                if (!$parsed['error_count']) {
+                    $parsed['warnings'][] = 'add day';
+                    return $parsed;
+                }
+                // 例えば 2014 は h:20,m:14 と解釈される
+                $parsed = $date_parse($datetimestring . '0101T00:00:00');
+                if (!$parsed['error_count']) {
+                    $parsed['warnings'][] = 'add month,day';
+                    return $parsed;
+                }
+                return $parsed;
+            }
+
+            return $parsed;
+        })($datetimestring);
+
+        if ($parsed['error_count']) {
+            return null;
+        }
+        // date_parse は妥当でない日付はエラーではなく警告扱い（2015-09-31 等）
+        if ($parsed['has:Y'] && $parsed['has:M'] && $parsed['has:D'] && !checkdate($parsed['month'], $parsed['day'], $parsed['year'])) {
+            return null;
+        }
+
+        // 得られた値でマッチングすれば元となる文字列が取得できる
+        $parsed['monthF'] = EN_MONTH_LONG[$parsed['month']] ?? '';
+        $parsed['monthM'] = EN_MONTH_SHORT[$parsed['month']] ?? '';
+        $parsed['dayS'] = (new \NumberFormatter('en_US', \NumberFormatter::ORDINAL))->format($parsed['day'] ?: 0);
+        $parsed['fractionV'] = substr($parsed['fraction'], 2);
+        $regex = [
+            'Y' => "(?<Y>{$parsed['year']})?          (?<dY>[^0-9a-z]+)?",
+            'M' => "(?<M>(0?{$parsed['month']})|({$parsed['monthF']})|({$parsed['monthM']}))? (?<dM>[^0-9]+)?",
+            'D' => "(?<D>(0?{$parsed['dayS']})|(0?{$parsed['day']}))?                         (?<dD>[^0-9]+)?",
+            'h' => "(?<h>0?{$parsed['hour']})?        (?<dh>[^0-9]+)?",
+            'm' => "(?<m>0?{$parsed['minute']})?      (?<dm>[^0-9]+)?",
+            's' => "(?<s>0?{$parsed['second']})?      (?<ds>[^0-9]+)?",
+            'f' => "(?<f>0?{$parsed['fractionV']}0*)? (?<df>[^0-9]+)?",
+            'z' => "(?<z>[+\-]\d{1,2}:?\d{1,2})?      (?<dz>[^0-9]+)?",
+        ];
+        $formats = [
+            'ja-jp' => "^{$regex['Y']}{$regex['M']}{$regex['D']}{$regex['h']}{$regex['m']}{$regex['s']}{$regex['f']}{$regex['z']}$",
+            'en-us' => "^{$regex['M']}{$regex['D']}{$regex['Y']}{$regex['h']}{$regex['m']}{$regex['s']}{$regex['f']}{$regex['z']}$",
+            'en-gb' => "^{$regex['D']}{$regex['M']}{$regex['Y']}{$regex['h']}{$regex['m']}{$regex['s']}{$regex['f']}{$regex['z']}$",
+        ];
+        foreach ($formats as $format) {
+            if (preg_match("#$format#ixu", $datetimestring, $matches, PREG_UNMATCHED_AS_NULL)) {
+                break;
+            }
+        }
+        if (!$matches) {
+            $parsed['errors'][] = 'unmatch regex';
+            return null;
+        }
+
+        $parsed += [
+            'Y' => strlen($matches['Y'] ?? '') ? $matches['Y'] : null,
+            'M' => strlen($matches['M'] ?? '') ? $matches['M'] : null,
+            'D' => strlen($matches['D'] ?? '') ? $matches['D'] : null,
+            'h' => strlen($matches['h'] ?? '') ? $matches['h'] : null,
+            'm' => strlen($matches['m'] ?? '') ? $matches['m'] : null,
+            's' => strlen($matches['s'] ?? '') ? $matches['s'] : null,
+            'f' => strlen($matches['f'] ?? '') ? $matches['f'] : null,
+            'z' => strlen($matches['z'] ?? '') ? $matches['z'] : null,
+        ];
+
+        $parts = array_filter($matches, 'is_string', ARRAY_FILTER_USE_KEY);
+        $parts['Y'] = $parsed['Y'] === null ? '' : 'Y';
+        $parts['M'] = $parsed['M'] === null ? '' : [1 => 'n', 2 => 'm', 3 => 'M'][strlen($parts['M'])] ?? 'F';
+        $parts['D'] = $parsed['D'] === null ? '' : [1 => 'j', 2 => 'd', 3 => 'jS'][strlen($parts['D'])] ?? 'dS';
+        $parts['h'] = $parsed['h'] === null ? '' : (strlen($parts['h']) === 1 ? 'G' : 'H');
+        $parts['m'] = $parsed['m'] === null ? '' : 'i'; // ゼロなし分フォーマットは存在しない
+        $parts['s'] = $parsed['s'] === null ? '' : 's'; // ゼロなし秒フォーマットは存在しない
+        $parts['f'] = $parsed['f'] === null ? '' : (strlen($parts['f']) > 3 ? 'u' : 'v');
+        $parts['z'] = $parsed['z'] === null ? '' : (strpos($parts['z'], ':') !== false ? 'P' : 'O');
+
+        foreach (['dY', 'dM', 'dD', 'dh', 'dm', 'ds', 'df', 'dz'] as $d) {
+            $parts[$d] = implode('', array_map(fn($v) => ctype_alpha($v) ? "\\$v" : $v, str_split($parts[$d] ?? '')));
+        }
+
+        return implode('', $parts);
+    }
+}
+
 assert(!function_exists('ryunosuke\\PHPUnit\\date_timestamp') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\date_timestamp'))->isUserDefined());
 if (!function_exists('ryunosuke\\PHPUnit\\date_timestamp')) {
     /**
@@ -11313,64 +11720,27 @@ if (!function_exists('ryunosuke\\PHPUnit\\set_trace_logger')) {
      *
      * @package ryunosuke\Functions\Package\errorfunc
      *
-     * @param resource|string $logfile 書き出すファイル名
-     * @param string $target 仕込むクラスの正規表現
+     * @param \Psr\Log\LoggerInterface $logger 書き出すファイル名
      * @return mixed
      */
-    function set_trace_logger($logfile, $liner, string $target)
+    function set_trace_logger($logger, string $target)
     {
-        $logfile = is_string($logfile) ? fopen($logfile, 'a') : $logfile; // for testing
-        $liner ??= function ($values) {
-            $stringify = function ($value, &$total = 0) use (&$stringify) {
-                if (is_array($value)) {
-                    $result = [];
-                    $n = 0;
-                    foreach ($value as $k => $v) {
-                        if (++$total > 10) {
-                            $result[] = '...';
-                            break;
-                        }
-                        $v = $stringify($v, $total);
-                        if ($k === $n) {
-                            $result[] = $v;
-                        }
-                        else {
-                            $result[] = "$k:$v";
-                        }
-                        $n++;
-                    }
-                    return "[" . implode(",", $result) . "]";
-                }
-                if (is_object($value)) {
-                    return get_class($value) . "#" . spl_object_id($value);
-                }
-                if (is_resource($value)) {
-                    return (string) $value;
-                }
-                return json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-            };
-            $values['time'] = $values['time']->format('Y-m-d\TH:i:s.v');
-            $values['args'] = implode(', ', array_map($stringify, $values['args']));
-            return vsprintf("[%s] %s %s::%s(%s);%s:%d\n", $values);
-        };
-
-        $GLOBALS['___trace_log_internal'] = function (string $file, int $line, string $class, string $method) use ($logfile, $liner) {
-            fwrite($logfile, $liner([
+        $GLOBALS['___trace_log_internal'] = function (string $file, int $line, string $class, string $method, array $args) use ($logger) {
+            $logger->debug("", [
                 'id'     => $_SERVER['UNIQUE_ID'] ?? str_pad($_SERVER['REQUEST_TIME_FLOAT'], 15, STR_PAD_RIGHT),
-                'time'   => new \DateTime(),
                 'class'  => $class,
                 'method' => $method,
-                'args'   => debug_backtrace(DEBUG_BACKTRACE_PROVIDE_OBJECT, 2)[1]['args'] ?? [],
+                'args'   => $args,
                 'file'   => $file,
                 'line'   => $line,
-            ]));
+            ]);
         };
 
         return register_autoload_function(function ($classname, $filename, $contents) use ($target) {
             if (preg_match($target, $classname)) {
                 $contents ??= file_get_contents($filename);
                 $contents = preg_replace_callback('#((final|public|protected|private|static)\s+){0,3}function\s+[_0-9a-z]+?\([^{]+\{#usmi', function ($m) {
-                    return $m[0] . "(\$GLOBALS['___trace_log_internal'] ?? fn() => null)(__FILE__, __LINE__ - 1, __CLASS__, __FUNCTION__);";
+                    return $m[0] . "(\$GLOBALS['___trace_log_internal'] ?? fn() => null)(__FILE__, __LINE__ - 1, __CLASS__, __FUNCTION__, func_get_args());";
                 }, $contents);
                 return $contents;
             }
@@ -16338,6 +16708,68 @@ if (!function_exists('ryunosuke\\PHPUnit\\average')) {
     }
 }
 
+assert(!function_exists('ryunosuke\\PHPUnit\\base_convert_array') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\base_convert_array'))->isUserDefined());
+if (!function_exists('ryunosuke\\PHPUnit\\base_convert_array')) {
+    /**
+     * 配列を対象とした base_convert
+     *
+     * 配列の各要素を数値の桁とみなして基数を変換する。
+     *
+     * Example:
+     * ```php
+     * // 123(10進)を7B(16進)に変換
+     * that(base_convert_array([1, 2, 3], 10, 16))->isSame([7, 11]);
+     * // つまりこういうこと（10 * 10^2 + 20 * 10^1 + 30 * 10^0 => 4 * 16^2 + 12 * 16^1 + 14 * 16^0）
+     * that(base_convert_array([10, 20, 30], 10, 16))->isSame([4, 12, 14]);
+     * ```
+     *
+     * @package ryunosuke\Functions\Package\math
+     *
+     * @copyright 2011 Anthony Ferrara
+     * @copyright 2016-2021 Mika Tuupola
+     * @see https://github.com/tuupola/base62/blob/2.x/LICENSE
+     *
+     * @param array $array 対象配列
+     * @param int $from_base 変換元基数
+     * @param int $to_base 変換先基数
+     * @return array 基数変換後の配列
+     */
+    function base_convert_array($array, $from_base, $to_base)
+    {
+        assert($from_base > 0);
+        assert($to_base > 0);
+
+        // 隠し第4引数が false の場合は gmp を使わない（ロジックのテスト用なので実運用で渡してはならない）
+        if (extension_loaded('gmp') && !(func_num_args() === 4 && func_get_arg(3) === false)) {
+            $array = array_values(array_reverse($array));
+            $bigint = array_reduce(array_keys($array), fn($carry, $i) => $carry + $array[$i] * gmp_pow($from_base, $i), 0);
+            $result = [];
+            while (gmp_cmp($bigint, 0)) {
+                [$bigint, $result[]] = gmp_div_qr($bigint, $to_base);
+            }
+            return array_reverse(array_map(fn($v) => gmp_intval($v), $result));
+        }
+
+        $result = [];
+        while ($array) {
+            $remainder = 0;
+            $quotients = [];
+            foreach ($array as $v) {
+                $accumulator = $v + $remainder * $from_base;
+                $remainder = $accumulator % $to_base;
+                $quotient = ($accumulator - ($accumulator % $to_base)) / $to_base;
+
+                if ($quotient || count($quotients)) {
+                    $quotients[] = $quotient;
+                }
+            }
+            $result[] = $remainder;
+            $array = $quotients;
+        }
+        return array_reverse($result);
+    }
+}
+
 assert(!function_exists('ryunosuke\\PHPUnit\\calculate_formula') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\calculate_formula'))->isUserDefined());
 if (!function_exists('ryunosuke\\PHPUnit\\calculate_formula')) {
     /**
@@ -17615,6 +18047,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\parse_php')) {
             'flags'          => 0,    // token_get_all の $flags. TOKEN_PARSE を与えると ParseError が出ることがあるのでデフォルト 0
             'cache'          => true, // キャッシュするか否か
             'greedy'         => false,// end と nest か一致したときに処理を継続するか
+            'backtick'       => true, // `` もパースするか
             'nest_token'     => [
                 ')' => '(',
                 '}' => '{',
@@ -17629,6 +18062,9 @@ if (!function_exists('ryunosuke\\PHPUnit\\parse_php')) {
             $phptag = $option['phptag'] ? '<?php ' : '';
             $phpcode = $phptag . $phpcode;
             $position = -strlen($phptag);
+
+            $backtick = '';
+            $backticking = false;
 
             $tokens = [];
             $tmp = token_get_all($phpcode, $option['flags']);
@@ -17677,9 +18113,23 @@ if (!function_exists('ryunosuke\\PHPUnit\\parse_php')) {
                 }
                 // @codeCoverageIgnoreEnd
 
+                if (!$option['backtick']) {
+                    if ($token[1] === '`') {
+                        if ($backticking) {
+                            $token[1] = $backtick . $token[1];
+                            $backtick = '';
+                        }
+                        $backticking = !$backticking;
+                    }
+                    if ($backticking) {
+                        $backtick .= $token[1];
+                        continue;
+                    }
+                }
+
                 $token[] = $position;
                 if ($option['flags'] & TOKEN_NAME) {
-                    $token[] = token_name($token[0]);
+                    $token[] = !$option['backtick'] && $token[0] === 96 ? 'T_BACKTICK' : token_name($token[0]);
                 }
 
                 $position += strlen($token[1]);
@@ -17949,6 +18399,193 @@ if (!function_exists('ryunosuke\\PHPUnit\\strip_php')) {
         }
 
         return $phtml;
+    }
+}
+
+assert(!function_exists('ryunosuke\\PHPUnit\\unique_id') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\unique_id'))->isUserDefined());
+if (!function_exists('ryunosuke\\PHPUnit\\unique_id')) {
+    /**
+     * 一意な文字列を返す
+     *
+     * 最大でも8バイト（64ビット）に収まるようにしてある。
+     *
+     * - 41bit: 1ミリ秒単位
+     * - 7bit: シーケンス
+     * - 16bit: IPv4ホストアドレス
+     *
+     * いわゆる snowflake 系で sonyflake が近い。
+     *
+     * シーケンスは「単位時間（1ミリ秒）あたりに発行できる数」を表す。
+     * 7bit で少し少ないが、生成にファイルロックを使用しているため、1ミリ秒で 128 回生成されることがそもそもレアケース。
+     * 7bit を超えると強制的に1ミリ秒待って timestamp を変えることで重複を防ぐ（≒その時は発行に1ミリ秒かかる）。
+     *
+     * 複数の IPv4 アドレスを持つ場合はサブネットが最も長いもの（ホストアドレスが最も短いもの）が使用される。
+     * IPv6 は未対応で、サブネット /16 未満も未対応。
+     *
+     * 引数はデバッグ用でいくつか用意しているが、実運用としては引数ゼロとして扱うこと。
+     *
+     * 以下、思考過程と備考。
+     *
+     * - 単調増加の値としてタイムスタンプを採用
+     *     - 如何にホスト・シーケンスが同じになろうと発行時刻が別なら別IDにするためのプレフィックスとして使用する
+     *     - 時間が巻き戻らない限りは大丈夫
+     *     - 2093年までしか発行できない（`(2 ** 41) * (10 ** -3) / 60 / 60 / 24 / 365` = 69.73 年）
+     * - サーバー間で重複を許したくない場合の候補は下記で、現在は IPv4 を採用している
+     *     - ホスト名
+     *         - 文字列で大きさが読めないし一意である保証もない
+     *     - MAC アドレス
+     *         - 一意だが少し大きすぎる
+     *         - 下3桁がシリアルIDらしいので同メーカーなら重複しないかもしれない
+     *         - ただそもそも php で MAC アドレスを簡単に得る手段がない
+     *     - IPv4
+     *         - サーバー間で重複を許さないような id の生成は大抵クラスタを組んでいて IP が振られているはず
+     *         - そして 4byte でユニークな IP が振られることはまずない（大抵は 2,3byte で固有のはず。/12未満のクラスタ構成なんて見たことない）
+     *     - IPv6
+     *         - 桁が大きすぎる
+     *         - まだまだ IPv4 も現役なので積極的に採用する理由に乏しい
+     *     - 引数で machine id を渡す
+     *         - 大抵のシステムでホスト数は1,2桁だろうので小bitで済む
+     *         - でも引数無しにしたかった
+     * - プロセス間の重複（シーケンス）はファイルロックを使用して採番している
+     *     - プロセスIDを採用してたが思ったより大きすぎた（現代的な linux ではデフォルト 2**22 らしい）
+     *     - 逐次ロックなので大量生成には全く向かない
+     *
+     * @package ryunosuke\Functions\Package\misc
+     *
+     * @param array $id_info 元になった生成データのレシーバ引数
+     * @param array $debug デバッグ用引数（配列で内部の動的な値を指定できる）
+     * @return string 一意なバイナリ文字列
+     */
+    function unique_id(&$id_info = [], $debug = [])
+    {
+        $id_info = [];
+
+        assert(PHP_INT_SIZE === 8);
+        static $TIMESTAMP_BASE = 1704034800; // 2024-01-01 00:00:00
+        static $TIMESTAMP_PRECISION = 1;
+        static $TIMESTAMP_BIT = 41;
+        static $SEQUENCE_BIT = 7;
+        static $IPADDRESS_BIT = 16;
+        assert(($TIMESTAMP_BIT + $SEQUENCE_BIT + $IPADDRESS_BIT) === 64);
+
+        static $ipaddress = null;
+        $ipaddress ??= (function () {
+            $addrs = [];
+            foreach (net_get_interfaces() as $interface) {
+                foreach ($interface['unicast'] as $addr) {
+                    // IPv4 で・・・
+                    if ($addr['family'] === AF_INET) {
+                        // subnet/16 以上のもの
+                        $subnet = strrpos(decbin((ip2long($addr['netmask']))), '1') + 1;
+                        if ($subnet >= 16) {
+                            $addrs[] = [$addr['address'], $subnet];
+                        }
+                    }
+                    // @todo subnet が /104 なら IPv6 でもいける？
+                }
+            }
+            if ($addrs) {
+                usort($addrs, fn($a, $b) => -($a[1] <=> $b[1]));
+                return reset($addrs)[0];
+            }
+            throw new \UnexpectedValueException("ip address is not found"); // @codeCoverageIgnore
+        })();
+        $ipaddress = $debug['ipaddress'] ?? $ipaddress;
+
+        // プロセスを跨いだ連番生成器（何かに使えそうなのでクラスにまとめて少し冗長になっている）
+        static $sequencer = null;
+        $sequencer ??= new class (sys_get_temp_dir() . "/id-sequence") {
+            private     $handle;
+            private int $lockcount = 0;
+
+            public function __construct(string $lockfile)
+            {
+                $this->handle = fopen($lockfile, 'c+');
+            }
+
+            public function lock(): int
+            {
+                if (flock($this->handle, LOCK_EX)) {
+                    $this->lockcount++;
+                }
+                return $this->lockcount;
+            }
+
+            public function unlock(): int
+            {
+                if (flock($this->handle, LOCK_UN)) {
+                    $this->lockcount--;
+                }
+                return $this->lockcount;
+            }
+
+            public function reset(int $sequence): void
+            {
+                assert($this->lockcount > 0, 'must be lock');
+
+                set_error_handler(function ($severity, $message, $file, $line) { throw new \ErrorException($message, 0, $severity, $file, $line); });
+                try {
+                    rewind($this->handle);
+                    ftruncate($this->handle, 0);
+                    fwrite($this->handle, $sequence);
+                }
+                finally {
+                    restore_error_handler();
+                }
+            }
+
+            public function add(int $increment = 1): int
+            {
+                assert($this->lockcount > 0, 'must be lock');
+
+                set_error_handler(function ($severity, $message, $file, $line) { throw new \ErrorException($message, 0, $severity, $file, $line); });
+                try {
+                    rewind($this->handle);
+                    $sequence = (int) stream_get_contents($this->handle);
+
+                    $next = $sequence + $increment;
+                    $this->reset(is_float($next) ? 0 : $next);
+
+                    return $sequence;
+                }
+                finally {
+                    restore_error_handler();
+                }
+            }
+        };
+
+        $sequencer->lock();
+        try {
+            $timestamp = $debug['timestamp'] ?? microtime(true);
+            if (isset($debug['sequence'])) {
+                $sequencer->reset($debug['sequence']);
+            }
+
+            $sequence = $sequencer->add() % (1 << $SEQUENCE_BIT);
+            if ($sequence === 0) {
+                usleep(1000 * $TIMESTAMP_PRECISION);
+                $timestamp = microtime(true);
+            }
+        }
+        finally {
+            $sequencer->unlock();
+        }
+
+        $id_info = [
+            'timestamp' => (int) (($timestamp - $TIMESTAMP_BASE) * 1000 / $TIMESTAMP_PRECISION),
+            'sequence'  => $sequence,
+            'ipsegment' => ip2long($ipaddress) & ((1 << $IPADDRESS_BIT) - 1),
+        ];
+
+        assert(($id_info['timestamp'] & ((1 << $TIMESTAMP_BIT) - 1)) === $id_info['timestamp']);
+        assert(($id_info['sequence'] & ((1 << $SEQUENCE_BIT) - 1)) === $id_info['sequence']);
+        assert(($id_info['ipsegment'] & ((1 << $IPADDRESS_BIT) - 1)) === $id_info['ipsegment']);
+
+        $ipaddress_right_bits = 0;
+        $sequence_right_bits = $ipaddress_right_bits + $IPADDRESS_BIT;
+        $timestamp_right_bits = $sequence_right_bits + $SEQUENCE_BIT;
+
+        return pack('J', ($id_info['timestamp'] << $timestamp_right_bits) | ($id_info['sequence'] << $sequence_right_bits) | ($id_info['ipsegment'] << $ipaddress_right_bits));
     }
 }
 
@@ -19543,6 +20180,91 @@ if (!function_exists('ryunosuke\\PHPUnit\\random_at')) {
     function random_at(...$args)
     {
         return $args[mt_rand(0, count($args) - 1)];
+    }
+}
+
+assert(!function_exists('ryunosuke\\PHPUnit\\random_float') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\random_float'))->isUserDefined());
+if (!function_exists('ryunosuke\\PHPUnit\\random_float')) {
+    /**
+     * 疑似乱数小数を返す
+     *
+     * 疑似的に生成しているので偏りはあることに注意。
+     * https://www.php.net/manual/random-randomizer.getfloat.php
+     * https://www.php.net/manual/random-randomizer.nextfloat.php
+     *
+     * Example:
+     * ```php
+     * // [-M_PI~+M_PI] の区間でランダムに返す
+     * that(random_float(-M_PI, +M_PI))->isBetween(-M_PI, +M_PI);
+     * ```
+     *
+     * @package ryunosuke\Functions\Package\random
+     *
+     * @param float $min 最小値
+     * @param float $max 最大値
+     * @return float min～maxの乱数
+     */
+    function random_float($min, $max)
+    {
+        if ($min > $max) {
+            throw new \Error('Minimum value must be less than or equal to the maximum value');
+        }
+        //return ($min + ($max - $min) * lcg_value());
+        return $min + ($max - $min) * rand(0, getrandmax()) / getrandmax();
+    }
+}
+
+assert(!function_exists('ryunosuke\\PHPUnit\\random_range') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\random_range'))->isUserDefined());
+if (!function_exists('ryunosuke\\PHPUnit\\random_range')) {
+    /**
+     * 指定範囲内からランダムで返す
+     *
+     * $count を null にすると個数すらもランダムで返す。
+     * 結果は範囲内では重複しない。
+     *
+     * 範囲が負数の場合は例外を投げるが、$count の 0 や範囲超過数は許容される（array_rand とは違う）。
+     *
+     * Example:
+     * ```php
+     * mt_srand(5); // テストがコケるので種固定
+     *
+     * // [10~20] の区間でランダムに3件返す
+     * that(random_range(10, 20, 3))->is([19, 20, 10]);
+     * // 0 を渡しても OK（単に空配列を返す）
+     * that(random_range(10, 20, 0))->is([]);
+     * // 範囲超過数を渡しても OK（最大個数で返す）
+     * that(count(random_range(10, 20, 999)))->is(11);
+     * ```
+     *
+     * @package ryunosuke\Functions\Package\random
+     *
+     * @param int $min 最小値
+     * @param int $max 最大値
+     * @param ?int $count 返す個数
+     * @return array min～maxの数値の配列
+     */
+    function random_range($min, $max, $count = null)
+    {
+        $range = $max - $min;
+        if ($range < 0) {
+            throw new \InvalidArgumentException("invalid range ($min > $max)");
+        }
+
+        if ($count === null) {
+            $count = rand(0, $range + 1);
+        }
+
+        if ($count > ($range >> 1)) {
+            $array = range($min, $max);
+            shuffle($array);
+            return array_slice($array, 0, $count);
+        }
+
+        $result = [];
+        while (count($result) < $count) {
+            $result[rand($min, $max)] = null;
+        }
+        return array_keys($result);
     }
 }
 
@@ -22577,11 +23299,8 @@ if (!function_exists('ryunosuke\\PHPUnit\\render_template')) {
      * - 埋め込みは ${var} のみで、{$var} は無効
      * - ${expression} は「評価結果の変数名」ではなく「評価結果」が埋め込まれる
      *
-     * $vars に callable を渡すと元文字列とプレースホルダー部分の配列でコールバックされる（タグ付きテンプレートの模倣）。
-     *
-     * 実装的にはただの文字列 eval なので " はエスケープする必要がある。
-     *
      * この関数は実験的機能のため、互換性を維持せず変更される可能性がある。
+     * また、 token_get_all に頼っているため php9 で `${var}` 構文が廃止されたらおそらく動かない。
      *
      * Example:
      * ```php
@@ -22590,75 +23309,68 @@ if (!function_exists('ryunosuke\\PHPUnit\\render_template')) {
      *
      * @package ryunosuke\Functions\Package\strings
      *
-     * @param string $template レンダリングするファイル名
-     * @param array|object|\Closure $vars レンダリング変数
+     * @param string $template レンダリングする文字列
+     * @param array|object $vars レンダリング変数
+     * @param callable $tag ブロックと変数値が渡ってくるクロージャ（タグ付きテンプレートリテラルのようなもの）
      * @return string レンダリングされた文字列
      */
-    function render_template($template, $vars)
+    function render_template($template, $vars, $tag = null)
     {
-        assert(is_arrayable($vars) || is_callable($vars) || is_array($vars));
+        assert(is_arrayable($vars) || is_array($vars));
 
-        $tokens = array_slice(parse_php('"' . $template . '"', [
-            //'flags' => Syntax::TOKEN_NAME,
-        ]), 2, -1);
-
-        $callable_mode = is_callable($vars);
-
-        $embed = $callable_mode ? null : unique_string($template, "embedclosure");
-        $blocks = [""];
-        $values = [];
-        for ($i = 0, $l = count($tokens); $i < $l; $i++) {
-            if (!$callable_mode) {
-                if ($tokens[$i][0] === T_VARIABLE) {
-                    $tokens[$i][1] = '\\' . $tokens[$i][1];
-                }
+        $tag ??= function ($literals, ...$values) {
+            $l = max(count($literals), count($values));
+            $result = '';
+            for ($i = 0; $i < $l; $i++) {
+                $result .= ($literals[$i] ?? '') . ($values[$i] ?? '');
             }
-            if ($tokens[$i][0] === T_DOLLAR_OPEN_CURLY_BRACES) {
-                for ($j = $i; $j < $l; $j++) {
-                    if ($tokens[$j][1] === '}') {
-                        $stmt = implode('', array_column(array_slice($tokens, $i + 1, $j - $i - 1, true), 1));
-                        if (attr_exists($stmt, $vars)) {
-                            if ($callable_mode) {
-                                $blocks[] = "";
-                                $values[] = attr_get($stmt, $vars);
-                            }
-                            else {
-                                // 書き換える必要はない（`${varname}` は正しく埋め込まれる）
-                                assert(strlen($stmt));
-                            }
+            return $result;
+        };
+
+        [$blocks, $stmts] = cache("template-$template", function () use ($template) {
+            $tokens = array_slice(parse_php("<<<PHPTEMPLATELITERAL\n" . $template . "\nPHPTEMPLATELITERAL;", [
+                'backtick' => false,
+            ]), 2, -2);
+            $last = array_key_last($tokens);
+            if ($tokens[$last][0] === T_ENCAPSED_AND_WHITESPACE) {
+                $tokens[$last][1] = substr($tokens[$last][1], 0, -1);
+            }
+
+            $blocks = [""];
+            $stmts = [];
+            for ($i = 0, $l = count($tokens); $i < $l; $i++) {
+                if ($tokens[$i][0] === T_DOLLAR_OPEN_CURLY_BRACES) {
+                    for ($j = $i + 1; $j < $l; $j++) {
+                        if ($tokens[$j][1] === '}') {
+                            $blocks[] = "";
+                            $stmts[] = array_slice($tokens, $i + 1, $j - $i - 1, true);
+                            $i = $j;
+                            break;
                         }
-                        else {
-                            if ($callable_mode) {
-                                $blocks[] = "";
-                                $values[] = phpval($stmt, (array) $vars);
-                            }
-                            else {
-                                // ${varname} を {$embedclosure(varname)} に書き換えて埋め込みを有効化する
-                                $tokens = array_replace($tokens, array_fill($i, $j - $i + 1, [1 => '']));
-                                $tokens[$i][1] = "{\$$embed($stmt)}";
-                            }
-                        }
-                        $i = $j;
-                        break;
                     }
                 }
-            }
-            else {
-                if ($callable_mode) {
-                    $blocks[count($blocks) - 1] .= $tokens[$i][1];
+                else {
+                    $blocks[count($blocks) - 1] .= strtr_escaped($tokens[$i][1], ['\$' => '$']);
                 }
             }
-        }
 
-        if ($callable_mode) {
-            if (strlen($blocks[count($blocks) - 1]) === 0) {
-                unset($blocks[count($blocks) - 1]);
+            return [$blocks, $stmts];
+        }, __FUNCTION__);
+
+        $values = [];
+        foreach ($stmts as $stmt) {
+            foreach ($stmt as $n => $subtoken) {
+                if ($subtoken[0] === ord('`')) {
+                    $stmt[$n][1] = var_export(render_template(substr($subtoken[1], 1, -1), $vars), true);
+                }
+                elseif (attr_exists($subtoken[1], $vars) && ($stmt[$n + 1][1] ?? '') !== '(') {
+                    $stmt[$n][1] = '$' . $subtoken[1];
+                }
             }
-            return $vars($blocks, ...$values);
+            $values[] = phpval(implode('', array_column($stmt, 1)), (array) $vars);
         }
 
-        $template = '"' . implode('', array_column($tokens, 1)) . '"';
-        return evaluate("return $template;", $vars + [$embed => fn($v) => $v]);
+        return $tag($blocks, ...$values);
     }
 }
 
@@ -25316,6 +26028,102 @@ if (!function_exists('ryunosuke\\PHPUnit\\try_return')) {
     }
 }
 
+assert(!function_exists('ryunosuke\\PHPUnit\\base62_decode') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\base62_decode'))->isUserDefined());
+if (!function_exists('ryunosuke\\PHPUnit\\base62_decode')) {
+    /**
+     * 数値とアルファベットで base62 デコードする
+     *
+     * 対で使うと思うので base62_encode を参照。
+     *
+     * @package ryunosuke\Functions\Package\url
+     *
+     * @param string $string base62 文字列
+     * @return string 変換元文字列
+     */
+    function base62_decode($string)
+    {
+        // あくまで数値として扱うので先頭の 0 は吹き飛んでしまう
+        $zeropos = strspn($string, "0");
+        $zeroprefix = str_repeat("\0", $zeropos);
+        $string = substr($string, $zeropos);
+
+        // php<8.2 の str_split は [""] を返すし gmp が扱うのはあくまで数値なので空文字は特別扱いとする
+        if (!strlen($string)) {
+            return $zeroprefix;
+        }
+
+        // 隠し第2引数が false の場合は gmp を使わない（ロジックのテスト用なので実運用で渡してはならない）
+        if (extension_loaded('gmp') && !(func_num_args() === 2 && func_get_arg(1) === false)) {
+            $gmp = @gmp_init($string, 62);
+            if ($gmp === false) {
+                throw new \InvalidArgumentException("string is not an base62");
+            }
+            return $zeroprefix . gmp_export($gmp);
+        }
+
+        static $basechars_assoc = null;
+        $basechars_assoc ??= array_flip(str_split('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'));
+
+        $chars = str_split($string);
+        $base62 = array_map(fn($c) => $basechars_assoc[$c] ?? throws(new \InvalidArgumentException("string is not an base62")), $chars);
+        $bytes = base_convert_array($base62, 62, 256);
+        return $zeroprefix . implode('', array_map('chr', $bytes));
+    }
+}
+
+assert(!function_exists('ryunosuke\\PHPUnit\\base62_encode') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\base62_encode'))->isUserDefined());
+if (!function_exists('ryunosuke\\PHPUnit\\base62_encode')) {
+    /**
+     * 数値とアルファベットで base62 エンコードする
+     *
+     * あくまでエンコードであって引数は文字列として扱う。つまり数値の基数変換ではない。
+     *
+     * base64 と違い、下記の特徴がある。
+     * - =パディングなし
+     * - 記号が入らない（完全に URL セーフ）
+     * - ASCII 順（元の推移律が維持される）
+     *
+     * 変換効率もあまり変わらないため、文字列が小さい間はほぼ base64_encode の上位互換に近い。
+     * ただし gmp が入っていないと猛烈に遅い。
+     *
+     * Example:
+     * ```php
+     * that(base62_encode('abcdefg'))->isSame('21XiSSifQN');
+     * that(base62_decode('21XiSSifQN'))->isSame('abcdefg');
+     * ```
+     *
+     * @package ryunosuke\Functions\Package\url
+     *
+     * @param string $string 変換元文字列
+     * @return string base62 文字列
+     */
+    function base62_encode($string)
+    {
+        // あくまで数値として扱うので先頭の 0 は吹き飛んでしまう
+        $zeropos = strspn($string, "\0");
+        $zeroprefix = str_repeat("0", $zeropos);
+        $string = substr($string, $zeropos);
+
+        // php<8.2 の str_split は [""] を返すし gmp が扱うのはあくまで数値なので空文字は特別扱いとする
+        if (!strlen($string)) {
+            return $zeroprefix;
+        }
+
+        // 隠し第2引数が false の場合は gmp を使わない（ロジックのテスト用なので実運用で渡してはならない）
+        if (extension_loaded('gmp') && !(func_num_args() === 2 && func_get_arg(1) === false)) {
+            return $zeroprefix . gmp_strval(gmp_import($string), 62);
+        }
+
+        static $basechars_index = null;
+        $basechars_index ??= str_split('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz');
+
+        $chars = str_split($string);
+        $bytes = array_map('ord', $chars);
+        $base62 = base_convert_array($bytes, 256, 62);
+        return $zeroprefix . implode('', array_map(fn($v) => $basechars_index[$v], $base62));
+    }
+}
+
 assert(!function_exists('ryunosuke\\PHPUnit\\build_query') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\build_query'))->isUserDefined());
 if (!function_exists('ryunosuke\\PHPUnit\\build_query')) {
     /**
@@ -25804,6 +26612,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\benchmark')) {
      * 簡易ベンチマークを取る
      *
      * 「指定ミリ秒内で何回コールできるか？」でベンチする。
+     * メモリ使用量も取れるが ticks を利用しているのであまり正確ではないし、モノによっては計測できない（バージョンアップで memory_reset_peak_usage に変更される）。
      *
      * $suite は ['表示名' => $callable] 形式の配列。
      * 表示名が与えられていない場合、それらしい名前で表示する。
@@ -25846,7 +26655,22 @@ if (!function_exists('ryunosuke\\PHPUnit\\benchmark')) {
                 throw new \InvalidArgumentException('duplicated benchname.');
             }
 
-            $benchset[$name] = \Closure::fromCallable($caller);
+            $closure = \Closure::fromCallable($caller);
+            // for compatible (wait for memory_reset_peak_usage)
+            try {
+                // いったん受けて返すことで tick を誘発する
+                // @codeCoverageIgnoreStart
+                $caller = function (&...$args) use ($caller) {
+                    $dummy = $caller(...$args);
+                    return $dummy;
+                };
+                // @codeCoverageIgnoreEnd
+                $closure = evaluate("declare(ticks=1);\n" . var_export3($caller, ['outmode' => 'eval']));
+            }
+            catch (\Throwable $t) { // @codeCoverageIgnore
+                // do nothing
+            }
+            $benchset[$name] = $closure;
         }
 
         if (!$benchset) {
@@ -25899,46 +26723,63 @@ if (!function_exists('ryunosuke\\PHPUnit\\benchmark')) {
         }
 
         // ベンチ
+        $tick = function () use (&$usage) {
+            $usage = max($usage, memory_get_usage());
+        };
+        register_tick_function($tick);
         $stats = [];
         foreach ($benchset as $name => $caller) {
+            $usage = null;
+            gc_collect_cycles();
+            $memory = memory_get_usage();
             $microtime = microtime(true);
-            $stats[$name]['elapsed'] = $microtime;
             $end = $microtime + $millisec / 1000;
             $args2 = $args;
             for ($n = 0; ($t = microtime(true)) <= $end; $n++) {
                 $caller(...$args2);
-                $stats[$name]['fastest'] = min($stats[$name]['fastest'] ?? PHP_FLOAT_MAX, microtime(true) - $t);
+                $elapsed = microtime(true) - $t;
+                $stats[$name]['fastest'] = min($stats[$name]['fastest'] ?? PHP_FLOAT_MAX, $elapsed);
+                $stats[$name]['slowest'] = max($stats[$name]['slowest'] ?? PHP_FLOAT_MIN, $elapsed);
             }
             $stats[$name]['count'] = $n;
-            $stats[$name]['elapsed'] = microtime(true) - $stats[$name]['elapsed'];
+            $stats[$name]['mills'] = (microtime(true) - $microtime) / $n;
+            $stats[$name]['memory'] = $usage === null ? null : $usage - $memory;
         }
+        unregister_tick_function($tick);
 
         $restore();
 
         // 結果配列
         $result = [];
-        $maxcount = max(array_column($stats, 'count'));
+        $minmills = min(array_column($stats, 'mills'));
         uasort($stats, fn($a, $b) => $b['count'] <=> $a['count']);
         foreach ($stats as $name => $stat) {
-            $result[] = [
+            $result[$name] = [
                 'name'    => $name,
+                'memory'  => $stat['memory'],
                 'called'  => $stat['count'],
                 'fastest' => $stat['fastest'],
-                'mills'   => $stat['elapsed'] / $stat['count'],
-                'ratio'   => $maxcount / $stat['count'],
+                'slowest' => $stat['slowest'],
+                'mills'   => $stat['mills'],
+                'ratio'   => $stat['mills'] / $minmills,
             ];
         }
 
         // 出力するなら出力
         if ($output) {
-            printf("Running %s cases (between %s ms):\n", count($benchset), number_format($millisec));
-            echo markdown_table(array_map(function ($v) {
+            $number_format = function ($value, $ratio = 1, $decimal = 0, $nullvalue = '') {
+                return $value === null ? $nullvalue : number_format($value * $ratio, $decimal);
+            };
+            printf("Running %s cases (between %s ms):\n", count($benchset), $number_format($millisec));
+            echo markdown_table(array_map(function ($v) use ($number_format) {
                 return [
                     'name'        => $v['name'],
-                    'called'      => number_format($v['called'], 0),
-                    'fastest(ms)' => number_format($v['fastest'] * 1000, 6),
-                    '1 call(ms)'  => number_format($v['mills'] * 1000, 6),
-                    'ratio'       => number_format($v['ratio'], 3),
+                    'memory(KB)'  => $number_format($v['memory'], 1 / 1024, 3, "N/A"),
+                    'called'      => $number_format($v['called']),
+                    'fastest(ms)' => $number_format($v['fastest'], 1000, 6),
+                    'slowest(ms)' => $number_format($v['slowest'], 1000, 6),
+                    'average(ms)' => $number_format($v['mills'], 1000, 6),
+                    'ratio'       => $number_format($v['ratio'], 1, 3),
                 ];
             }, $result));
         }
@@ -26167,6 +27008,19 @@ if (!function_exists('ryunosuke\\PHPUnit\\cacheobject')) {
             {
                 assert(strlen($directory));
                 $this->directory = $directory;
+            }
+
+            public function __debugInfo()
+            {
+                $class = self::class;
+                $props = (array) $this;
+
+                // 全キャッシュは情報量としてでかすぎるが、何がどこに配置されているかくらいは有ってもいい
+                $ekey = "\0$class\0entries";
+                assert(array_key_exists($ekey, $props));
+                $props[$ekey] = array_reduce(array_keys($props[$ekey]), fn($acc, $k) => $acc + [$k => $this->_getFilename($k)], []);
+
+                return $props;
             }
 
             private function _exception(string $message = "", int $code = 0, \Throwable $previous = null): \Throwable
@@ -26819,6 +27673,9 @@ if (!function_exists('ryunosuke\\PHPUnit\\decrypt')) {
     /**
      * 指定されたパスワードで復号化する
      *
+     * $password は配列で複数与えることができる。
+     * 複数与えた場合、順に試みて複合できた段階でその値を返す。
+     *
      * $ciphers は配列で複数与えることができる。
      * 複数与えた場合、順に試みて複合できた段階でその値を返す。
      * v2 以降は生成文字列に $cipher が含まれているため指定不要（今後指定してはならない）。
@@ -26829,18 +27686,44 @@ if (!function_exists('ryunosuke\\PHPUnit\\decrypt')) {
      * @package ryunosuke\Functions\Package\var
      *
      * @param string $cipherdata 復号化するデータ
-     * @param string $password パスワード
+     * @param string|array $password パスワード
      * @param string|array $ciphers 暗号化方式（openssl_get_cipher_methods で得られるもの）
      * @param string $tag 認証タグ
      * @return mixed 復号化されたデータ
      */
     function decrypt($cipherdata, $password, $ciphers = 'aes-256-cbc', $tag = '')
     {
-        [$cipherdata, $version] = explode('=', $cipherdata, 2) + [1 => 0];
-        $cipherdata = base64_decode(strtr($cipherdata, ['-' => '+', '_' => '/']));
-        $version = (int) $version;
+        $version = $cipherdata[-1] ?? '';
+        // for compatible
+        if (!ctype_digit($version)) {
+            $version = '0';
+            $cipherdata = base64_decode(strtr($cipherdata, ['-' => '+', '_' => '/']));
+        }
+        else {
+            $cipherdata = base64_decode(strtr(substr($cipherdata, 0, -1), ['-' => '+', '_' => '/']));
+        }
 
-        if ($version === 2) {
+        if ($version === "3") {
+            $cp = strrpos($cipherdata, ':');
+            $ivtagpayload = substr($cipherdata, 0, $cp);
+            $cipher = substr($cipherdata, $cp + 1);
+            $metadata = cipher_metadata($cipher);
+            if (!$metadata) {
+                return null;
+            }
+            $tag = substr($ivtagpayload, 0, $metadata['taglen']);
+            $iv = substr($ivtagpayload, $metadata['taglen'], $metadata['ivlen']);
+            $payload = substr($ivtagpayload, $metadata['ivlen'] + $metadata['taglen']);
+            foreach ((array) $password as $pass) {
+                $decryptdata = openssl_decrypt($payload, $cipher, $pass, OPENSSL_RAW_DATA, $iv, $tag);
+                if ($decryptdata !== false) {
+                    return json_decode(gzinflate($decryptdata), true);
+                }
+            }
+            return null;
+        }
+
+        if ($version === "2") {
             [$cipher, $ivtagpayload] = explode(':', $cipherdata, 2) + [1 => null];
             $metadata = cipher_metadata($cipher);
             if (!$metadata) {
@@ -26871,7 +27754,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\decrypt')) {
 
             $decryptdata = openssl_decrypt($payload, $c, $password, OPENSSL_RAW_DATA, $iv, $tag);
             if ($decryptdata !== false) {
-                if ($version === 1) {
+                if ($version === "1") {
                     $decryptdata = gzinflate($decryptdata);
                 }
                 return json_decode($decryptdata, true);
@@ -26888,6 +27771,10 @@ if (!function_exists('ryunosuke\\PHPUnit\\encrypt')) {
      *
      * データは json を経由して base64（URL セーフ） して返す。
      * $tag を与えると認証タグが設定される。
+     *
+     * $password は配列で複数与えることができる。
+     * 複数与えた場合、先頭の要素が使用される。
+     * これは decrypt との親和性のため（password の変更・移行期間は複数を扱いたいことがある）であり、決して「複数のパスワード対応」ではない。
      *
      * データ末尾には =v が付与される。
      * これによって処理が変わり、バージョン違いの暗号化文字列を与えたとしても複合することができる。
@@ -26912,24 +27799,33 @@ if (!function_exists('ryunosuke\\PHPUnit\\encrypt')) {
      * @package ryunosuke\Functions\Package\var
      *
      * @param mixed $plaindata 暗号化するデータ
-     * @param string $password パスワード。十分な長さ、あるいは鍵導出関数を通した文字列でなければならない
+     * @param string|array $password パスワード。十分な長さ、あるいは鍵導出関数を通した文字列でなければならない
      * @param string $cipher 暗号化方式（openssl_get_cipher_methods で得られるもの）
      * @param string $tag 認証タグ
      * @return string 暗号化された文字列
      */
     function encrypt($plaindata, $password, $cipher = 'aes-256-gcm', &$tag = '')
     {
-        $jsondata = json_encode($plaindata, JSON_UNESCAPED_UNICODE);
-        $zlibdata = gzdeflate($jsondata, 9);
-
         $metadata = cipher_metadata($cipher);
         if (!$metadata) {
             throw new \InvalidArgumentException("undefined cipher algorithm('$cipher')");
         }
-        $iv = $metadata['ivlen'] ? random_bytes($metadata['ivlen']) : '';
+
+        $jsondata = json_encode($plaindata, JSON_UNESCAPED_UNICODE);
+        $zlibdata = gzdeflate($jsondata, 9);
+
+        $iv = '';
+        if ($metadata['ivlen']) {
+            $iv = unique_id();
+            $rest = $metadata['ivlen'] - strlen($iv);
+            if ($rest) {
+                $iv = random_bytes($rest) . $iv;
+            }
+        }
+        $password = is_array($password) ? reset($password) : $password;
         $payload = openssl_encrypt($zlibdata, $cipher, $password, OPENSSL_RAW_DATA, $iv, ...$metadata['taglen'] ? [&$tag] : []);
 
-        return rtrim(strtr(base64_encode($cipher . ':' . $iv . $tag . $payload), ['+' => '-', '/' => '_']), '=') . '=2';
+        return rtrim(strtr(base64_encode($tag . $iv . $payload . ':' . $cipher), ['+' => '-', '/' => '_']), '=') . '3';
     }
 }
 

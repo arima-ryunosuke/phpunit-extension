@@ -18,6 +18,40 @@ if (!defined('ryunosuke\\PHPUnit\\IS_PRIVATE')) {
     define('ryunosuke\\PHPUnit\\IS_PRIVATE', 16);
 }
 
+if (!defined('ryunosuke\\PHPUnit\\EN_MONTH_SHORT')) {
+    define('ryunosuke\\PHPUnit\\EN_MONTH_SHORT', [
+        1  => "jan",
+        2  => "feb",
+        3  => "mar",
+        4  => "apr",
+        5  => "may",
+        6  => "jun",
+        7  => "jul",
+        8  => "aug",
+        9  => "sep",
+        10 => "oct",
+        11 => "nov",
+        12 => "dec",
+    ]);
+}
+
+if (!defined('ryunosuke\\PHPUnit\\EN_MONTH_LONG')) {
+    define('ryunosuke\\PHPUnit\\EN_MONTH_LONG', [
+        1  => "january",
+        2  => "february",
+        3  => "march",
+        4  => "april",
+        5  => "may",
+        6  => "june",
+        7  => "july",
+        8  => "august",
+        9  => "september",
+        10 => "october",
+        11 => "november",
+        12 => "december",
+    ]);
+}
+
 if (!defined('ryunosuke\\PHPUnit\\JP_ERA')) {
     define('ryunosuke\\PHPUnit\\JP_ERA', [
         [
@@ -989,9 +1023,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\type_exists')) {
         if (trait_exists($typename, $autoload)) {
             return true;
         }
-        if (function_exists('enum_exists') && enum_exists($typename, $autoload)) {
-            return true; // @codeCoverageIgnore
-        }
+        // enum は class で実装されているので enum_exists は不要
         return false;
     }
 }
@@ -1039,6 +1071,16 @@ if (!function_exists('ryunosuke\\PHPUnit\\markdown_table')) {
         ];
 
         $stringify = fn($v) => strtr(trim(is_stringable($v) ? $v : $option['stringify']($v)), ["\t" => '    ']);
+        $is_numeric = function ($v) {
+            $v = trim($v);
+            if (strlen($v) === 0) {
+                return true;
+            }
+            if (is_numeric($v)) {
+                return true;
+            }
+            return preg_match('#^-?[1-9][0-9]{0,2}(,[0-9]{3})*(\.[0-9]+)?$#', $v);
+        };
 
         $rows = [];
         $defaults = [];
@@ -1060,7 +1102,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\markdown_table')) {
                 foreach ($v as $i => $t) {
                     $e = ansi_strip($t);
                     $rows["{$n}_{$i}"][$k] = $t;
-                    $numerics[$k] = ($numerics[$k] ?? true) && (is_numeric($e) || strlen($e) === 0);
+                    $numerics[$k] = ($numerics[$k] ?? true) && $is_numeric($e);
                     $lengths[$k] = max($lengths[$k] ?? 3, mb_monospace(ansi_strip($k)), mb_monospace($e)); // 3 は markdown の最低見出し長
                 }
             }
@@ -3983,6 +4025,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\parse_php')) {
             'flags'          => 0,    // token_get_all の $flags. TOKEN_PARSE を与えると ParseError が出ることがあるのでデフォルト 0
             'cache'          => true, // キャッシュするか否か
             'greedy'         => false,// end と nest か一致したときに処理を継続するか
+            'backtick'       => true, // `` もパースするか
             'nest_token'     => [
                 ')' => '(',
                 '}' => '{',
@@ -3997,6 +4040,9 @@ if (!function_exists('ryunosuke\\PHPUnit\\parse_php')) {
             $phptag = $option['phptag'] ? '<?php ' : '';
             $phpcode = $phptag . $phpcode;
             $position = -strlen($phptag);
+
+            $backtick = '';
+            $backticking = false;
 
             $tokens = [];
             $tmp = token_get_all($phpcode, $option['flags']);
@@ -4045,9 +4091,23 @@ if (!function_exists('ryunosuke\\PHPUnit\\parse_php')) {
                 }
                 // @codeCoverageIgnoreEnd
 
+                if (!$option['backtick']) {
+                    if ($token[1] === '`') {
+                        if ($backticking) {
+                            $token[1] = $backtick . $token[1];
+                            $backtick = '';
+                        }
+                        $backticking = !$backticking;
+                    }
+                    if ($backticking) {
+                        $backtick .= $token[1];
+                        continue;
+                    }
+                }
+
                 $token[] = $position;
                 if ($option['flags'] & TOKEN_NAME) {
-                    $token[] = token_name($token[0]);
+                    $token[] = !$option['backtick'] && $token[0] === 96 ? 'T_BACKTICK' : token_name($token[0]);
                 }
 
                 $position += strlen($token[1]);
