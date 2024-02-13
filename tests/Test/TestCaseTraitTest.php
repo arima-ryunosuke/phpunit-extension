@@ -71,9 +71,31 @@ class TestCaseTraitTest extends \ryunosuke\Test\AbstractTestCase
         throw new InvalidArgumentException();
     }
 
+    function test_finalize()
+    {
+        $GLOBALS['hoge'] = 'HOGE';
+        $GLOBALS['fuga'] = 'FUGA';
+
+        $this->finalize(function () {
+            unset($GLOBALS['hoge']);
+        });
+        $this->finalize(function () {
+            unset($GLOBALS['fuga']);
+        });
+
+        $this->assertTrue(isset($GLOBALS['hoge']));
+        $this->assertTrue(isset($GLOBALS['fuga']));
+    }
+
     /**
-     * @backupGlobals enabled
+     * @depends test_finalize
      */
+    function test_finalize_recovery()
+    {
+        $this->assertFalse(isset($GLOBALS['hoge']));
+        $this->assertFalse(isset($GLOBALS['fuga']));
+    }
+
     function test_restorer()
     {
         $currents = [ini_get('memory_limit'), mb_internal_encoding()];
@@ -215,9 +237,6 @@ class TestCaseTraitTest extends \ryunosuke\Test\AbstractTestCase
         $this->assertFileDoesNotExist($dummy);
     }
 
-    /**
-     * @backupGlobals enabled
-     */
     function test_backgroundTask()
     {
         $dir = $this->emptyDirectory();

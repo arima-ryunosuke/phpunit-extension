@@ -10,6 +10,7 @@ use ReflectionClass;
 use ReflectionFunction;
 use RuntimeException;
 use ryunosuke\PHPUnit\Printer\AbstractPrinter;
+use SebastianBergmann\Comparator\ObjectComparator;
 use stdClass;
 use Throwable;
 
@@ -62,11 +63,43 @@ trait TestCaseTrait
     }
 
     /**
+     * call closure at Test end
+     *
+     * This is almost the same as tearDown.
+     * However it can be set individually for each test case.
+     *
+     * @param callable $finalizer
+     */
+    public function finalize(callable $finalizer)
+    {
+        // TestCase->customComparators is cleared per testcases. it means __destruct is called
+        // This is hack(bad move), but can be easily implemented without modifying PHPUnit
+        $this->registerComparator(new class($finalizer) extends ObjectComparator {
+            private $finalizer;
+
+            public function __construct(callable $finalizer)
+            {
+                parent::__construct();
+                $this->finalizer = $finalizer;
+            }
+
+            public function __destruct()
+            {
+                if (isset($this->finalizer)) {
+                    ($this->finalizer)();
+                    unset($this->finalizer);
+                }
+                gc_collect_cycles();
+            }
+
+            public function accepts($expected, $actual) { return false; } // @codeCoverageIgnore
+        });
+    }
+
+    /**
      * reset function base's value on temporary scope
      *
      * `unset($return)` restores original value
-     *
-     * @see https://phpunit.readthedocs.io/ja/latest/annotations.html#appendixes-annotations-backupglobals
      *
      * @param callable $setter
      * @param array $initializeArgs
@@ -105,12 +138,7 @@ trait TestCaseTrait
             }
         };
 
-        $ref = new ReflectionClass($this);
-        $refprop = $ref->getProperty('backupGlobals');
-        $refprop->setAccessible(true);
-        if ($refprop->getValue($this)) {
-            $GLOBALS[__FUNCTION__][] = $handler;
-        }
+        $this->finalize(fn() => $handler());
         return $handler;
     }
 
@@ -310,14 +338,7 @@ trait TestCaseTrait
         file_put_contents($scriptfile, "<?php\nrequire_once $autoloder;\n$task();");
         $process = process_async(PHP_BINARY, [$scriptfile]);
 
-        $ref = new ReflectionClass($this);
-        $refprop = $ref->getProperty('backupGlobals');
-        $refprop->setAccessible(true);
-        if ($refprop->getValue($this)) {
-            $process->setDestructAction('terminate');
-            $GLOBALS[__FUNCTION__][] = $process;
-        }
-
+        $this->finalize(fn() => $process->terminate());
         return $process;
     }
 
