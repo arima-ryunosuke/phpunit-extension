@@ -477,6 +477,10 @@ This CodeCoverage changes on the following.
 
 Versioning is Semantic Versioning.
 
+### 3.20.1
+
+- [fixbug] fixed Start/End is not ignored
+
 ### 3.20.0
 
 - [feature] use compatible original class
