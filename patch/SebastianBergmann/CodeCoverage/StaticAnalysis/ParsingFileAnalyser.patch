@@ -1,0 +1,38 @@
+@@ -29,6 +29,8 @@
+ use SebastianBergmann\CodeCoverage\ParserException;
+ use SebastianBergmann\LinesOfCode\LineCountingVisitor;
+ 
++// @formatter:off
++
+ /**
+  * @internal This class is not covered by the backward compatibility promise for phpunit/php-code-coverage
+  */
+@@ -219,22 +221,22 @@
+ 
+             $comment = trim($token[1]);
+ 
+-            if ($comment === '// @codeCoverageIgnore' ||
+-                $comment === '//@codeCoverageIgnore') {
++            if (strpos($comment, '// @codeCoverageIgnore') === 0 ||
++                strpos($comment, '//@codeCoverageIgnore') === 0) {
+                 $this->ignoredLines[$filename][] = $token[2];
+ 
+                 continue;
+             }
+ 
+-            if ($comment === '// @codeCoverageIgnoreStart' ||
+-                $comment === '//@codeCoverageIgnoreStart') {
++            if (strpos($comment, '// @codeCoverageIgnoreStart') === 0 ||
++                strpos($comment, '//@codeCoverageIgnoreStart') === 0) {
+                 $start = $token[2];
+ 
+                 continue;
+             }
+ 
+-            if ($comment === '// @codeCoverageIgnoreEnd' ||
+-                $comment === '//@codeCoverageIgnoreEnd') {
++            if (strpos($comment, '// @codeCoverageIgnoreEnd') === 0 ||
++                strpos($comment, '//@codeCoverageIgnoreEnd') === 0) {
+                 if (false === $start) {
+                     $start = $token[2];
+                 }

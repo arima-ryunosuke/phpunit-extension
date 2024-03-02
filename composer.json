@@ -38,9 +38,12 @@
     ]
   },
   "scripts": {
+    "diff": "@php bin/transport.php diff",
+    "patch": "@php bin/transport.php patch",
     "build": [
       "@export",
-      "@test"
+      "@test",
+      "@diff"
     ],
     "export": [
       "export-function",
@@ -48,6 +51,12 @@
     ],
     "test": [
       "vendor/bin/phpunit --configuration=tests/phpunit.xml"
+    ],
+    "post-install-cmd": [
+      "@patch"
+    ],
+    "post-update-cmd": [
+      "@patch"
     ]
   }
 }

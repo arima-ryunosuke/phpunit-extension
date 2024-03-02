@@ -1,0 +1,110 @@
+@@ -33,9 +33,14 @@
+ use function strlen;
+ use function substr;
+ use function var_export;
++use function ryunosuke\PHPUnit\mb_ellipsis;
++use Iterator;
++use NoRewindIterator;
+ use SebastianBergmann\RecursionContext\Context;
+ use SplObjectStorage;
+ 
++// @formatter:off
++
+ /**
+  * A nifty utility for visualizing PHP variables.
+  *
+@@ -124,18 +129,7 @@
+     {
+         if (is_string($value)) {
+             $string = str_replace("\n", '', $this->export($value));
+-
+-            if (function_exists('mb_strlen')) {
+-                if (mb_strlen($string) > 40) {
+-                    $string = mb_substr($string, 0, 30) . '...' . mb_substr($string, -7);
+-                }
+-            } else {
+-                if (strlen($string) > 40) {
+-                    $string = substr($string, 0, 30) . '...' . substr($string, -7);
+-                }
+-            }
+-
+-            return $string;
++            return mb_ellipsis($string, 80, '...');
+         }
+ 
+         if (is_object($value)) {
+@@ -170,6 +164,18 @@
+ 
+         $array = [];
+ 
++        if ($value instanceof Iterator && $value->valid() && !$value instanceof SplObjectStorage) {
++            foreach (new NoRewindIterator($value) as $key => $val) {
++                if (is_scalar($key) || is_resource($key)) {
++                    $array["$key"] = $val;
++                } else {
++                    $array[json_encode($key, JSON_UNESCAPED_UNICODE)] = $val;
++                }
++            }
++
++            return $array;
++        }
++
+         foreach ((array) $value as $key => $val) {
+             // Exception traces commonly reference hundreds to thousands of
+             // objects currently loaded in memory. Including them in the result
+@@ -188,7 +194,7 @@
+ 
+             // See https://github.com/php/php-src/commit/5721132
+             if ($key === "\0gcdata") {
+-                continue;
++                continue; // @codeCoverageIgnore
+             }
+ 
+             $array[$key] = $val;
+@@ -267,20 +273,20 @@
+         if (is_string($value)) {
+             // Match for most non printable chars somewhat taking multibyte chars into account
+             if (preg_match('/[^\x09-\x0d\x1b\x20-\xff]/', $value)) {
+-                return 'Binary String: 0x' . bin2hex($value);
++                return 'Quoted String: "' . addcslashes($value, "\0..\11!@\14..\37!@\177..\377") . '"';
+             }
+ 
+             return "'" .
+-            str_replace(
+-                '<lf>',
+-                "\n",
+                 str_replace(
+-                    ["\r\n", "\n\r", "\r", "\n"],
+-                    ['\r\n<lf>', '\n\r<lf>', '\r<lf>', '\n<lf>'],
+-                    $value
+-                )
+-            ) .
+-            "'";
++                    '<lf>',
++                    "\n",
++                    str_replace(
++                        ["\r\n", "\n\r", "\r", "\n"],
++                        ['\r\n<lf>', '\n\r<lf>', '\r<lf>', '\n<lf>'],
++                        $value
++                    )
++                ) .
++                "'";
+         }
+ 
+         $whitespace = str_repeat(' ', 4 * $indentation);
+@@ -316,12 +322,13 @@
+ 
+         if (is_object($value)) {
+             $class = get_class($value);
++            $hash  = spl_object_id($value);
+ 
+-            if ($hash = $processed->contains($value)) {
++            if ($processed->contains($value)) {
+                 return sprintf('%s Object &%s', $class, $hash);
+             }
+ 
+-            $hash   = $processed->add($value);
++            $processed->add($value);
+             $values = '';
+             $array  = $this->toArray($value);
+ 
