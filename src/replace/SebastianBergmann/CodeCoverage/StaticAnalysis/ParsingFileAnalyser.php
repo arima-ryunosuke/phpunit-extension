@@ -221,13 +221,6 @@ final class ParsingFileAnalyser implements FileAnalyser
 
             $comment = trim($token[1]);
 
-            if (strpos($comment, '// @codeCoverageIgnore') === 0 ||
-                strpos($comment, '//@codeCoverageIgnore') === 0) {
-                $this->ignoredLines[$filename][] = $token[2];
-
-                continue;
-            }
-
             if (strpos($comment, '// @codeCoverageIgnoreStart') === 0 ||
                 strpos($comment, '//@codeCoverageIgnoreStart') === 0) {
                 $start = $token[2];
@@ -245,6 +238,13 @@ final class ParsingFileAnalyser implements FileAnalyser
                     $this->ignoredLines[$filename],
                     range($start, $token[2])
                 );
+            }
+
+            if (strpos($comment, '// @codeCoverageIgnore') === 0 ||
+                strpos($comment, '//@codeCoverageIgnore') === 0) {
+                $this->ignoredLines[$filename][] = $token[2];
+
+                continue;
             }
         }
     }
