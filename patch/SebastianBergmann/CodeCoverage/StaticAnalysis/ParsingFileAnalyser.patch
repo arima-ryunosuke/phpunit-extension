@@ -7,19 +7,17 @@
  /**
   * @internal This class is not covered by the backward compatibility promise for phpunit/php-code-coverage
   */
-@@ -219,22 +221,22 @@
+@@ -219,22 +221,15 @@
  
              $comment = trim($token[1]);
  
 -            if ($comment === '// @codeCoverageIgnore' ||
 -                $comment === '//@codeCoverageIgnore') {
-+            if (strpos($comment, '// @codeCoverageIgnore') === 0 ||
-+                strpos($comment, '//@codeCoverageIgnore') === 0) {
-                 $this->ignoredLines[$filename][] = $token[2];
- 
-                 continue;
-             }
- 
+-                $this->ignoredLines[$filename][] = $token[2];
+-
+-                continue;
+-            }
+-
 -            if ($comment === '// @codeCoverageIgnoreStart' ||
 -                $comment === '//@codeCoverageIgnoreStart') {
 +            if (strpos($comment, '// @codeCoverageIgnoreStart') === 0 ||
@@ -36,3 +34,17 @@
                  if (false === $start) {
                      $start = $token[2];
                  }
+@@ -243,6 +238,13 @@
+                     $this->ignoredLines[$filename],
+                     range($start, $token[2])
+                 );
++            }
++
++            if (strpos($comment, '// @codeCoverageIgnore') === 0 ||
++                strpos($comment, '//@codeCoverageIgnore') === 0) {
++                $this->ignoredLines[$filename][] = $token[2];
++
++                continue;
+             }
+         }
+     }
