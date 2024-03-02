@@ -2,8 +2,8 @@
 
 # boilerplates
 
-// replace Exporter
-\ryunosuke\PHPUnit\Exporter\Exporter::insteadOf();
+// replace classes
+\ryunosuke\PHPUnit\Replacer::insteadOf();
 
 // add exclude directory
 $excludeList = new \PHPUnit\Util\ExcludeList();

@@ -92,7 +92,7 @@ trait TestCaseTrait
                 gc_collect_cycles();
             }
 
-            public function accepts($expected, $actual) { return false; } // @codeCoverageIgnore
+            public function accepts($expected, $actual) { return false; } // @codeCoverageIgnore because never call
         });
     }
 

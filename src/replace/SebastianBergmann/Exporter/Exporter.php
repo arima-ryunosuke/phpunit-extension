@@ -1,79 +1,59 @@
 <?php declare(strict_types=1);
 /*
- * Copyright (c) 2002-2022, Sebastian Bergmann <sebastian@phpunit.de>.
- * All rights reserved.
+ * This file is part of sebastian/exporter.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ * (c) Sebastian Bergmann <sebastian@phpunit.de>
  *
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *
- *  * Neither the name of Sebastian Bergmann nor the names of his
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
  */
-namespace ryunosuke\PHPUnit\Exporter;
+namespace SebastianBergmann\Exporter;
 
+use function bin2hex;
+use function count;
+use function function_exists;
+use function get_class;
+use function get_resource_type;
+use function gettype;
+use function implode;
+use function ini_get;
+use function ini_set;
+use function is_array;
+use function is_float;
+use function is_object;
+use function is_resource;
+use function is_string;
+use function mb_strlen;
+use function mb_substr;
+use function preg_match;
+use function spl_object_hash;
+use function sprintf;
+use function str_repeat;
+use function str_replace;
+use function strlen;
+use function substr;
+use function var_export;
+use function ryunosuke\PHPUnit\mb_ellipsis;
 use Iterator;
-use LogicException;
 use NoRewindIterator;
 use SebastianBergmann\RecursionContext\Context;
 use SplObjectStorage;
-use function ryunosuke\PHPUnit\mb_ellipsis;
 
 // @formatter:off
 
 /**
- * fixes:
- * - shortenedExport: Extended maximum character width for strings
- * - recursiveExport: Changed binary string to quoted string
- * - recursiveExport: Changed to not insert tagged newline characters
- * - recursiveExport: Changed object identifier from hash to id
+ * A nifty utility for visualizing PHP variables.
+ *
+ * <code>
+ * <?php
+ * use SebastianBergmann\Exporter\Exporter;
+ *
+ * $exporter = new Exporter;
+ * print $exporter->export(new Exception);
+ * </code>
  */
 class Exporter
 {
-    /**
-     * @codeCoverageIgnore
-     */
-    public static function insteadOf($original = \SebastianBergmann\Exporter\Exporter::class)
-    {
-        static $registered = false;
-        if ($registered) {
-            return;
-        }
-        $registered = true;
-
-        if (class_exists($original, false)) {
-            throw new LogicException("$original is already declared");
-        }
-
-        spl_autoload_register(function ($class) use ($original) {
-            if ($class === $original) {
-                class_alias(self::class, $original);
-            }
-        }, true, true);
-    }
-
     /**
      * Exports a value as a string.
      *
@@ -98,11 +78,11 @@ class Exporter
 
     /**
      * @param array<mixed> $data
-     * @param ?Context     $context
+     * @param Context      $context
      *
      * @return string
      */
-    public function shortenedRecursiveExport(&$data, Context $context = null)
+    public function shortenedRecursiveExport(&$data, ?Context $context = null)
     {
         $result   = [];
         $exporter = new self();
@@ -143,7 +123,7 @@ class Exporter
      *
      * @return string
      *
-     * @see    \SebastianBergmann\Exporter\Exporter::export
+     * @see    SebastianBergmann\Exporter\Exporter::export
      */
     public function shortenedExport($value)
     {
@@ -244,7 +224,7 @@ class Exporter
      *
      * @return string
      *
-     * @see    \SebastianBergmann\Exporter\Exporter::export
+     * @see    SebastianBergmann\Exporter\Exporter::export
      */
     protected function recursiveExport(&$value, $indentation, $processed = null)
     {
@@ -260,8 +240,22 @@ class Exporter
             return 'false';
         }
 
-        if (is_float($value) && (float) ((int) $value) === $value) {
-            return "{$value}.0";
+        if (is_float($value)) {
+            $precisionBackup = ini_get('precision');
+
+            ini_set('precision', '-1');
+
+            try {
+                $valueStr = (string) $value;
+
+                if ((string) (int) $value === $valueStr) {
+                    return $valueStr . '.0';
+                }
+
+                return $valueStr;
+            } finally {
+                ini_set('precision', $precisionBackup);
+            }
         }
 
         if (gettype($value) === 'resource (closed)') {
@@ -282,7 +276,17 @@ class Exporter
                 return 'Quoted String: "' . addcslashes($value, "\0..\11!@\14..\37!@\177..\377") . '"';
             }
 
-            return "'$value'";
+            return "'" .
+                str_replace(
+                    '<lf>',
+                    "\n",
+                    str_replace(
+                        ["\r\n", "\n\r", "\r", "\n"],
+                        ['\r\n<lf>', '\n\r<lf>', '\r<lf>', '\n<lf>'],
+                        $value
+                    )
+                ) .
+                "'";
         }
 
         $whitespace = str_repeat(' ', 4 * $indentation);

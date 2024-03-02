@@ -1,19 +1,14 @@
 <?php
 
-namespace ryunosuke\Test\Exporter;
+namespace ryunosuke\Test\SebastianBergmann\Exporter;
 
 use Exception;
-use ryunosuke\PHPUnit\Exporter\Exporter;
+use SebastianBergmann\Exporter\Exporter;
 use SplObjectStorage;
 use stdClass;
 
 class ExporterTest extends \ryunosuke\Test\AbstractTestCase
 {
-    public static function setUpBeforeClass(): void
-    {
-        Exporter::insteadOf();
-    }
-
     function test_export()
     {
         $exporter = new Exporter();

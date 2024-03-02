@@ -11,6 +11,7 @@
         </include>
         <exclude>
             <directory suffix=".php">../src/Printer</directory>
+            <directory suffix=".php">../src/replace</directory>
         </exclude>
     </coverage>
 </phpunit>
