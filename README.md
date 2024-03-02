@@ -448,7 +448,14 @@ This printer outputs only in case of failure. It will not output on success.
 </phpunit>
 ```
 
-### Custom exporter
+### Custom other
+
+```php
+# e.g. bootstrap.php
+ryunosuke\PHPUnit\Replacer::insteadOf();
+```
+
+#### Exporter
 
 This package provides Custom Exporter.
 This Exporter changes on the following.
@@ -458,14 +465,21 @@ This Exporter changes on the following.
 - Changed to not insert tagged newline characters
 - Changed object identifier from hash to id
 
-```php
-# e.g. bootstrap.php
-ryunosuke\PHPUnit\Exporter\Exporter::insteadOf();
-```
+#### CodeCoverage
+
+This package provides Custom CodeCoverage.
+This CodeCoverage changes on the following.
+
+- Suppports `@codeCoverageIgnore` trailing comment
+    - e.g. `foo(); // @codeCoverageIgnore because php8.1 only`
 
 ## Release
 
 Versioning is Semantic Versioning.
+
+### 3.20.0
+
+- [feature] use compatible original class
 
 ### 3.19.0
 
