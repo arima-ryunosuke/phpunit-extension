@@ -255,7 +255,7 @@ class Actual implements \ArrayAccess
 
                     $via = strtr(Util::reflectFile($refclass), ['\\' => '/']);
                     $parameters = $method->getParameters();
-                    $annotations = array_merge($annotations, [$via => $annotate($name, $parameters, get_object_properties($variation))]);
+                    $annotations = array_merge($annotations, [$via => $annotate($name, $parameters, object_properties($variation))]);
                     continue;
                 }
 
@@ -430,7 +430,7 @@ class Actual implements \ArrayAccess
                             continue;
                         }
                     }
-                    catch (\ReflectionException $e) {
+                    catch (\ReflectionException) {
                         // through (because ReflectionMethod::hasPrototype is from php8.2)
                     }
 
@@ -641,7 +641,7 @@ class Actual implements \ArrayAccess
                 }
             }
         }
-        catch (\TypeError|\ArgumentCountError $e) {
+        catch (\TypeError|\ArgumentCountError) {
             // do nothing, fallback user method (e.g. count, isReadable, etc)
         }
 

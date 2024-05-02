@@ -4,7 +4,7 @@ namespace ryunosuke\PHPUnit\Constraint;
 
 use PHPUnit\Framework\Constraint\Constraint;
 use PHPUnit\Framework\ExpectationFailedException;
-use function ryunosuke\PHPUnit\get_object_properties;
+use function ryunosuke\PHPUnit\object_properties;
 
 abstract class AbstractConstraint extends Constraint
 {
@@ -53,7 +53,7 @@ abstract class AbstractConstraint extends Constraint
         }
 
         if (is_object($other)) {
-            return get_object_properties($other);
+            return object_properties($other);
         }
 
         return (array) $other;

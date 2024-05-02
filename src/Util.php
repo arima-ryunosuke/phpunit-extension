@@ -58,7 +58,7 @@ class Util
                     $refproperty->setAccessible(true);
                     $result[$class->getName()] = $refproperty;
                 }
-                catch (\ReflectionException $ex) {
+                catch (\ReflectionException) {
                     // ArrayObject's hasProperty returns true, but getProperty may throw ReflectionException
                 }
             }
@@ -69,7 +69,7 @@ class Util
     public static function propertyToValue($object, string $property)
     {
         if (is_object($object)) {
-            $properties = get_object_properties($object);
+            $properties = object_properties($object);
             if (array_key_exists($property, $properties)) {
                 return $properties[$property];
             }
