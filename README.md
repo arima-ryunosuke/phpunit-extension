@@ -41,8 +41,6 @@ Simplified chart:
 | try                | call original method no thrown      | actual of method's return or expcetion
 | new                | call class construct no thrown      | actual of object or expcetion
 | insteadof          | apply callable                      | actual of applied value
-| function           | apply global function               | actual of applied value
-| foreach            | apply global function each element  | actual of applied value
 | list               | return reference argument           | actual of reference argument
 | return             | return original                     | original
 | echo               | dump original                       | $this
@@ -143,7 +141,7 @@ class ActualTest extends \PHPUnit\Framework\TestCase
         # "callable" returns original method's callable and actual
         that($object)->callable('count')->isCallable();
         // "callable"'s arguments mean method arguments
-        that($object)->callable('setIteratorClass', \stdClass::class)->throws('to be a class name derived from ArrayIterator');
+        that($object)->callable('setIteratorClass', \stdClass::class)->throws('derived from ArrayIterator');
 
         # "do" invokes original method and actual
         that($object)->do('count')->isEqual(3);
@@ -170,27 +168,6 @@ class ActualTest extends \PHPUnit\Framework\TestCase
         that($object)->try('getProperty', 'x')->isInstanceOf(\ReflectionProperty::class);
         // returns thrown exception and actual if thrown
         that($object)->try('getProperty', 'y')->isInstanceOf(\ReflectionException::class);
-    }
-
-    function test_function()
-    {
-        # "function" applys function and actual
-        // means: assertThat(strtoupper('hello'), equalTo('HELLO'));
-        that('hello')->function('strtoupper')->isEqual('HELLO');
-        // if function name suffix is numeric, applys argument the number (zero base)
-        // means: assertThat(str_replace('l', 'L', 'hello'), equalTo('heLLo'));
-        that('hello')->function('str_replace2', 'l', 'L')->isEqual('heLLo');
-    }
-
-    function test_foreach()
-    {
-        # "foreach" is similar to "function" method. the differences are below:
-        // applys each element
-        that(['x', 'y', 'z'])->foreach('strtoupper')->isEqual(['X', 'Y', 'Z']);
-        // suffix effect is same as "function"
-        that(['hoge', 'fuga', 'piyo'])->foreach('str_replace2', ['o', 'g'], ['O', 'G'])->isEqual(['hOGe', 'fuGa', 'piyO']);
-        // invokes object's method (if prefix is "::", "->")
-        that([new \Exception('foo'), new \Exception('bar')])->foreach('::getMessage')->isEqual(['foo', 'bar']);
     }
 
     function test_list()
@@ -476,6 +453,11 @@ This CodeCoverage changes on the following.
 ## Release
 
 Versioning is Semantic Versioning.
+
+### 4.0.0
+
+- [change] php>=8.0
+- [*change] delete deprecated feature
 
 ### 3.20.1
 
