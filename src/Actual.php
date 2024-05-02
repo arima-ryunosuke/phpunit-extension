@@ -105,14 +105,6 @@ class Actual implements \ArrayAccess
         ],
     ];
 
-    /**
-     * @deprecated
-     */
-    public static $functionNamespaces = [
-        "\\"                   => ['*'],
-        "\\ryunosuke\\PHPUnit" => ['*'],
-    ];
-
     private static array $___objects = [];
 
     private $___actual;
@@ -273,43 +265,6 @@ class Actual implements \ArrayAccess
                 }
 
                 $annotations = array_merge($annotations, [implode(',', $via) => $annotate($name, $parameters, $defaults)]);
-            }
-        }
-
-        if ($types['function']) {
-            foreach (get_defined_functions(true) as $functions) {
-                foreach ($functions as $funcname) {
-                    $reffunc = new \ReflectionFunction($funcname);
-
-                    if (!in_array((string) $reffunc->getExtensionName(), ['Core', 'date', 'hash', 'pcre', 'standard', 'mbstring', ''])) {
-                        continue;
-                    }
-                    if ($reffunc->isUserDefined() && stripos($funcname, __NAMESPACE__) === false) {
-                        continue;
-                    }
-                    if ($reffunc->getNumberOfParameters() === 0) {
-                        continue;
-                    }
-                    foreach ($reffunc->getParameters() as $p) {
-                        if ($p->isPassedByReference()) {
-                            continue 2;
-                        }
-                    }
-
-                    $variation = [];
-                    $parameters = $reffunc->getParameters();
-                    $paramargs = function_parameter($reffunc);
-                    foreach (range(0, $reffunc->getNumberOfParameters() - 1) as $n) {
-                        $params = $paramargs;
-                        unset($params['$' . $parameters[$n]->getName()]);
-                        $variation[$funcname] = '\\' . __CLASS__ . ' ' . $reffunc->getShortName() . ($n ? $n : '') . "(" . implode(', ', $params) . ")";
-                    }
-
-                    $via = $reffunc->isInternal()
-                        ? "https://www.php.net/manual/function." . strtr($reffunc->getShortName(), ['_' => '-']) . ".php"
-                        : strtr(Util::reflectFile($reffunc), ['\\' => '/']);
-                    $annotations = array_merge($annotations, [$via => $variation]);
-                }
             }
         }
 
@@ -530,22 +485,6 @@ class Actual implements \ArrayAccess
             if (is_stringable($this->___actual) && strpos($this->getCallerLine(), '::') === false) {
                 return (string) $this->___actual;
             }
-            // delete future scope
-            trigger_error('use $class::staticMethod()', E_USER_DEPRECATED);
-            $staticCaller = new class(new static($this->___actual)) {
-                public static $that;
-
-                public function __construct($that)
-                {
-                    self::$that = $that;
-                }
-
-                public static function __callStatic($name, $arguments)
-                {
-                    return self::$that::$name(...$arguments);
-                }
-            };
-            return get_class($staticCaller);
         }
         return var_export2($this->___actual, true) . "\n";
     }
@@ -646,10 +585,6 @@ class Actual implements \ArrayAccess
         }
 
         SKIP:
-
-        if ($this->functionArgument($name) !== null) {
-            return $this->function($name, ...$arguments);
-        }
 
         if (preg_match('#' . preg_quote($name, '#') . '\s*\(\s*\.\.\.\s*\[#u', $this->getCallerLine())) {
             return $this->callable($name, ...$arguments);
@@ -822,41 +757,6 @@ class Actual implements \ArrayAccess
             return $this->create($this->___arguments);
         }
         return $this->create($this->___arguments[$index]);
-    }
-
-    /**
-     * @deprecated
-     *
-     * @param callable $function
-     * @param mixed ...$arguments
-     * @return Actual
-     */
-    public function function ($function, ...$arguments): Actual
-    {
-        return $this->create(chain($this->___actual)->$function(...$arguments)(), $arguments);
-    }
-
-    /**
-     * @param callable $function
-     * @param mixed ...$arguments
-     * @return Actual
-     */
-    public function foreach($function, ...$arguments): Actual
-    {
-        $methodMode = is_string($function) && (strpos($function, '->') === 0 || strpos($function, '::') === 0);
-        $function = $this->functionArgument($function);
-
-        $actuals = [];
-        foreach ($this->___actual as $k => $actual) {
-            if ($methodMode) {
-                $method = Util::methodToCallable($actual, $function);
-                $actuals[$k] = $method(...$arguments);
-            }
-            else {
-                $actuals[$k] = chain($actual)->$function(...$arguments)();
-            }
-        }
-        return $this->create($actuals, $arguments);
     }
 
     public function return()
@@ -1049,38 +949,6 @@ class Actual implements \ArrayAccess
             $argument = $argument instanceof Actual ? $argument->return() : $argument;
         }
         return $arguments;
-    }
-
-    /**
-     * @deprecated
-     */
-    private function functionArgument($function): ?string
-    {
-        if (strpos($function, '->') === 0 || strpos($function, '::') === 0) {
-            return substr($function, 2);
-        }
-
-        foreach (self::$functionNamespaces as $namespace => $patterns) {
-            $patterns = (array) $patterns;
-            if ($patterns) {
-                $allows = array_filter($patterns, fn($p) => ($p[0] ?? '') !== '!');
-                $denies = array_map(fn($p) => substr($p, 1), array_filter($patterns, fn($p) => ($p[0] ?? '') === '!'));
-                if (!fnmatch_or($allows ?: '*', $function, FNM_NOESCAPE) || fnmatch_or($denies ?: '', $function, FNM_NOESCAPE)) {
-                    return null;
-                }
-            }
-
-            $fname = trim(trim($namespace, '\\') . "\\$function", '\\');
-            if (is_callable($fname)) {
-                return $fname;
-            }
-
-            if (preg_match('#(.+?)(\d)$#', $fname, $match) && is_callable($match[1])) {
-                return $fname;
-            }
-        }
-
-        return null;
     }
 
     private function newConstraint(string $constraintClass, array $arguments, array $modes): Constraint

@@ -332,11 +332,6 @@ Nzxc ');
             $actual::staticThrowMethod()->wasThrown('this is message');
 
             $this->assertEquals("this is anonymouse string", (string) $actual);
-
-            // delete future scope
-            @("$actual")::staticMethod(1, 2, 3)->is([1, 2, 3]);
-            @("$actual")::staticMethod(...[1, 2, 3])()->is([1, 2, 3]);
-            @("$actual")::staticThrowMethod()->wasThrown('this is message');
         }
     }
 
@@ -616,10 +611,6 @@ Nzxc ');
 
             $this->actual($object)->print(...[])->outputEquals('10');
             $this->actual($object)->print(...[2])->outputEquals('20');
-
-            $array = [1, 2, 3];
-            $this->actual($array)->maximum()->is(3);
-            $this->actual($array)->implode1(',')->is('1,2,3');
         }
     }
 
@@ -640,26 +631,9 @@ Nzxc ');
             }
         };
 
-        Actual::$functionNamespaces = [];
-
         /** @noinspection PhpParamsInspection */
         $this->actual($object)->count()->is(1);
         $this->actual($object)->isReadable()->is(true);
-    }
-
-    /**
-     * @backupStaticAttributes enabled
-     */
-    function test_call_function()
-    {
-        Actual::$functionNamespaces = ['' => ['str_*', '!str_split', '!str_rot13']];
-
-        /** @noinspection PhpUndefinedMethodInspection */
-        {
-            $this->actual('string')->str_repeat(3)->is('stringstringstring');
-            $this->actual('string')->str_split()->wasThrown();
-            $this->actual('string')->str_rot13()->wasThrown();
-        }
     }
 
     function test_do()
@@ -798,60 +772,6 @@ Nzxc ');
             ->list(1)->is(2)->exit()
             ->list(2)->is(0);
         $actual(0, 0, 0)->list()->is([0, 2, 0]);
-    }
-
-    function test_function()
-    {
-        $this->actual(' qwe ')->function('trim')->isEqual('qwe');
-        $this->actual('XqweX')->function('trim', 'X')->isEqual('qwe');
-        $this->actual('XqweX')->function('str_replace2', 'X', 'Z')->isEqual('ZqweZ');
-
-        $this->ng(function () {
-            $this->actual('qwe')->function('undefined');
-        }, "undefined is not defined");
-    }
-
-    function test_foreach()
-    {
-        $this->actual(['a', 'b', 'c'])->foreach('strtoupper')->isEqual(['A', 'B', 'C']);
-        $this->actual(['XaX', 'XbX', 'XcX'])->foreach('trim', 'X')->isEqual(['a', 'b', 'c']);
-    }
-
-    function test_function_foreach()
-    {
-        $user = new class() {
-            public $code, $name;
-
-            function new($code, $name)
-            {
-                $that = new self();
-                $that->code = $code;
-                $that->name = $name;
-                return $that;
-            }
-
-            private function privateCodeName()
-            {
-                return "$this->code:$this->name";
-            }
-
-            public function publicCodeName()
-            {
-                return $this->privateCodeName();
-            }
-        };
-
-        $users = [
-            1 => $user->new(1, 'hoge'),
-            2 => $user->new(2, 'fuga'),
-            3 => $user->new(3, 'piyo'),
-        ];
-
-        $this->actual($users)
-            ->function('array_column', 'code')->isEqual([1, 2, 3])->exit()
-            ->function('array_column', 'name')->foreach('strtoupper')->isEqual(['HOGE', 'FUGA', 'PIYO'])->exit()->exit()
-            ->foreach('->privateCodeName')->isEqual([1 => '1:hoge', 2 => '2:fuga', 3 => '3:piyo'])->exit()
-            ->foreach('::publicCodeName')->isEqual([1 => '1:hoge', 2 => '2:fuga', 3 => '3:piyo']);
     }
 
     function test_return()
