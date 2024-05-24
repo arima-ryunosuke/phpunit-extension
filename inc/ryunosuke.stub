@@ -949,6 +949,61 @@ if (!function_exists('ryunosuke\\PHPUnit\\class_loader')) {
     }
 }
 
+assert(!function_exists('ryunosuke\\PHPUnit\\const_exists') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\const_exists'))->isUserDefined());
+if (!function_exists('ryunosuke\\PHPUnit\\const_exists')) {
+    /**
+     * クラス定数が存在するか調べる
+     *
+     * グローバル定数も調べられる。ので実質的には defined とほぼ同じで違いは下記。
+     *
+     * - defined は単一引数しか与えられないが、この関数は2つの引数も受け入れる
+     * - defined は private const で即死するが、この関数はきちんと調べることができる
+     * - ClassName::class は常に true を返す
+     *
+     * あくまで存在を調べるだけで実際にアクセスできるかは分からないので注意（`property_exists` と同じ）。
+     *
+     * Example:
+     * ```php
+     * // クラス定数が調べられる（1引数、2引数どちらでも良い）
+     * that(const_exists('ArrayObject::STD_PROP_LIST'))->isTrue();
+     * that(const_exists('ArrayObject', 'STD_PROP_LIST'))->isTrue();
+     * that(const_exists('ArrayObject::UNDEFINED'))->isFalse();
+     * that(const_exists('ArrayObject', 'UNDEFINED'))->isFalse();
+     * // グローバル（名前空間）もいける
+     * that(const_exists('PHP_VERSION'))->isTrue();
+     * that(const_exists('UNDEFINED'))->isFalse();
+     * ```
+     *
+     * @package ryunosuke\Functions\Package\classobj
+     *
+     * @param string|object $classname 調べるクラス
+     * @param string $constname 調べるクラス定数
+     * @return bool 定数が存在するなら true
+     */
+    function const_exists($classname, $constname = '')
+    {
+        $colonp = strpos($classname, '::');
+        if ($colonp === false && strlen($constname) === 0) {
+            return defined($classname);
+        }
+        if (strlen($constname) === 0) {
+            $constname = substr($classname, $colonp + 2);
+            $classname = substr($classname, 0, $colonp);
+        }
+
+        try {
+            $refclass = new \ReflectionClass($classname);
+            if (strcasecmp($constname, 'class') === 0) {
+                return true;
+            }
+            return $refclass->hasConstant($constname);
+        }
+        catch (\Throwable) {
+            return false;
+        }
+    }
+}
+
 assert(!function_exists('ryunosuke\\PHPUnit\\object_properties') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\object_properties'))->isUserDefined());
 if (!function_exists('ryunosuke\\PHPUnit\\object_properties')) {
     /**
@@ -1889,19 +1944,19 @@ if (!function_exists('ryunosuke\\PHPUnit\\process_async')) {
                 return $this->result = $this->status['exitcode'];
             }
 
-            public function setDestructAction($action)
+            public function setDestructAction($action): self
             {
                 $this->destructAction = $action;
                 return $this;
             }
 
-            public function setCompleteAction($action)
+            public function setCompleteAction($action): self
             {
                 $this->completeAction = $action;
                 return $this;
             }
 
-            public function update()
+            public function update(): bool
             {
                 if ($this->proc === null) {
                     return false;
@@ -1971,12 +2026,12 @@ if (!function_exists('ryunosuke\\PHPUnit\\process_async')) {
                 return $this->status['running'];
             }
 
-            public function status()
+            public function status(): array
             {
                 return $this->status ?? proc_get_status($this->proc);
             }
 
-            public function terminate()
+            public function terminate(): bool
             {
                 if ($this->proc === null) {
                     return !$this->status['running'];
@@ -2938,6 +2993,53 @@ if (!function_exists('ryunosuke\\PHPUnit\\arguments')) {
     }
 }
 
+assert(!function_exists('ryunosuke\\PHPUnit\\finalize') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\finalize'))->isUserDefined());
+if (!function_exists('ryunosuke\\PHPUnit\\finalize')) {
+    /**
+     * 自身が死ぬときに指定 callable を呼ぶオブジェクトを返す
+     *
+     * invoke を実装しているので明示的にも呼べる。
+     * 明示的だろうと暗黙的だろうと必ず1回しか呼ばれない。
+     *
+     * Example:
+     * ```php
+     * $called = 0;
+     * $finalizer = finalize(function()use(&$called){$called++;});
+     * that($called)->is(0); // まだ呼ばれていない
+     *
+     * // コールすると・・・
+     * $finalizer();
+     * that($called)->is(1); // 呼ばれている
+     *
+     * // unset（GC）でも呼ばれる
+     * unset($finalizer);
+     * that($called)->is(1); // が、一度しか呼ばれないので呼ばれない
+     * ```
+     *
+     * @package ryunosuke\Functions\Package\info
+     *
+     * @param callable $finalizer 実行する php コード
+     * @return callable GC 時に $finalizer を実行する callable
+     */
+    function finalize(callable $finalizer)
+    {
+        return new class($finalizer) {
+            public function __construct(private $finalizer) { }
+
+            public function __destruct() { $this->__invoke(); }
+
+            public function __invoke()
+            {
+                if (isset($this->finalizer)) {
+                    ($this->finalizer)();
+                    unset($this->finalizer);
+                    gc_collect_cycles();
+                }
+            }
+        };
+    }
+}
+
 assert(!function_exists('ryunosuke\\PHPUnit\\is_ansi') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\is_ansi'))->isUserDefined());
 if (!function_exists('ryunosuke\\PHPUnit\\is_ansi')) {
     /**
@@ -3767,7 +3869,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\function_parameter')) {
             $declare = '';
 
             if ($parameter->hasType()) {
-                $declare .= reflect_types($parameter->getType())->getName() . ' ';
+                $declare .= reflect_type_resolve($parameter->getType()) . ' ';
             }
 
             if ($parameter->isPassedByReference()) {
@@ -3783,11 +3885,16 @@ if (!function_exists('ryunosuke\\PHPUnit\\function_parameter')) {
             if ($parameter->isOptional()) {
                 $defval = null;
 
-                // 組み込み関数のデフォルト値を取得することは出来ない（isDefaultValueAvailable も false を返す）
                 if ($parameter->isDefaultValueAvailable()) {
                     // 修飾なしでデフォルト定数が使われているとその名前空間で解決してしまうので場合分けが必要
                     if ($parameter->isDefaultValueConstant() && strpos($parameter->getDefaultValueConstantName(), '\\') === false) {
-                        $defval = $parameter->getDefaultValueConstantName();
+                        // 存在チェック＋$dummy でグローバル定数を回避しているが、いっそのこと一律 \\ を付与してしまっても良いような気がする
+                        if (const_exists(...(explode('::', $parameter->getDefaultValueConstantName()) + [1 => '$dummy']))) {
+                            $defval = '\\' . $parameter->getDefaultValueConstantName();
+                        }
+                        else {
+                            $defval = $parameter->getDefaultValueConstantName();
+                        }
                     }
                     else {
                         $default = $parameter->getDefaultValue();
@@ -3802,6 +3909,12 @@ if (!function_exists('ryunosuke\\PHPUnit\\function_parameter')) {
                             ]);
                         }
                     }
+                }
+                // isOptional だが isDefaultValueAvailable でないし isVariadic でもない（稀にある（stream_filter_append で確認））
+                elseif (!$parameter->isVariadic()) {
+                    // Type に応じたデフォルト値が得られればベストだがそこまでする必要もない
+                    // 少なくとも 8.0 時点では = null してしまえば型エラーも起きない（8.4 で非推奨になってるけど）
+                    $defval = "null";
                 }
 
                 if (isset($defval)) {
@@ -3910,6 +4023,42 @@ if (!function_exists('ryunosuke\\PHPUnit\\reflect_callable')) {
             }
             return new \ReflectionMethod($class, $method);
         }
+    }
+}
+
+assert(!function_exists('ryunosuke\\PHPUnit\\reflect_type_resolve') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\reflect_type_resolve'))->isUserDefined());
+if (!function_exists('ryunosuke\\PHPUnit\\reflect_type_resolve')) {
+    /**
+     * ReflectionType の型に \\ を付与する
+     *
+     * php8.0 で ReflectionType の __toString が解放されたけど、それをそのまま埋め込んだりすると \\ がないのでエラーになったりする。
+     * この関数を通してから埋め込めば \\ が付くので回避できる、という非常にニッチな関数。
+     *
+     * 型 exists で判定するため、付与するクラスは存在している必要がある（オプション引数で対応するかもしれない）。
+     *
+     * Example:
+     * ```php
+     * // このような DNF 型も形式を保ったまま \\ を付与できる
+     * that(reflect_type_resolve('(Countable&Traversable)|object'))->is('(\\Countable&\\Traversable)|object');
+     * ```
+     *
+     * @package ryunosuke\Functions\Package\reflection
+     *
+     * @param ?string $type string だが実用上は getType 等で得られるインスタンスでよい
+     * @return ?string 解決された文字列
+     */
+    function reflect_type_resolve(?string $type): ?string
+    {
+        if ($type === null) {
+            return null;
+        }
+
+        // 拡張関数が string|null ではなく ?string で返すことがあるので ? を含める
+        // 8.1以上では交差型もあり得るので (&) も含める
+        // そして PREG_SPLIT_DELIM_CAPTURE で分割して再結合すれば元の形式のまま得られる
+        $types = preg_split('#([?()|&])#', $type, -1, PREG_SPLIT_DELIM_CAPTURE);
+        $types = array_map(fn($v) => type_exists($v) ? "\\" . ltrim($v, '\\') : $v, $types);
+        return implode('', $types);
     }
 }
 
@@ -4036,7 +4185,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\reflect_types')) {
                 }
             }
 
-            public function __toString()
+            public function __toString(): string
             {
                 return implode('|', $this->toStrings(true, true));
             }
@@ -4105,7 +4254,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\reflect_types')) {
                 return $this->toStrings(true, true);
             }
 
-            public function getName()
+            public function getName(): string
             {
                 $types = array_flip($this->toStrings(true, true));
                 $nullable = false;
@@ -4121,12 +4270,12 @@ if (!function_exists('ryunosuke\\PHPUnit\\reflect_types')) {
                 return ($nullable ? '?' : '') . implode('|', $result);
             }
 
-            public function getTypes()
+            public function getTypes(): array
             {
                 return (array) $this;
             }
 
-            public function allows($type, $strict = false)
+            public function allows($type, $strict = false): bool
             {
                 $types = array_flip($this->toStrings(false, false));
 
@@ -4161,7 +4310,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\reflect_types')) {
                 return false;
             }
 
-            private function toStrings($ignore_compatible = true, $sort = true)
+            private function toStrings($ignore_compatible = true, $sort = true): array
             {
                 $types = [];
                 foreach ($this->getTypes() as $type) {
@@ -6538,6 +6687,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\var_pretty')) {
 
                 //$current = count($this->content) - 1;
                 if ($this->options['maxcolumn'] !== null) {
+                    $basecolumn = $this->column;
                     $breakpos = strrpos($value, "\n");
                     if ($breakpos === false) {
                         $this->column += $strlen;
@@ -6545,10 +6695,10 @@ if (!function_exists('ryunosuke\\PHPUnit\\var_pretty')) {
                     else {
                         $this->column = $strlen - $breakpos - 1;
                     }
-                    if ($this->column >= $this->options['maxcolumn']) {
+                    if ($basecolumn !== 0 && $this->column >= $this->options['maxcolumn']) {
                         preg_match('# +#', $this->content, $m, 0, strrpos($this->content, "\n"));
                         $this->column = 0;
-                        $this->content .= "\n\t" . $m[0];
+                        $this->content .= "\n\t" . ($m[0] ?? '');
                     }
                 }
 

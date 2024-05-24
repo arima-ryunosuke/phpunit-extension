@@ -5930,7 +5930,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\class_extends')) {
             $prms = implode(', ', $params);
             $args = implode(', ', array_keys($params));
 
-            $rtype = reflect_types($reffunc->getReturnType())->getName();
+            $rtype = strval($reffunc->getReturnType());
             $return = $rtype === 'void' ? '' : 'return $return;';
             $rtype = $rtype ? ": $rtype" : '';
 
@@ -5997,7 +5997,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\class_extends')) {
             // シグネチャエラーが出てしまうので、指定がない場合は強制的に合わせる
             $refmember = new \ReflectionFunction($override);
             $params = function_parameter(!$refmember->getNumberOfParameters() && $method->getNumberOfParameters() ? $method : $override);
-            $rtype = reflect_types(!$refmember->hasReturnType() && $method->hasReturnType() ? $method : $refmember)->getName();
+            $rtype = strval((!$refmember->hasReturnType() && $method->hasReturnType() ? $method : $refmember)->getReturnType());
             $rtype = $rtype ? ": $rtype" : '';
 
             [, $codeblock] = callable_code($override);
@@ -6238,7 +6238,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\class_replace')) {
                         }
                         // 同上。返り値版
                         if (!$refmember->hasReturnType() && $refmethod->hasReturnType()) {
-                            $declare .= ':' . reflect_types($refmethod->getReturnType())->getName();
+                            $declare .= ':' . reflect_type_resolve($refmethod->getReturnType());
                         }
                     }
                     $mname = preg_replaces('#function(\\s*)\\(#u', " $name", $declare);
@@ -6750,7 +6750,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\object_storage')) {
                 return $this->offsetExists($objectOrResource);
             }
 
-            public function get($objectOrResource, $default = null)
+            public function get($objectOrResource, $default = null): mixed
             {
                 if ($this->has($objectOrResource)) {
                     return $this->offsetGet($objectOrResource);
@@ -11825,19 +11825,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\set_error_exception_handler')) {
             throw new \ErrorException($errstr, 0, $errno, $errfile, $errline);
         }, $error_levels);
 
-        return new class() {
-            private $restored = false;
-
-            public function __destruct() { $this->__invoke(); }
-
-            public function __invoke()
-            {
-                if (!$this->restored) {
-                    $this->restored = true;
-                    restore_error_handler();
-                }
-            }
-        };
+        return finalize('restore_error_handler');
     }
 }
 
@@ -12210,19 +12198,19 @@ if (!function_exists('ryunosuke\\PHPUnit\\process_async')) {
                 return $this->result = $this->status['exitcode'];
             }
 
-            public function setDestructAction($action)
+            public function setDestructAction($action): self
             {
                 $this->destructAction = $action;
                 return $this;
             }
 
-            public function setCompleteAction($action)
+            public function setCompleteAction($action): self
             {
                 $this->completeAction = $action;
                 return $this;
             }
 
-            public function update()
+            public function update(): bool
             {
                 if ($this->proc === null) {
                     return false;
@@ -12292,12 +12280,12 @@ if (!function_exists('ryunosuke\\PHPUnit\\process_async')) {
                 return $this->status['running'];
             }
 
-            public function status()
+            public function status(): array
             {
                 return $this->status ?? proc_get_status($this->proc);
             }
 
-            public function terminate()
+            public function terminate(): bool
             {
                 if ($this->proc === null) {
                     return !$this->status['running'];
@@ -16252,7 +16240,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\cpu_timer')) {
                 ];
             }
 
-            public function __invoke($callback)
+            public function __invoke($callback): array
             {
                 $this->start();
 
@@ -16267,6 +16255,53 @@ if (!function_exists('ryunosuke\\PHPUnit\\cpu_timer')) {
                 $rusage['ru_utime'] = $rusage['ru_utime.tv_sec'] + $rusage['ru_utime.tv_usec'] / 1000 / 1000;
                 $rusage['ru_stime'] = $rusage['ru_stime.tv_sec'] + $rusage['ru_stime.tv_usec'] / 1000 / 1000;
                 return $rusage;
+            }
+        };
+    }
+}
+
+assert(!function_exists('ryunosuke\\PHPUnit\\finalize') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\finalize'))->isUserDefined());
+if (!function_exists('ryunosuke\\PHPUnit\\finalize')) {
+    /**
+     * 自身が死ぬときに指定 callable を呼ぶオブジェクトを返す
+     *
+     * invoke を実装しているので明示的にも呼べる。
+     * 明示的だろうと暗黙的だろうと必ず1回しか呼ばれない。
+     *
+     * Example:
+     * ```php
+     * $called = 0;
+     * $finalizer = finalize(function()use(&$called){$called++;});
+     * that($called)->is(0); // まだ呼ばれていない
+     *
+     * // コールすると・・・
+     * $finalizer();
+     * that($called)->is(1); // 呼ばれている
+     *
+     * // unset（GC）でも呼ばれる
+     * unset($finalizer);
+     * that($called)->is(1); // が、一度しか呼ばれないので呼ばれない
+     * ```
+     *
+     * @package ryunosuke\Functions\Package\info
+     *
+     * @param callable $finalizer 実行する php コード
+     * @return callable GC 時に $finalizer を実行する callable
+     */
+    function finalize(callable $finalizer)
+    {
+        return new class($finalizer) {
+            public function __construct(private $finalizer) { }
+
+            public function __destruct() { $this->__invoke(); }
+
+            public function __invoke()
+            {
+                if (isset($this->finalizer)) {
+                    ($this->finalizer)();
+                    unset($this->finalizer);
+                    gc_collect_cycles();
+                }
             }
         };
     }
@@ -16443,21 +16478,22 @@ if (!function_exists('ryunosuke\\PHPUnit\\ini_sets')) {
      * @package ryunosuke\Functions\Package\info
      *
      * @param array $values ini のエントリ名と値の配列
-     * @return callable ini を元に戻すクロージャ
+     * @return callable ini を元に戻す callable
      */
     function ini_sets($values)
     {
-        $currents = [];
-        foreach ($values as $name => $value) {
-            $current = ini_set($name, $value);
-            if ($current !== false) {
-                $currents[$name] = $current;
+        $main = static function ($values) {
+            $currents = [];
+            foreach ($values as $name => $value) {
+                $current = ini_set($name, $value);
+                if ($current !== false) {
+                    $currents[$name] = $current;
+                }
             }
-        }
-        return static function () use ($currents) {
-            ini_sets($currents);
             return $currents;
         };
+        $currents = $main($values);
+        return finalize(fn() => $main($currents));
     }
 }
 
@@ -21214,6 +21250,95 @@ if (!function_exists('ryunosuke\\PHPUnit\\callable_code')) {
     }
 }
 
+assert(!function_exists('ryunosuke\\PHPUnit\\function_export_false2null') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\function_export_false2null'))->isUserDefined());
+if (!function_exists('ryunosuke\\PHPUnit\\function_export_false2null')) {
+    /**
+     * 存在する関数の内、false 返しを null 返しに再定義したファイルを返す
+     *
+     * 標準関数は歴史的な事情で false を返すものが多い（strpos, strtotime 等）。
+     * ただ大抵の場合は null の方が好ましいことが多い（int|false より ?int の方が分かりやすいし ?? を駆使できる）。
+     * （`strpos(',', 'hello, world') ?? -1` みたいなことができない）。
+     *
+     * $false_only:false にすると存在する全関数も返す。false 返しでない関数は単純な委譲で余計なことはしない。
+     * これは「strpos は nullable だから F\\strpos で、他はグローバル」という使い分けの利便性のためだが、出力数が膨大になるので留意。
+     *
+     * @package ryunosuke\Functions\Package\reflection
+     *
+     * @param string $namespace 吐き出す名前空間
+     * @param bool $false_only false 返しのみか。false を与えると全関数を返す
+     * @return string 吐き出された関数定義を含むファイル内容
+     */
+    function function_export_false2null(string $namespace, bool $false_only = true): string
+    {
+        $all = [];
+        foreach (get_defined_functions(true) as $functions) {
+            foreach ($functions as $funcname) {
+                $reffunc = new \ReflectionFunction($funcname);
+                $extension = (string) $reffunc->getExtensionName() ?: 'user';
+                $all[$extension][$funcname] = $reffunc;
+            }
+        }
+
+        $formatterOff = "@formatter:" . "off"; // 文字列的に分離しないと外側のコードまで off になる
+        $contents = <<<PHP
+        <?php
+        /**
+         * @noinspection PhpDeprecationInspection
+         * @noinspection PhpUndefinedFunctionInspection
+         * @noinspection PhpUndefinedConstantInspection
+         */
+        # Don't touch this code. This is auto generated.
+        namespace $namespace;
+        
+        // $formatterOff
+        
+        PHP;
+        foreach ($all as $extension => $functions) {
+            $contents .= "\n# $extension\n\n";
+
+            foreach ($functions as $funcname => $reffunc) {
+                // 拡張関数で名前空間を持つ者がいる（e.g. pcov）
+                if (str_contains($funcname, '\\')) {
+                    continue;
+                }
+                // assert を名前空間内に定義することはできない
+                if ($funcname === 'assert') {
+                    continue;
+                }
+                // 標準関数に参照返しは存在しないはず（したとしても1文で返すのが難しいので対応しない）
+                if ($reffunc->returnsReference()) {
+                    continue; // @codeCoverageIgnore
+                }
+                $return = reflect_type_resolve($reffunc->getReturnType() ?: 'mixed');
+                $returns = explode('|', $return);
+
+                $param = implode(', ', array_maps($reffunc->getParameters(), fn($p) => ($p->isVariadic() ? '...' : '') . '$' . $p->getName()));
+                $args = implode(', ', function_parameter($reffunc));
+
+                if (!in_array('null', $returns) && in_array('false', $returns)) {
+                    $return = str_replace('false', 'null', $return);
+                    $body = "return (\$result = \\{$funcname}($param)) === false ? null : \$result;";
+                }
+                else {
+                    if ($false_only) {
+                        continue;
+                    }
+                    if (in_array('void', $returns)) {
+                        $body = "\\{$funcname}($param);";
+                    }
+                    else {
+                        $body = "return \\{$funcname}($param);";
+                    }
+                }
+
+                $contents .= "function $funcname({$args}):$return {{$body}}\n";
+            }
+        }
+
+        return $contents;
+    }
+}
+
 assert(!function_exists('ryunosuke\\PHPUnit\\function_parameter') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\function_parameter'))->isUserDefined());
 if (!function_exists('ryunosuke\\PHPUnit\\function_parameter')) {
     /**
@@ -21237,7 +21362,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\function_parameter')) {
             $declare = '';
 
             if ($parameter->hasType()) {
-                $declare .= reflect_types($parameter->getType())->getName() . ' ';
+                $declare .= reflect_type_resolve($parameter->getType()) . ' ';
             }
 
             if ($parameter->isPassedByReference()) {
@@ -21253,11 +21378,16 @@ if (!function_exists('ryunosuke\\PHPUnit\\function_parameter')) {
             if ($parameter->isOptional()) {
                 $defval = null;
 
-                // 組み込み関数のデフォルト値を取得することは出来ない（isDefaultValueAvailable も false を返す）
                 if ($parameter->isDefaultValueAvailable()) {
                     // 修飾なしでデフォルト定数が使われているとその名前空間で解決してしまうので場合分けが必要
                     if ($parameter->isDefaultValueConstant() && strpos($parameter->getDefaultValueConstantName(), '\\') === false) {
-                        $defval = $parameter->getDefaultValueConstantName();
+                        // 存在チェック＋$dummy でグローバル定数を回避しているが、いっそのこと一律 \\ を付与してしまっても良いような気がする
+                        if (const_exists(...(explode('::', $parameter->getDefaultValueConstantName()) + [1 => '$dummy']))) {
+                            $defval = '\\' . $parameter->getDefaultValueConstantName();
+                        }
+                        else {
+                            $defval = $parameter->getDefaultValueConstantName();
+                        }
                     }
                     else {
                         $default = $parameter->getDefaultValue();
@@ -21272,6 +21402,12 @@ if (!function_exists('ryunosuke\\PHPUnit\\function_parameter')) {
                             ]);
                         }
                     }
+                }
+                // isOptional だが isDefaultValueAvailable でないし isVariadic でもない（稀にある（stream_filter_append で確認））
+                elseif (!$parameter->isVariadic()) {
+                    // Type に応じたデフォルト値が得られればベストだがそこまでする必要もない
+                    // 少なくとも 8.0 時点では = null してしまえば型エラーも起きない（8.4 で非推奨になってるけど）
+                    $defval = "null";
                 }
 
                 if (isset($defval)) {
@@ -21472,7 +21608,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\parameter_wiring')) {
                     $result[$n] = $dependency[$pname];
                 }
             }
-            elseif (($typename = (string) reflect_types($parameter->getType()))) {
+            elseif (($typename = strval($parameter->getType()))) {
                 if (isset($dependency[$typename])) {
                     $result[$n] = $dependency[$typename];
                 }
@@ -21546,6 +21682,42 @@ if (!function_exists('ryunosuke\\PHPUnit\\reflect_callable')) {
             }
             return new \ReflectionMethod($class, $method);
         }
+    }
+}
+
+assert(!function_exists('ryunosuke\\PHPUnit\\reflect_type_resolve') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\reflect_type_resolve'))->isUserDefined());
+if (!function_exists('ryunosuke\\PHPUnit\\reflect_type_resolve')) {
+    /**
+     * ReflectionType の型に \\ を付与する
+     *
+     * php8.0 で ReflectionType の __toString が解放されたけど、それをそのまま埋め込んだりすると \\ がないのでエラーになったりする。
+     * この関数を通してから埋め込めば \\ が付くので回避できる、という非常にニッチな関数。
+     *
+     * 型 exists で判定するため、付与するクラスは存在している必要がある（オプション引数で対応するかもしれない）。
+     *
+     * Example:
+     * ```php
+     * // このような DNF 型も形式を保ったまま \\ を付与できる
+     * that(reflect_type_resolve('(Countable&Traversable)|object'))->is('(\\Countable&\\Traversable)|object');
+     * ```
+     *
+     * @package ryunosuke\Functions\Package\reflection
+     *
+     * @param ?string $type string だが実用上は getType 等で得られるインスタンスでよい
+     * @return ?string 解決された文字列
+     */
+    function reflect_type_resolve(?string $type): ?string
+    {
+        if ($type === null) {
+            return null;
+        }
+
+        // 拡張関数が string|null ではなく ?string で返すことがあるので ? を含める
+        // 8.1以上では交差型もあり得るので (&) も含める
+        // そして PREG_SPLIT_DELIM_CAPTURE で分割して再結合すれば元の形式のまま得られる
+        $types = preg_split('#([?()|&])#', $type, -1, PREG_SPLIT_DELIM_CAPTURE);
+        $types = array_map(fn($v) => type_exists($v) ? "\\" . ltrim($v, '\\') : $v, $types);
+        return implode('', $types);
     }
 }
 
@@ -21672,7 +21844,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\reflect_types')) {
                 }
             }
 
-            public function __toString()
+            public function __toString(): string
             {
                 return implode('|', $this->toStrings(true, true));
             }
@@ -21741,7 +21913,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\reflect_types')) {
                 return $this->toStrings(true, true);
             }
 
-            public function getName()
+            public function getName(): string
             {
                 $types = array_flip($this->toStrings(true, true));
                 $nullable = false;
@@ -21757,12 +21929,12 @@ if (!function_exists('ryunosuke\\PHPUnit\\reflect_types')) {
                 return ($nullable ? '?' : '') . implode('|', $result);
             }
 
-            public function getTypes()
+            public function getTypes(): array
             {
                 return (array) $this;
             }
 
-            public function allows($type, $strict = false)
+            public function allows($type, $strict = false): bool
             {
                 $types = array_flip($this->toStrings(false, false));
 
@@ -21797,7 +21969,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\reflect_types')) {
                 return false;
             }
 
-            private function toStrings($ignore_compatible = true, $sort = true)
+            private function toStrings($ignore_compatible = true, $sort = true): array
             {
                 $types = [];
                 foreach ($this->getTypes() as $type) {
@@ -23342,59 +23514,34 @@ if (!function_exists('ryunosuke\\PHPUnit\\mb_ereg_options')) {
      */
     function mb_ereg_options($options)
     {
-        return new class($options) {
-            private $options, $backup;
-
-            private $settled = false;
-
-            public function __construct($options)
-            {
-                $this->options = [
-                    'internal_encoding'    => $options['internal_encoding'] ?? $options['encoding'] ?? null,
-                    'substitute_character' => $options['substitute_character'] ?? null,
-                    'regex_encoding'       => $options['regex_encoding'] ?? $options['encoding'] ?? null,
-                    'regex_options'        => $options['regex_options'] ?? null,
-                ];
-                $this->backup = [
-                    'internal_encoding'    => mb_internal_encoding(),
-                    'substitute_character' => mb_substitute_character(),
-                    'regex_encoding'       => mb_regex_encoding(),
-                    'regex_options'        => mb_regex_set_options(),
-                ];
-
-                $this->set($this->options, true);
+        $set = static function ($setting) {
+            if (strlen((string) $setting['internal_encoding'])) {
+                mb_internal_encoding($setting['internal_encoding']);
             }
-
-            public function __destruct()
-            {
-                $this();
+            if (strlen((string) $setting['substitute_character'])) {
+                mb_substitute_character($setting['substitute_character']);
             }
-
-            public function __invoke()
-            {
-                if ($this->settled) {
-                    $this->set($this->backup, false);
-                }
+            if (strlen((string) $setting['regex_encoding'])) {
+                mb_regex_encoding($setting['regex_encoding']);
             }
-
-            private function set($setting, $settled)
-            {
-                if (strlen((string) $setting['internal_encoding'])) {
-                    mb_internal_encoding($setting['internal_encoding']);
-                }
-                if (strlen((string) $setting['substitute_character'])) {
-                    mb_substitute_character($setting['substitute_character']);
-                }
-                if (strlen((string) $setting['regex_encoding'])) {
-                    mb_regex_encoding($setting['regex_encoding']);
-                }
-                if (strlen((string) $setting['regex_options'])) {
-                    mb_regex_set_options($setting['regex_options']);
-                }
-
-                $this->settled = $settled;
+            if (strlen((string) $setting['regex_options'])) {
+                mb_regex_set_options($setting['regex_options']);
             }
         };
+
+        $backup = [
+            'internal_encoding'    => mb_internal_encoding(),
+            'substitute_character' => mb_substitute_character(),
+            'regex_encoding'       => mb_regex_encoding(),
+            'regex_options'        => mb_regex_set_options(),
+        ];
+        $set([
+            'internal_encoding'    => $options['internal_encoding'] ?? $options['encoding'] ?? null,
+            'substitute_character' => $options['substitute_character'] ?? null,
+            'regex_encoding'       => $options['regex_encoding'] ?? $options['encoding'] ?? null,
+            'regex_options'        => $options['regex_options'] ?? null,
+        ]);
+        return finalize(fn() => $set($backup));
     }
 }
 
@@ -25791,8 +25938,6 @@ if (!function_exists('ryunosuke\\PHPUnit\\str_putcsv')) {
     /**
      * fputcsv の文字列版（str_getcsv の put 版）
      *
-     * エラーは例外に変換される。
-     *
      * 普通の配列を与えるとシンプルに "a,b,c" のような1行を返す。
      * 多次元配列（2次元のみを想定）や Traversable を与えるとループして "a,b,c\nd,e,f" のような複数行を返す。
      *
@@ -25821,22 +25966,18 @@ if (!function_exists('ryunosuke\\PHPUnit\\str_putcsv')) {
      */
     function str_putcsv($array, $delimiter = ',', $enclosure = '"', $escape = "\\")
     {
-        $restore = set_error_exception_handler();
-        $fp = fopen('php://memory', 'rw+');
-        try {
-            if (is_array($array) && array_depth($array) === 1) {
-                $array = [$array];
-            }
-            foreach ($array as $line) {
-                fputcsv($fp, $line, $delimiter, $enclosure, $escape);
-            }
-            rewind($fp);
-            return rtrim(stream_get_contents($fp), "\n");
+        static $fp = null;
+        $fp ??= fopen('php://memory', 'rw+');
+        rewind($fp);
+        ftruncate($fp, 0);
+        if (is_array($array) && array_depth($array, 2) === 1) {
+            $array = [$array];
         }
-        finally {
-            $restore();
-            fclose($fp);
+        foreach ($array as $line) {
+            fputcsv($fp, $line, $delimiter, $enclosure, $escape);
         }
+        rewind($fp);
+        return rtrim(stream_get_contents($fp), "\n");
     }
 }
 
@@ -27855,7 +27996,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\cacheobject')) {
      *
      * @param string $directory キャッシュ保存ディレクトリ
      * @param float $clean_probability 不要キャッシュの削除確率
-     * @return \Psr16CacheInterface psr-16 実装オブジェクト
+     * @return \Cacheobject psr-16 実装オブジェクト
      */
     function cacheobject($directory, $clean_probability = 0)
     {
@@ -28083,18 +28224,18 @@ if (!function_exists('ryunosuke\\PHPUnit\\cacheobject')) {
             }
 
             // @formatter:off
-            public function clean()                                      { return $this->cacheobject->{__FUNCTION__}(...func_get_args()); }
-            public function keys($pattern = null)                        { return $this->cacheobject->{__FUNCTION__}(...func_get_args()); }
-            public function fetch($key, $provider, $ttl = null)          { return $this->cacheobject->{__FUNCTION__}(...func_get_args()); }
-            public function fetchMultiple($providers, $ttl = null)       { return $this->cacheobject->{__FUNCTION__}(...func_get_args()); }
-            public function get($key, $default = null):mixed             { return $this->cacheobject->{__FUNCTION__}(...func_get_args()); }
-            public function set($key, $value, $ttl = null):bool          { return $this->cacheobject->{__FUNCTION__}(...func_get_args()); }
-            public function delete($key):bool                            { return $this->cacheobject->{__FUNCTION__}(...func_get_args()); }
-            public function clear():bool                                 { return $this->cacheobject->{__FUNCTION__}(...func_get_args()); }
-            public function getMultiple($keys, $default = null):iterable { return $this->cacheobject->{__FUNCTION__}(...func_get_args()); }
-            public function setMultiple($values, $ttl = null):bool       { return $this->cacheobject->{__FUNCTION__}(...func_get_args()); }
-            public function deleteMultiple($keys):bool                   { return $this->cacheobject->{__FUNCTION__}(...func_get_args()); }
-            public function has($key):bool                               { return $this->cacheobject->{__FUNCTION__}(...func_get_args()); }
+            public function clean()                                          { return $this->cacheobject->{__FUNCTION__}(...func_get_args()); }
+            public function keys($pattern = null): iterable                  { return $this->cacheobject->{__FUNCTION__}(...func_get_args()); }
+            public function fetch($key, $provider, $ttl = null): mixed       { return $this->cacheobject->{__FUNCTION__}(...func_get_args()); }
+            public function fetchMultiple($providers, $ttl = null): iterable { return $this->cacheobject->{__FUNCTION__}(...func_get_args()); }
+            public function get($key, $default = null): mixed                { return $this->cacheobject->{__FUNCTION__}(...func_get_args()); }
+            public function set($key, $value, $ttl = null): bool             { return $this->cacheobject->{__FUNCTION__}(...func_get_args()); }
+            public function delete($key): bool                               { return $this->cacheobject->{__FUNCTION__}(...func_get_args()); }
+            public function clear(): bool                                    { return $this->cacheobject->{__FUNCTION__}(...func_get_args()); }
+            public function getMultiple($keys, $default = null): iterable    { return $this->cacheobject->{__FUNCTION__}(...func_get_args()); }
+            public function setMultiple($values, $ttl = null): bool          { return $this->cacheobject->{__FUNCTION__}(...func_get_args()); }
+            public function deleteMultiple($keys): bool                      { return $this->cacheobject->{__FUNCTION__}(...func_get_args()); }
+            public function has($key): bool                                  { return $this->cacheobject->{__FUNCTION__}(...func_get_args()); }
             // @formatter:on
         };
     }
@@ -30588,6 +30729,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\var_pretty')) {
 
                 //$current = count($this->content) - 1;
                 if ($this->options['maxcolumn'] !== null) {
+                    $basecolumn = $this->column;
                     $breakpos = strrpos($value, "\n");
                     if ($breakpos === false) {
                         $this->column += $strlen;
@@ -30595,10 +30737,10 @@ if (!function_exists('ryunosuke\\PHPUnit\\var_pretty')) {
                     else {
                         $this->column = $strlen - $breakpos - 1;
                     }
-                    if ($this->column >= $this->options['maxcolumn']) {
+                    if ($basecolumn !== 0 && $this->column >= $this->options['maxcolumn']) {
                         preg_match('# +#', $this->content, $m, 0, strrpos($this->content, "\n"));
                         $this->column = 0;
-                        $this->content .= "\n\t" . $m[0];
+                        $this->content .= "\n\t" . ($m[0] ?? '');
                     }
                 }
 
