@@ -5,10 +5,11 @@ namespace ryunosuke\PHPUnit\Printer;
 require_once __DIR__ . '/AbstractPrinter.php';
 
 use Exception;
-use PHPUnit\Framework\AssertionFailedError;
 use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\TestResult;
 use PHPUnit\Framework\TestSuite;
 use PHPUnit\Framework\Warning;
+use PHPUnit\Util\Filter;
 use ReflectionProperty;
 use Throwable;
 
@@ -19,15 +20,20 @@ class ProgressPrinter extends AbstractPrinter
 
     protected function _onStartTestSuite(TestSuite $testSuite)
     {
+        // testcase class only (filter directory, dataprovider etc)
+        if (!class_exists($testSuite->getName())) {
+            return;
+        }
+
+        $this->maxColumn = $this->numberOfColumns - strlen("# XXX% ({$this->numTests}/{$this->numTests}) ");
+
         $digit = strlen((string) $this->numTests);
 
-        $this->maxColumn = $this->numberOfColumns - strlen('C tests (L/M/N) XXX%') - (4 * ($digit - 1));
+        $this->write('#');
+        $this->writeWithColor('fg-cyan', sprintf("%4d%% ", $this->numTestsRun / $this->numTests * 100), false);
+        $this->writeWithColor('fg-green', sprintf("(%{$digit}d/%{$digit}d)", $this->numTestsRun, $this->numTests), false);
 
-        $this->writeWithSpace('# ' . $testSuite->getName());
-
-        $numTestsRun = $this->numTestsRun + $testSuite->count();
-        $this->writeWithColor('fg-cyan', sprintf("%4d%% ", $numTestsRun / $this->numTests * 100), false);
-        $this->writeWithColor('fg-green', sprintf("(%{$digit}d/%{$digit}d/%{$digit}d)", $testSuite->count(), $numTestsRun, $this->numTests), false);
+        $this->write(' ' . $testSuite->getName());
         $this->writeNewLine();
 
         $this->caseCount = 0;
@@ -36,51 +42,45 @@ class ProgressPrinter extends AbstractPrinter
 
     protected function _onStartTestCase(TestCase $testCase)
     {
-        $this->caseCount++;
         $digit = strlen((string) $this->testCount);
 
-        $this->write('- ');
+        $this->write('    -');
         $this->writeWithColor('fg-cyan', sprintf("%4d%% ", $this->caseCount / $this->testCount * 100), false);
         $this->writeWithColor('fg-green', sprintf("(%{$digit}d/%{$digit}d)", $this->caseCount, $this->testCount), false);
         $this->write(' ' . $testCase->getName(true));
+
+        $this->caseCount++;
     }
 
     protected function _onFailTestCase(Throwable $failureCause)
     {
-        if ($failureCause instanceof AssertionFailedError) {
-            foreach ($failureCause->getTrace() as $trace) {
-                if (isset($trace['file'], $trace['line']) && $trace['file'] === (new \ReflectionClass($this->test))->getFileName()) {
-                    $this->write(sprintf(': %s:%d', $trace['file'], $trace['line']));
-                    break;
-                }
-            }
-        }
-        elseif ($failureCause instanceof Warning) {
-            $messages = explode("\n", $failureCause->getMessage());
-            $filelines = [];
+        $traces = [];
+
+        // traces for break
+        if ($failureCause instanceof Warning) {
+            $messages = array_filter(explode("\n", $failureCause->getMessage()), 'strlen');
             foreach ($messages as &$message) {
                 if (preg_match('#^(Failed asserting that .+?) in (.+?):(\d+)#u', $message, $m)) {
-                    $filelines[$m[2]][] = $m[3];
+                    $traces[] = "{$m[2]}:{$m[3]}";
                     $message = $m[1];
                 }
             }
-            if ($filelines) {
-                $this->write(': ');
-                foreach ($filelines as $file => $lines) {
-                    $this->write("$file:" . implode(',', $lines));
-                }
+            if ($traces) {
                 $ref = new ReflectionProperty(Exception::class, 'message');
                 $ref->setAccessible(true);
                 $ref->setValue($failureCause, implode("\n", $messages));
             }
         }
         else {
-            $this->write(sprintf(': %s:%d', $failureCause->getFile(), $failureCause->getLine()));
+            $traces = array_filter(explode("\n", Filter::getFilteredStacktrace($failureCause)), 'strlen');
         }
 
-        $this->writeNewLine();
-        $this->write('    - status: ');
+        $this->write(': ');
         parent::_onFailTestCase($failureCause);
+
+        foreach ($traces as $trace) {
+            $this->write("\n        - $trace");
+        }
     }
 
     protected function _onOutputTestCase(string $actualOutput)
@@ -100,5 +100,16 @@ class ProgressPrinter extends AbstractPrinter
         if ($failureCause || strlen($actualOutput)) {
             $this->writeNewLine();
         }
+    }
+
+    protected function printHeader(TestResult $result): void
+    {
+        $digit = strlen((string) $this->numTests);
+
+        $this->write('#');
+        $this->writeWithColor('fg-cyan', sprintf("%4d%% ", $this->numTestsRun / $this->numTests * 100), false);
+        $this->writeWithColor('fg-green', sprintf("(%{$digit}d/%{$digit}d)", $this->numTestsRun, $this->numTests), false);
+
+        parent::printHeader($result);
     }
 }

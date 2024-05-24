@@ -897,11 +897,11 @@ Nzxc ');
     function test_break()
     {
         $this->actual(1)->break()->is(2);
+        $this->actual(1)->break()->is(3);
 
         $ref = new \ReflectionProperty(TestCase::class, 'warnings');
         $ref->setAccessible(true);
-        $this->assertCount(1, $ref->getValue($this));
-        $ref->setValue($this, []);
+        $this->assertCount(2, $ref->getValue($this));
     }
 
     function test_declare()

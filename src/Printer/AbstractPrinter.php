@@ -71,18 +71,12 @@ class AbstractPrinter extends DefaultResultPrinter
 
         parent::startTestSuite($suite);
 
-        // testcase class only (filter directory, dataprovider etc)
-        if (class_exists($suite->getName())) {
-            $this->_onStartTestSuite($suite);
-        }
+        $this->_onStartTestSuite($suite);
     }
 
     public function endTestSuite(TestSuite $suite): void
     {
-        // testcase class only (filter directory, dataprovider etc)
-        if (class_exists($suite->getName())) {
-            $this->_onEndTestSuite($suite);
-        }
+        $this->_onEndTestSuite($suite);
 
         parent::endTestSuite($suite);
 
@@ -156,9 +150,7 @@ class AbstractPrinter extends DefaultResultPrinter
         }
         $message = $failureCause->getMessage();
         if (strlen($message)) {
-            if ($failureCause instanceof ExpectationFailedException) {
-                $message = explode("\n", $message, 2)[0];
-            }
+            $message = explode("\n", $message, 2)[0];
             $this->write(' (' . $message . ')');
         }
     }
@@ -209,11 +201,11 @@ class AbstractPrinter extends DefaultResultPrinter
             $actual = $e->getComparisonFailure()->getActual();
             if (is_array($actual)) {
                 $export = function_exists('\\ryunosuke\\PHPUnit\\var_export2') ? '\\ryunosuke\\PHPUnit\\var_export2' : 'var_export';
-                $actual = $export($actual, true);
+                $actual = $export($actual, true) . "\n";
             }
             if (is_string($actual) && strpos($actual, "\n") !== false) {
                 $this->write("<<<'ACTUAL'\n");
-                $this->write("$actual\n");
+                $this->write($actual);
                 $this->write("ACTUAL\n\n");
             }
         }
