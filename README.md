@@ -454,6 +454,10 @@ This CodeCoverage changes on the following.
 
 Versioning is Semantic Versioning.
 
+### 4.1.0
+
+- [change] fixed ProgressPrinter
+
 ### 4.0.0
 
 - [change] php>=8.0
