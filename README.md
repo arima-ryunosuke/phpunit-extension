@@ -398,6 +398,8 @@ This Trait provides testing utility.
     - Run closure at Test end.
 - rewriteProperty
     - Rewrite private/protected property. When unset return value recovery prev value.
+- tryableCallable
+    - Closurize private/protected method. And bind arguments with default values.
 - getEnvOrSkip
     - Return getenv(). If novalue then skip the test.
 - getConstOrSkip
@@ -453,6 +455,11 @@ This CodeCoverage changes on the following.
 ## Release
 
 Versioning is Semantic Versioning.
+
+### 4.2.0
+
+- [feature] added tryableCallable
+- [change] fixed stub generation
 
 ### 4.1.0
 
