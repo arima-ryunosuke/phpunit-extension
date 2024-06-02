@@ -3,6 +3,7 @@
 namespace ryunosuke\PHPUnit;
 
 use Closure;
+use ErrorException;
 use PHPUnit\Framework\SkippedTestError;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
@@ -209,6 +210,63 @@ trait TestCaseTrait
         $rewriter ??= fn($v) => $v;
         $handler->set($rewriter($handler->get()));
         return $handler;
+    }
+
+    /**
+     * try method and return throwable
+     *
+     * private/protected methods can also be called.
+     * $defaults is Default value when omitted.
+     *
+     * @param callable $callable
+     * @param array $defaults
+     * @return Closure
+     */
+    public function tryableCallable($callable, ...$defaults): Closure
+    {
+        $reffunc = reflect_callable($callable);
+        return function (...$args) use ($callable, $reffunc, $defaults) {
+            $names = [];
+            foreach ($reffunc->getParameters() as $parameter) {
+                $names[$parameter->getName()] = $parameter;
+
+                if (array_key_exists($parameter->getPosition(), $args)) {
+                    $args[$parameter->getName()] = $args[$parameter->getPosition()];
+                    unset($args[$parameter->getPosition()]);
+                }
+                if (array_key_exists($parameter->getPosition(), $defaults)) {
+                    $defaults[$parameter->getName()] = $defaults[$parameter->getPosition()];
+                    unset($defaults[$parameter->getPosition()]);
+                }
+            }
+
+            $arguments = array_shrink_key($names, $args + $defaults);
+            if ($reffunc->isVariadic()) {
+                $diff = array_diff_key($args + $defaults, $names);
+                if ($diff && is_indexarray($diff)) {
+                    $arguments = array_merge(array_values($arguments), $diff);
+                }
+                else {
+                    $arguments = $arguments + $diff;
+                }
+            }
+
+            try {
+                set_error_handler(static function ($errno, $errstr, $errfile, $errline) {
+                    if (!(error_reporting() & $errno)) {
+                        return false;
+                    }
+                    throw new ErrorException($errstr, 0, $errno, $errfile, $errline);
+                });
+                return $reffunc(...$arguments);
+            }
+            catch (Throwable $t) {
+                return $t;
+            }
+            finally {
+                restore_error_handler();
+            }
+        };
     }
 
     /**

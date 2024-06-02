@@ -3,6 +3,7 @@
 namespace ryunosuke\Test;
 
 use DomainException;
+use ErrorException;
 use InvalidArgumentException;
 use PHPUnit\Framework\SkippedTestError;
 use RuntimeException;
@@ -173,6 +174,79 @@ class TestCaseTraitTest extends \ryunosuke\Test\AbstractTestCase
         ], $object->describe());
     }
 
+    function test_tryableCallable()
+    {
+        $object = new class() {
+            protected function simple($a, $b, $c)
+            {
+                return implode('', [$a, $b, $c]);
+            }
+
+            protected function default($a = 'a', $b = 'b', $c = 'c')
+            {
+                return implode('', [$a, $b, $c]);
+            }
+
+            protected function variadic($a, ...$bcd)
+            {
+                return implode('', array_merge([$a], $bcd));
+            }
+
+            protected function error()
+            {
+                trigger_error('ng');
+                return 'ok';
+            }
+
+            protected function throw()
+            {
+                throw new RuntimeException('ex');
+            }
+        };
+
+        $method = $this->tryableCallable([$object, 'simple'], c: 'c');
+        $this->assertEquals('abc', $method('a', 'b'));
+        $this->assertEquals('abC', $method('a', 'b', 'C'));
+        $this->assertEquals('abc', $method(b: 'b', a: 'a'));
+
+        $method = $this->tryableCallable([$object, 'default'], c: 'C');
+        $this->assertEquals('abC', $method());
+        $this->assertEquals('aBc', $method('a', c: 'c', b: 'B'));
+
+        $method = $this->tryableCallable([$object, 'default'], 'A', 'B');
+        $this->assertEquals('ABc', $method());
+        $this->assertEquals('AbC', $method(c: 'C', b: 'b'));
+
+        $method = $this->tryableCallable([$object, 'variadic']);
+        $this->assertEquals('ac', $method('a', c: 'c'));
+        $this->assertEquals('acb', $method('a', c: 'c', b: 'b'));
+
+        $method = $this->tryableCallable([$object, 'variadic'], 'A');
+        $this->assertEquals('Ac', $method(c: 'c'));
+        $this->assertEquals('Acb', $method(c: 'c', b: 'b'));
+
+        $method = $this->tryableCallable([$object, 'variadic'], b: 'b');
+        $this->assertEquals('acb', $method('a', c: 'c'));
+        $this->assertEquals('aBcb', $method('a', 'B', c: 'c'));
+        $this->assertEquals('ab', $method('a'));
+
+        $method = $this->tryableCallable([$object, 'variadic'], z: 'z');
+        $this->assertEquals('abcz', $method('a', 'b', c: 'c'));
+        $this->assertEquals('ayxz', $method('a', y: 'y', x: 'x'));
+
+        $method = $this->tryableCallable([$object, 'error']);
+        $this->assertEquals(new ErrorException('ng', 0, E_USER_NOTICE), $method());
+        $this->assertEquals('ok', @$method());
+
+        $method = $this->tryableCallable([$object, 'throw']);
+        $this->assertEquals(new RuntimeException('ex'), $method());
+
+        $closure = $this->tryableCallable(function ($a, $b, $c = 'c', ...$z) { return implode('', array_merge([$a, $b, $c], $z)); }, z: 'z');
+        $this->assertEquals('abcz', $closure('a', 'b'));
+        $this->assertEquals('abCz', $closure('a', 'b', 'C'));
+        $this->assertEquals('abCDE', $closure('a', 'b', 'C', 'D', 'E'));
+    }
+
     function test_getEnvOrSkip()
     {
         $this->assertEquals('value', $this->getEnvOrSkip('THIS_IS_ENV'));
@@ -191,9 +265,9 @@ class TestCaseTraitTest extends \ryunosuke\Test\AbstractTestCase
     {
         $classmap = $this->getClassMap();
         $this->assertArrayHasKey(\DeepCopy\TypeFilter\ShallowCopyFilter::class, $classmap);
-        $this->assertEquals(realpath(__DIR__ . '/../../vendor/myclabs/deep-copy/src/DeepCopy/TypeFilter/ShallowCopyFilter.php'),$classmap[\DeepCopy\TypeFilter\ShallowCopyFilter::class]);
+        $this->assertEquals(realpath(__DIR__ . '/../../vendor/myclabs/deep-copy/src/DeepCopy/TypeFilter/ShallowCopyFilter.php'), $classmap[\DeepCopy\TypeFilter\ShallowCopyFilter::class]);
         $this->assertArrayHasKey(\DeepCopy\TypeFilter\ShallowCopyFilter::class, $classmap);
-        $this->assertEquals(realpath(__DIR__ . '/../../vendor/phpunit/phpunit/src/Framework/Constraint/Traversable/ArrayHasKey.php'),$classmap[\PHPUnit\Framework\Constraint\ArrayHasKey::class]);
+        $this->assertEquals(realpath(__DIR__ . '/../../vendor/phpunit/phpunit/src/Framework/Constraint/Traversable/ArrayHasKey.php'), $classmap[\PHPUnit\Framework\Constraint\ArrayHasKey::class]);
     }
 
     function test_getClassByDirectory()
