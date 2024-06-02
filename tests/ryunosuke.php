@@ -4919,13 +4919,18 @@ if (!function_exists('ryunosuke\\PHPUnit\\arrayize')) {
      * 引数の配列を生成する。
      *
      * 配列以外を渡すと配列化されて追加される。
-     * 連想配列は未対応。あくまで普通の配列化のみ。
+     * 配列を渡してもそのままだが、連番配列の場合はマージ、連想配列の場合は結合となる。
      * iterable や Traversable は考慮せずあくまで「配列」としてチェックする。
      *
      * Example:
      * ```php
+     * // 値は配列化される
      * that(arrayize(1, 2, 3))->isSame([1, 2, 3]);
+     * // 配列はそのまま
      * that(arrayize([1], [2], [3]))->isSame([1, 2, 3]);
+     * // 連想配列、連番配列の挙動
+     * that(arrayize([1, 2, 3], [4, 5, 6], ['a' => 'A1'], ['a' => 'A2']))->isSame([1, 2, 3, 4, 5, 6, 'a' => 'A1']);
+     * // stdClass は foreach 可能だがあくまで配列としてチェックする
      * $object = new \stdClass();
      * that(arrayize($object, false, [1, 2, 3]))->isSame([$object, false, 1, 2, 3]);
      * ```
@@ -4942,11 +4947,13 @@ if (!function_exists('ryunosuke\\PHPUnit\\arrayize')) {
             if (!is_array($arg)) {
                 $result[] = $arg;
             }
-            elseif (!is_hasharray($arg)) {
+            elseif ($result && !is_hasharray($arg)) {
                 $result = array_merge($result, $arg);
             }
             else {
-                $result += $arg;
+                // array_merge に合わせるなら $result = $arg + $result で後方上書きの方がいいかも
+                // 些細な変更だけど後方互換性が完全に壊れるのでいったん保留（可変引数なんてほとんど使ってないと思うけど…）
+                $result += $arg; // for compatible
             }
         }
         return $result;
@@ -6590,7 +6597,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\object_properties')) {
      *
      * Example:
      * ```php
-     * $object = new \Exception('something', 42);
+     * $object = new #[\AllowDynamicProperties] class('something', 42) extends \Exception{};
      * $object->oreore = 'oreore';
      *
      * // get_object_vars はそのスコープから見えないプロパティを取得できない
@@ -10059,7 +10066,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\markdown_table')) {
             'stringify' => fn($v) => var_pretty($v, ['return' => true, 'context' => $option['context'], 'table' => false]),
         ];
 
-        $stringify = fn($v) => strtr(trim(is_stringable($v) ? $v : $option['stringify']($v)), ["\t" => '    ']);
+        $stringify = fn($v) => strtr(trim((is_stringable($v) ? $v : $option['stringify']($v)) ?? ''), ["\t" => '    ']);
         $is_numeric = function ($v) {
             $v = trim($v);
             if (strlen($v) === 0) {
@@ -10270,7 +10277,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\paml_import')) {
             return $caches[$key] ??= paml_import($pamlstring, ['cache' => false] + $options);
         }
 
-        $resolve = function (&$value) use ($options) {
+        $resolve = function (&$value, $options) {
             $prefix = $value[0] ?? null;
             $suffix = $value[-1] ?? null;
 
@@ -10282,8 +10289,11 @@ if (!function_exists('ryunosuke\\PHPUnit\\paml_import')) {
 
             if ($prefix === '"' && $suffix === '"') {
                 //$element = stripslashes(substr($element, 1, -1));
-                $value = json_decode($value);
-                return true;
+                $value2 = json_decode($value);
+                if (json_last_error() === JSON_ERROR_NONE) {
+                    $value = $value2;
+                    return true;
+                }
             }
             if ($prefix === "'" && $suffix === "'") {
                 $value = substr($value, 1, -1);
@@ -10337,11 +10347,12 @@ if (!function_exists('ryunosuke\\PHPUnit\\paml_import')) {
         $result = [];
         foreach ($values as $value) {
             $key = null;
-            if (!$resolve($value)) {
+            if (!$resolve($value, $options)) {
                 $kv = array_map('trim', quoteexplode(':', $value, 2, $options['escapers']));
                 if (count($kv) === 2) {
                     [$key, $value] = $kv;
-                    $resolve($value);
+                    $resolve($key, ['expression' => false] + $options);
+                    $resolve($value, $options);
                 }
             }
 
@@ -10769,7 +10780,9 @@ if (!function_exists('ryunosuke\\PHPUnit\\date_interval_string')) {
         $centurys = $years / 100;
 
         // $limit に従って値を切り捨てて DateInterval を作成
-        $interval = new \DateInterval('PT1S');
+        // 「以下に示すプロパティが使えるかどうかは、 PHP のバージョンに依存します。 そして、readonly と見なすべきです」
+        // とのことで、今は動いているけどいずれ使えなくなると思う
+        $interval = new #[\AllowDynamicProperties] class ( 'PT1S' ) extends \DateInterval { };
         $interval->c = $limit < $map['c'] ? 0 : (int) $centurys % 1000;
         $interval->y = $limit < $map['y'] ? 0 : (int) ($limit === $map['y'] ? $years : (int) $years % 100);
         $interval->m = $limit < $map['m'] ? 0 : (int) ($limit === $map['m'] ? $months : (int) $months % 12);
@@ -11008,15 +11021,15 @@ if (!function_exists('ryunosuke\\PHPUnit\\date_match')) {
         $matches = array_filter($matches, 'is_string', ARRAY_FILTER_USE_KEY);
 
         // 週の特殊処理
-        $matches['W'] = preg_replace_callback("!$dayofweek_pattern!u", fn($m) => $reverse_dayofweek[$m[0]], $matches['W']);
+        $matches['W'] = preg_replace_callback("!$dayofweek_pattern!u", fn($m) => $reverse_dayofweek[$m[0]], $matches['W'] ?? '');
 
         foreach ($matches as $key => &$match) {
             // 9, L 等の特殊処理
             if ($key === 'D') {
-                $match = preg_replace('!(L+|9{2,})!', $lastday, $match);
+                $match = preg_replace('!(L+|9{2,})!', $lastday, $match ?? '');
             }
             else {
-                $match = preg_replace('!(L+|9+)!', 'LAST', $match);
+                $match = preg_replace('!(L+|9+)!', 'LAST', $match ?? '');
             }
 
             // 1-4 などを 1,2,3,4 に展開
@@ -13862,7 +13875,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\file_tree')) {
         $basedir = basename($dirname);
 
         $result = [$basedir => []];
-        $items = iterator_to_array(new \FilesystemIterator($dirname, \FilesystemIterator::SKIP_DOTS || \FilesystemIterator::CURRENT_AS_SELF));
+        $items = iterator_to_array(new \FilesystemIterator($dirname, \FilesystemIterator::SKIP_DOTS | \FilesystemIterator::CURRENT_AS_FILEINFO));
         usort($items, function (\SplFileInfo $a, \SplFileInfo $b) {
             if ($a->isDir() xor $b->isDir()) {
                 return $a->isDir() - $b->isDir();
@@ -14843,7 +14856,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\rsync')) {
                 })($fullpath);
             }
 
-            private function format(string $mode, ?int $var): ?string
+            private function format(string $mode, null|int|float $var): ?string
             {
                 if ($var === null) {
                     return null;
@@ -17732,11 +17745,11 @@ if (!function_exists('ryunosuke\\PHPUnit\\console_log')) {
             // header_register_callback はグローバルで1度しか登録できないのでライブラリ内部で使うべきではない
             // ob_start にコールバックを渡すと ob_end～ の時に呼ばれるので、擬似的に header_register_callback 的なことができる
             ob_start(function () use (&$rows) {
-                $header = base64_encode(utf8_encode(json_encode([
+                $header = base64_encode(mb_convert_encoding(json_encode([
                     'version' => '1.0.0',
                     'columns' => ['log', 'backtrace', 'type'],
                     'rows'    => $rows,
-                ])));
+                ]), 'UTF-8', 'ISO-8859-1'));
                 header('X-ChromeLogger-Data: ' . $header);
                 return false;
             });
@@ -19697,7 +19710,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\http_requests')) {
      *     // さらに、このような [URL => CURL オプション] 形式も許容される（あまり用途はないだろうが）
      *     'http://127.0.0.1' => [
      *         CURLOPT_TIMEOUT => 5,
-     *         'callback'      => fn($key, $body) => strlen($body),
+     *         'callback'      => fn($key, $body) => $body,
      *     ],
      * ], [
      *     // 第2引数で各リクエストの共通オプションを指定できる（個別指定優先）
@@ -20815,16 +20828,20 @@ if (!function_exists('ryunosuke\\PHPUnit\\preg_splice')) {
      * @param string|callable $replacement 置換文字列
      * @param string $subject 対象文字列
      * @param array $matches キャプチャ配列が格納される
+     * @param int $limit 置換回数
      * @return string 置換された文字列
      */
-    function preg_splice($pattern, $replacement, $subject, &$matches = [])
+    function preg_splice($pattern, $replacement, $subject, &$matches = [], $limit = -1)
     {
+        // for compatible. $limit => 1
+        // preg_match なので $matches は最初しか引っかからないにも関わらず $limit:-1 だとすべて置換されてしまう
+
         if (preg_match($pattern, $subject, $matches)) {
             if (!is_string($replacement) && is_callable($replacement)) {
-                $subject = preg_replace_callback($pattern, $replacement, $subject);
+                $subject = preg_replace_callback($pattern, $replacement, $subject, $limit);
             }
             else {
-                $subject = preg_replace($pattern, $replacement, $subject);
+                $subject = preg_replace($pattern, $replacement, $subject, $limit);
             }
         }
         return $subject;
@@ -21652,16 +21669,41 @@ if (!function_exists('ryunosuke\\PHPUnit\\reflect_callable')) {
     /**
      * callable から ReflectionFunctionAbstract を生成する
      *
+     * 実際には ReflectionFunctionAbstract を下記の独自拡張した Reflection クラスを返す（メソッドのオーバーライド等はしていないので完全互換）。
+     * - __invoke: 元となったオブジェクトを $this として invoke する（関数・クロージャは invoke と同義）
+     * - call: 実行 $this を指定して invoke する（クロージャ・メソッドのみ）
+     *   - 上記二つは __call/__callStatic のメソッドも呼び出せる
+     * - getDeclaration: 宣言部のコードを返す
+     * - getCode: 定義部のコードを返す
+     * - isStatic: $this バインド可能かを返す（クロージャのみ）
+     * - getUsedVariables: use している変数配列を返す（クロージャのみ）
+     *
      * Example:
      * ```php
      * that(reflect_callable('sprintf'))->isInstanceOf(\ReflectionFunction::class);
      * that(reflect_callable('\Closure::bind'))->isInstanceOf(\ReflectionMethod::class);
+     *
+     * $x = 1;
+     * $closure = function ($a, $b) use (&$x) { return $a + $b; };
+     * $reflection = reflect_callable($closure);
+     * // 単純実行
+     * that($reflection(1, 2))->is(3);
+     * // 無名クラスを $this として実行
+     * that($reflection->call(new class(){}, 1, 2))->is(3);
+     * // 宣言部を返す
+     * that($reflection->getDeclaration())->is('function ($a, $b) use (&$x)');
+     * // 定義部を返す
+     * that($reflection->getCode())->is('{ return $a + $b; }');
+     * // static か返す
+     * that($reflection->isStatic())->is(false);
+     * // use 変数を返す
+     * that($reflection->getUsedVariables())->is(['x' => 1]);
      * ```
      *
      * @package ryunosuke\Functions\Package\reflection
      *
      * @param callable $callable 対象 callable
-     * @return \ReflectionFunction|\ReflectionMethod リフレクションインスタンス
+     * @return \ReflectCallable|\ReflectionFunction|\ReflectionMethod リフレクションインスタンス
      */
     function reflect_callable($callable)
     {
@@ -21670,17 +21712,125 @@ if (!function_exists('ryunosuke\\PHPUnit\\reflect_callable')) {
             throw new \InvalidArgumentException("'$call_name' is not callable");
         }
 
-        if ($callable instanceof \Closure || strpos($call_name, '::') === false) {
-            return new \ReflectionFunction($callable);
+        if (is_string($call_name) && strpos($call_name, '::') === false) {
+            return new class($callable) extends \ReflectionFunction {
+                private $definition;
+
+                public function __invoke(...$args): mixed
+                {
+                    return $this->invoke(...$args);
+                }
+
+                public function getDeclaration(): string
+                {
+                    return ($this->definition ??= callable_code($this))[0];
+                }
+
+                public function getCode(): string
+                {
+                    return ($this->definition ??= callable_code($this))[1];
+                }
+            };
+        }
+        elseif ($callable instanceof \Closure) {
+            return new class($callable) extends \ReflectionFunction {
+                private $callable;
+                private $definition;
+
+                public function __construct($function)
+                {
+                    parent::__construct($function);
+
+                    $this->callable = $function;
+                }
+
+                public function __invoke(...$args): mixed
+                {
+                    return $this->invoke(...$args);
+                }
+
+                public function call($newThis = null, ...$args): mixed
+                {
+                    return ($this->callable)->call($newThis ?? $this->getClosureThis(), ...$args);
+                }
+
+                public function getDeclaration(): string
+                {
+                    return ($this->definition ??= callable_code($this))[0];
+                }
+
+                public function getCode(): string
+                {
+                    return ($this->definition ??= callable_code($this))[1];
+                }
+
+                public function isStatic(): bool
+                {
+                    return !is_bindable_closure($this->callable);
+                }
+
+                public function getUsedVariables(): array
+                {
+                    $uses = object_properties($this->callable);
+                    unset($uses['this']);
+                    return $uses;
+                }
+            };
         }
         else {
             [$class, $method] = explode('::', $call_name, 2);
             // for タイプ 5: 相対指定による静的クラスメソッドのコール (PHP 5.3.0 以降)
             if (strpos($method, 'parent::') === 0) {
                 [, $method] = explode('::', $method);
-                return (new \ReflectionClass($class))->getParentClass()->getMethod($method);
+                $class = get_parent_class($class);
             }
-            return new \ReflectionMethod($class, $method);
+
+            $called_name = '';
+            if (!method_exists($class, $method)) {
+                $called_name = $method;
+                $method = is_array($callable) && is_object($callable[0]) ? '__call' : '__callStatic';
+            }
+
+            return new class($class, $method, $callable, $called_name) extends \ReflectionMethod {
+                private $callable;
+                private $call_name;
+                private $definition;
+
+                public function __construct($class, $method, $callable, $call_name)
+                {
+                    parent::__construct($class, $method);
+
+                    $this->setAccessible(true); // 8.1 はデフォルトで true になるので模倣する
+                    $this->callable = $callable;
+                    $this->call_name = $call_name;
+                }
+
+                public function __invoke(...$args): mixed
+                {
+                    if ($this->call_name) {
+                        $args = [$this->call_name, $args];
+                    }
+                    return $this->invoke($this->isStatic() ? null : $this->callable[0], ...$args);
+                }
+
+                public function call($newThis = null, ...$args): mixed
+                {
+                    if ($this->call_name) {
+                        $args = [$this->call_name, $args];
+                    }
+                    return $this->getClosure($newThis ?? ($this->isStatic() ? null : $this->callable[0]))(...$args);
+                }
+
+                public function getDeclaration(): string
+                {
+                    return ($this->definition ??= callable_code($this))[0];
+                }
+
+                public function getCode(): string
+                {
+                    return ($this->definition ??= callable_code($this))[1];
+                }
+            };
         }
     }
 }
@@ -22927,6 +23077,8 @@ if (!function_exists('ryunosuke\\PHPUnit\\var_stream')) {
                 private $entry;
                 private $position;
 
+                public $context;
+
                 public static function create(string &$var): int
                 {
                     self::$entries[++self::$ids] = &$var;
@@ -23347,10 +23499,13 @@ if (!function_exists('ryunosuke\\PHPUnit\\mb_compatible_encoding')) {
         static $encmap = [];
         if (!$encmap) {
             foreach (mb_list_encodings() as $encoding) {
-                $encmap[strtolower($encoding)] = [
-                    'aliases'  => array_flip(array_map('strtolower', mb_encoding_aliases($encoding))),
-                    'mimename' => strtolower((string) @mb_preferred_mime_name($encoding)),
-                ];
+                // 非推奨を避ける
+                if (!in_array($encoding, ['BASE64', 'UUENCODE', 'HTML-ENTITIES', 'Quoted-Printable'], true)) {
+                    $encmap[strtolower($encoding)] = [
+                        'aliases'  => array_flip(array_map('strtolower', mb_encoding_aliases($encoding))),
+                        'mimename' => strtolower((string) @mb_preferred_mime_name($encoding)),
+                    ];
+                }
             }
         }
 
@@ -24098,10 +24253,15 @@ if (!function_exists('ryunosuke\\PHPUnit\\quoteexplode')) {
      * @param ?int $limit 分割数。負数未対応
      * @param array|string $enclosures 囲い文字。 ["start" => "end"] で開始・終了が指定できる
      * @param string $escape エスケープ文字
+     * @param array $options オプション
      * @return array 分割された配列
      */
-    function quoteexplode($delimiter, $string, $limit = null, $enclosures = "'\"", $escape = '\\')
+    function quoteexplode($delimiter, $string, $limit = null, $enclosures = "'\"", $escape = '\\', $options = [])
     {
+        $options += [
+            'delim-capture' => false, // デリミタも結果に含まれるようになる
+        ];
+
         if ($limit === null) {
             $limit = PHP_INT_MAX;
         }
@@ -24122,6 +24282,9 @@ if (!function_exists('ryunosuke\\PHPUnit\\quoteexplode')) {
                 $delimiterlen = strlen($delimiter);
                 if (substr_compare($string, $delimiter, $i, $delimiterlen) === 0) {
                     $result[] = substr($string, $current, $i - $current);
+                    if ($options['delim-capture']) {
+                        $result[] = $delimiter;
+                    }
                     $current = $i + $delimiterlen;
                     $i += $delimiterlen - 1;
                     break;
@@ -24172,8 +24335,6 @@ if (!function_exists('ryunosuke\\PHPUnit\\render_string')) {
      *
      * Example:
      * ```php
-     * // 数値キーが参照できる
-     * that(render_string('${0}', ['number']))->isSame('number');
      * // クロージャは呼び出し結果が埋め込まれる
      * that(render_string('$c', ['c' => fn($vars, $k) => $k . '-closure']))->isSame('c-closure');
      * // 引数をそのまま返すだけの特殊な変数 $_ が宣言される
@@ -26607,6 +26768,82 @@ if (!function_exists('ryunosuke\\PHPUnit\\blank_if')) {
     }
 }
 
+assert(!function_exists('ryunosuke\\PHPUnit\\cast') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\cast'))->isUserDefined());
+if (!function_exists('ryunosuke\\PHPUnit\\cast')) {
+    /**
+     * php の型変換に準じてキャストする
+     *
+     * 「php の型変換」とは strict_type=0 の時の暗黙の変換を指す（(type)等のキャストではない）。
+     * eval で呼び出して判定するため、決して $type に外部入力を渡してはならない。
+     *
+     * この関数を使うシチュエーションはほぼない。
+     * 呼び先のためならそれを普通に呼べば同じエラーになるし、用途が分かっているなら通常のキャストで十分。
+     * 「呼び先が型宣言されていない」とか「numeric であることを担保したい」とか、限られた状況でしか使えないし使うべきではない。
+     * 通常の(type)キャストが強すぎる（特に int）のため、「エラーになってくれる弱いキャスト」のようなイメージ。
+     *
+     * Example:
+     * ```php
+     * # 下記のように変換される
+     * that(cast("1", 'int'))->isSame(1);
+     * that(cast(1, 'string'))->isSame('1');
+     * that(cast(1, 'int|string'))->isSame(1);
+     * that(cast([], 'array|ArrayAccess'))->isSame([]);
+     * that(cast($ao = new \ArrayObject(), 'ArrayAccess&Countable'))->isSame($ao);
+     *
+     * # 下記はすべて TypeError になる
+     * // cast("hoge", 'int');             // 非数値文字列 は int に変換できない
+     * // cast([], 'string');              // array は string に変換できない
+     * // cast(new \stdClass(), 'bool');   // object は bool に変換できない
+     * ```
+     *
+     * @package ryunosuke\Functions\Package\syntax
+     *
+     * @param mixed $value 取得される配列・オブジェクト
+     * @param string $type 型文字列
+     * @param mixed $default 失敗したときのデフォルト値（null も立派な値なので例外を飛ばすためには未指定時にしなければならない）
+     * @return mixed キャストされた値
+     */
+    function cast($value, string $type, $default = null)
+    {
+        // 気休め程度だが一応チェック（呼び元の責務なのであんまり厳密にやってもしょうがない）
+        if (!preg_match('#^[?\\\\_a-z0-9|&()]+$#i', $type)) {
+            throw new \InvalidArgumentException("$type is illegal type");
+        }
+
+        // php8.2 の DNF の模倣（8.2 に対応したらまるっと不要）
+        if (strpbrk($type, '(&)') !== false) {
+            if (!is_typeof($value, $type)) {
+                if (func_num_args() === 3) {
+                    return $default;
+                }
+                throw new \TypeError(sprintf("must be of type %s, %s given", $type, get_debug_type($type)));
+            }
+            // ↑でとりあえずマッチすることは保証されたのであとは変換のために | 繋ぎで呼び出せばよい
+            $type = implode('|', preg_split('#([?()|&])#', $type, -1, PREG_SPLIT_NO_EMPTY));
+        }
+
+        // 緩い変換なので一部は互換型を追加する必要がある
+        $types = array_map(fn($type) => trim(trim($type, '\\')), preg_split('#([?()|&])#', $type, -1, PREG_SPLIT_NO_EMPTY));
+        if (in_array('Stringable', $types) && !in_array('string', $types)) {
+            $types[] = 'string';
+        }
+        $type = implode('|', $types);
+
+        // 判定・変換が複雑極まるため実際に投げてその値を返すのが最も間違いが少ない
+        static $test_functions = [];
+        $test_functions[$type] ??= eval("return static fn({$type} \$value) => \$value;");
+        try {
+            return $test_functions[$type]($value);
+        }
+        catch (\TypeError $e) {
+            if (func_num_args() === 3) {
+                return $default;
+            }
+            throw $e;
+        }
+    }
+}
+
 assert(!function_exists('ryunosuke\\PHPUnit\\instance_of') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\instance_of'))->isUserDefined());
 if (!function_exists('ryunosuke\\PHPUnit\\instance_of')) {
     /**
@@ -27036,6 +27273,43 @@ if (!function_exists('ryunosuke\\PHPUnit\\base62_encode')) {
         $bytes = array_map('ord', $chars);
         $base62 = base_convert_array($bytes, 256, 62);
         return $zeroprefix . implode('', array_map(fn($v) => $basechars_index[$v], $base62));
+    }
+}
+
+assert(!function_exists('ryunosuke\\PHPUnit\\base64url_decode') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\base64url_decode'))->isUserDefined());
+if (!function_exists('ryunosuke\\PHPUnit\\base64url_decode')) {
+    /**
+     * url safe な base64_decode
+     *
+     * 対で使うと思うので base64_encode を参照。
+     *
+     * @package ryunosuke\Functions\Package\url
+     *
+     * @param string $string base64url 文字列
+     * @return string 変換元文字列
+     */
+    function base64url_decode($string)
+    {
+        return base64_decode(strtr($string, ['-' => '+', '_' => '/']));
+    }
+}
+
+assert(!function_exists('ryunosuke\\PHPUnit\\base64url_encode') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\base64url_encode'))->isUserDefined());
+if (!function_exists('ryunosuke\\PHPUnit\\base64url_encode')) {
+    /**
+     * url safe な base64_encode
+     *
+     * れっきとした RFC があるのかは分からないが '+' => '-', '/' => '_' がデファクトだと思うのでそのようにしてある。
+     * パディングの = も外す。
+     *
+     * @package ryunosuke\Functions\Package\url
+     *
+     * @param string $string 変換元文字列
+     * @return string base64url 文字列
+     */
+    function base64url_encode($string)
+    {
+        return rtrim(strtr(base64_encode($string), ['+' => '-', '/' => '_']), '=');
     }
 }
 
@@ -28793,7 +29067,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\decrypt')) {
     function decrypt($cipherdata, $password, $ciphers = 'aes-256-cbc', $tag = '')
     {
         $version = $cipherdata[-1] ?? '';
-        $cipherdata = base64_decode(strtr(substr($cipherdata, 0, -1), ['-' => '+', '_' => '/']));
+        $cipherdata = base64url_decode(substr($cipherdata, 0, -1));
 
         if ($version === "4") {
             $cipher = 'aes-256-gcm';
@@ -28944,10 +29218,10 @@ if (!function_exists('ryunosuke\\PHPUnit\\encrypt')) {
         $payload = openssl_encrypt($zlibdata, $cipher, $password, OPENSSL_RAW_DATA, $iv, ...$metadata['taglen'] ? [&$tag] : []);
 
         if ($original_cipher === null) {
-            return rtrim(strtr(base64_encode($payload . $tag . $iv), ['+' => '-', '/' => '_']), '=') . '4';
+            return base64url_encode($payload . $tag . $iv) . '4';
         }
         else {
-            return rtrim(strtr(base64_encode($tag . $iv . $payload . ':' . $cipher), ['+' => '-', '/' => '_']), '=') . '3';
+            return base64url_encode($tag . $iv . $payload . ':' . $cipher) . '3';
         }
     }
 }
@@ -29372,6 +29646,86 @@ if (!function_exists('ryunosuke\\PHPUnit\\is_stringable')) {
             return false;
         }
         return true;
+    }
+}
+
+assert(!function_exists('ryunosuke\\PHPUnit\\is_typeof') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\is_typeof'))->isUserDefined());
+if (!function_exists('ryunosuke\\PHPUnit\\is_typeof')) {
+    /**
+     * 変数が型に合致するか調べる
+     *
+     * is_a のビルトイン＋DNF 対応版。
+     *
+     * DNF の場合、括弧は必須だしネストも不可。
+     * 実質的には ReflectionType の文字列表現を与えるのみ。
+     *
+     * いわゆる strict_types=1 で、型の変換は伴わない。
+     * それはそれで不便なことがある（stringable とか）ので対応するかもしれない。
+     *
+     * Example:
+     * ```php
+     * that(is_typeof(null, 'null'))->isTrue();
+     * that(is_typeof(null, '?int'))->isTrue();
+     * that(is_typeof(1234, '?int'))->isTrue();
+     * that(is_typeof(1234, 'int|string'))->isTrue();
+     * that(is_typeof('ss', 'int|string'))->isTrue();
+     * that(is_typeof(null, 'int|string'))->isFalse();
+     * that(is_typeof([], 'array|(ArrayAccess&Countable&iterable)'))->isTrue();
+     * that(is_typeof(new \ArrayObject(), 'array|(ArrayAccess&Countable&iterable)'))->isTrue();
+     * ```
+     *
+     * @package ryunosuke\Functions\Package\var
+     *
+     * @param mixed $var 調べる値
+     * @param string $typestring 型文字列
+     * @param null|object|string $context self,static のコンテキスト
+     * @return bool $typestring に合致するなら true
+     */
+    function is_typeof($var, string $typestring, $context = null)
+    {
+        $match = function ($type) use ($var, $context) {
+            $type = trim($type);
+            // ?type は 7.4 を最後に姿を消したが $typestring はただの文字列なので与えられる可能性がなくはない
+            if ($type[0] === '?') {
+                if ($var === null) {
+                    return true;
+                }
+                $type = substr($type, 1);
+            }
+            return match ($type) {
+                'void', 'never'  => false, // 単一戻り値専用なのでオマケのようなもの
+                'mixed'          => true,
+                'null'           => $var === null,
+                'true'           => $var === true,
+                'false'          => $var === false,
+                'bool'           => is_bool($var),
+                'int'            => is_int($var),
+                'float'          => is_float($var),
+                'string'         => is_string($var),
+                'array'          => is_array($var),
+                'object'         => is_object($var),
+                'iterable'       => is_iterable($var),
+                'callable'       => is_callable($var),
+                'countable'      => is_countable($var),   // Countable は配列が引っかからないので Countable/countable を区別している
+                'resource'       => is_resourcable($var), // 型宣言できないのでオマケのようなもの
+                'self', 'static' => is_a($var, is_object($context) ? get_class($context) : $context),
+                default          => is_a($var, $type),
+            };
+        };
+
+        // DNF の()は必須かつネストしないので単純 explode で問題ない
+        foreach (explode('|', $typestring) as $ortype) {
+            if (preg_match('#\(?([^)]+)\)?#u', $ortype, $m)) {
+                foreach (explode('&', $m[1]) as $andtype) {
+                    if (!$match($andtype)) {
+                        continue 2;
+                    }
+                }
+                return true;
+            }
+        }
+
+        return false;
     }
 }
 
@@ -30273,8 +30627,8 @@ if (!function_exists('ryunosuke\\PHPUnit\\var_export3')) {
                         $prev = $neighborToken($n, -1, $tokens) ?? [null, null, null];
                         $next = $neighborToken($n, +1, $tokens) ?? [null, null, null];
 
-                        // 無名クラスは new class で始まるはず
-                        if ($token->id === T_NEW && $next->id === T_CLASS) {
+                        // 無名クラスは new class か new #[Attribute] で始まるはず（new #[A] ClassName は許可されていない）
+                        if (($token->id === T_NEW && $next->id === T_CLASS) || ($token->id === T_NEW && $next->id === T_ATTRIBUTE)) {
                             $starting = true;
                         }
                         if (!$starting) {
@@ -30373,7 +30727,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\var_export3')) {
         static $factory = null;
         if ($factory === null) {
             // @codeCoverageIgnoreStart
-            $factory = $export(new class() {
+            $factory = $export(new #[\AllowDynamicProperties] class() {
                 public function new(&$object, $class, $provider)
                 {
                     if ($class instanceof \Closure) {
@@ -30531,7 +30885,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\var_hash')) {
             return $hash;
         }
 
-        return rtrim(strtr(base64_encode($hash), ['+' => '-', '/' => '_']));
+        return base64url_encode($hash);
     }
 }
 
