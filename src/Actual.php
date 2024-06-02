@@ -390,7 +390,7 @@ class Actual implements \ArrayAccess
                     }
 
                     $methods[] = "/** @see \\$refclass->name::$method->name() */";
-                    $methods[] = "public {$v($method->isStatic() ? 'static ' : '')}function $method->name({$v(implode(', ', $arguments))}): {$v($mixTypes($method->getReturnType(), $refclass))} { }";
+                    $methods[] = "public {$v($method->isStatic() ? 'static ' : '')}function $method->name({$v(implode(', ', $arguments ?: ['...$args']))}): {$v($mixTypes($method->getReturnType(), $refclass))} { }";
                 }
             }
 
