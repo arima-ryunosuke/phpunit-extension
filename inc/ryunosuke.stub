@@ -1363,7 +1363,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\paml_export')) {
                 $v = 'true';
             }
             elseif (is_string($v)) {
-                $v = '"' . addcslashes($v, "\"\0\\") . '"';
+                $v = str_quote($v);
             }
 
             if ($k === $n++) {
@@ -1818,13 +1818,12 @@ if (!function_exists('ryunosuke\\PHPUnit\\stacktrace')) {
                     $parents[] = $value;
                     return get_class($value) . $export(object_properties($value), $nest, $parents);
                 }
-                // 文字列は改行削除
+                // 文字列はダブルクォート
                 elseif (is_string($value)) {
-                    $value = str_replace(["\r\n", "\r", "\n"], '\n', $value);
                     if (($strlen = strlen($value)) > $limit) {
                         $value = substr($value, 0, $limit) . sprintf('...(more %d length)', $strlen - $limit);
                     }
-                    return '"' . addcslashes($value, "\"\0\\") . '"';
+                    return str_quote($value);
                 }
                 // それ以外は stringify
                 else {
@@ -3864,6 +3863,72 @@ if (!function_exists('ryunosuke\\PHPUnit\\php_parse')) {
     }
 }
 
+assert(!function_exists('ryunosuke\\PHPUnit\\unique_string') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\unique_string'))->isUserDefined());
+if (!function_exists('ryunosuke\\PHPUnit\\unique_string')) {
+    /**
+     * 文字列に含まれない文字列を生成する
+     *
+     * 例えば http のマルチパートバウンダリのような、「競合しない文字列」を生成する。
+     * 実装は愚直に文字列を調べて存在しなければそれを返すようになっている。
+     * 一応初期値や文字セットは指定可能。
+     *
+     * $initial に int を与えると初期値としてその文字数分 $charlist から確保する。
+     * 例えば生成後の変更が前提で、ある程度の長さを担保したいときに指定すれば最低でもその長さ以上は保証される。
+     * $initial に string を与えるとそれがそのまま初期値として使用される。
+     * 例えば「ほぼ存在しない文字列」が予測できるのであればそれを指定すれば無駄な処理が省ける。
+     *
+     * Example:
+     * ```php
+     * // 単純に呼ぶと生成1,2文字程度の文字列になる
+     * that(unique_string('hello, world'))->stringLengthEqualsAny([1, 2]);
+     * // 数値を含んでいないので候補文字に数値のみを指定すれば1文字で「存在しない文字列」となる
+     * that(unique_string('hello, world', null, range(0, 9)))->stringLengthEquals(1);
+     * // int を渡すと最低でもそれ以上は保証される
+     * that(unique_string('hello, world', 5))->stringLengthEqualsAny([5, 6]);
+     * // string を渡すとそれが初期値となる
+     * that(unique_string('hello, world', 'prefix-'))->stringStartsWith('prefix');
+     * ```
+     *
+     * @package ryunosuke\Functions\Package\random
+     *
+     * @param string $source 元文字列
+     * @param string|int $initial 初期文字列あるいは文字数
+     * @param string|array $charlist 使用する文字セット
+     * @return string 一意な文字列
+     */
+    function unique_string($source, $initial = null, $charlist = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ')
+    {
+        assert(is_stringable($initial) || is_int($initial) || is_null($initial));
+
+        if (is_stringable($charlist)) {
+            $charlist = preg_split('//', $charlist, -1, PREG_SPLIT_NO_EMPTY);
+        }
+
+        $charlength = count($charlist);
+        if ($charlength === 0) {
+            throw new \InvalidArgumentException('charlist is empty.');
+        }
+
+        $result = '';
+        if (is_int($initial)) {
+            shuffle($charlist);
+            $result = implode('', array_slice($charlist, 0, $initial));
+        }
+        elseif (is_null($initial)) {
+            $result .= $charlist[mt_rand(0, $charlength - 1)];
+        }
+        else {
+            $result = $initial;
+        }
+
+        while ((($p = strpos($source, $result, $p ?? 0)) !== false)) {
+            $result .= $charlist[mt_rand(0, $charlength - 1)];
+        }
+
+        return $result;
+    }
+}
+
 assert(!function_exists('ryunosuke\\PHPUnit\\callable_code') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\callable_code'))->isUserDefined());
 if (!function_exists('ryunosuke\\PHPUnit\\callable_code')) {
     /**
@@ -3976,15 +4041,6 @@ if (!function_exists('ryunosuke\\PHPUnit\\function_parameter')) {
                     else {
                         $default = $parameter->getDefaultValue();
                         $defval = var_export2($default, true);
-                        if (is_string($default)) {
-                            $defval = strtr($defval, [
-                                "\r" => "\\r",
-                                "\n" => "\\n",
-                                "\t" => "\\t",
-                                "\f" => "\\f",
-                                "\v" => "\\v",
-                            ]);
-                        }
                     }
                 }
                 // isOptional だが isDefaultValueAvailable でないし isVariadic でもない（稀にある（stream_filter_append で確認））
@@ -4187,7 +4243,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\reflect_callable')) {
             }
 
             $called_name = '';
-            if (!method_exists($class, $method)) {
+            if (!method_exists(is_array($callable) && is_object($callable[0]) ? $callable[0] : $class, $method)) {
                 $called_name = $method;
                 $method = is_array($callable) && is_object($callable[0]) ? '__call' : '__callStatic';
             }
@@ -4642,10 +4698,8 @@ if (!function_exists('ryunosuke\\PHPUnit\\mb_ellipsis')) {
      * @param int|null $pos 省略記号の差し込み位置
      * @return string 丸められた文字列
      */
-    function mb_ellipsis($string, $width, $trimmarker = '...', $pos = null)
+    function mb_ellipsis(?string $string, $width, $trimmarker = '...', $pos = null)
     {
-        $string = (string) $string;
-
         $strwidth = mb_monospace($string);
         if ($strwidth <= $width) {
             return $string;
@@ -4710,7 +4764,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\mb_monospace')) {
      * @param array $codepoints コードポイント配列
      * @return int 等幅の文字幅
      */
-    function mb_monospace($string, $codepoints = [])
+    function mb_monospace(?string $string, $codepoints = [])
     {
         $widthmap = [];
         foreach ($codepoints as $codepoint => $width) {
@@ -4774,10 +4828,8 @@ if (!function_exists('ryunosuke\\PHPUnit\\mb_substr_replace')) {
      * @param ?int $length 置換長
      * @return string 置換した文字列
      */
-    function mb_substr_replace($string, $replacement, $start, $length = null)
+    function mb_substr_replace(?string $string, ?string $replacement, $start, $length = null)
     {
-        $string = (string) $string;
-
         $strlen = mb_strlen($string);
         if ($start < 0) {
             $start += $strlen;
@@ -4820,7 +4872,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\multiexplode')) {
      * @param int $limit 分割数
      * @return array 分割された配列
      */
-    function multiexplode($delimiter, $string, $limit = \PHP_INT_MAX)
+    function multiexplode($delimiter, ?string $string, $limit = \PHP_INT_MAX)
     {
         $limit = (int) $limit;
         if ($limit < 0) {
@@ -4862,7 +4914,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\namespace_split')) {
      * @param string $string 対象文字列
      * @return array [namespace, localname]
      */
-    function namespace_split($string)
+    function namespace_split(?string $string)
     {
         $pos = strrpos($string, '\\');
         if ($pos === false) {
@@ -4907,7 +4959,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\quoteexplode')) {
      * @param array $options オプション
      * @return array 分割された配列
      */
-    function quoteexplode($delimiter, $string, $limit = null, $enclosures = "'\"", $escape = '\\', $options = [])
+    function quoteexplode($delimiter, ?string $string, $limit = null, $enclosures = "'\"", $escape = '\\', $options = [])
     {
         $options += [
             'delim-capture' => false, // デリミタも結果に含まれるようになる
@@ -4970,10 +5022,8 @@ if (!function_exists('ryunosuke\\PHPUnit\\starts_with')) {
      * @param bool $case_insensitivity 大文字小文字を無視するか
      * @return bool 指定文字列で始まるなら true を返す
      */
-    function starts_with($string, $with, $case_insensitivity = false)
+    function starts_with(?string $string, $with, $case_insensitivity = false)
     {
-        assert(is_stringable($string));
-
         foreach ((array) $with as $w) {
             assert(strlen($w));
 
@@ -5041,7 +5091,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\str_array')) {
      * @param bool $hashmode 連想配列モードか
      * @return array 配列
      */
-    function str_array($string, $delimiter, $hashmode)
+    function str_array($string, ?string $delimiter, $hashmode)
     {
         $array = $string;
         if (is_stringable($string)) {
@@ -5098,10 +5148,8 @@ if (!function_exists('ryunosuke\\PHPUnit\\str_ellipsis')) {
      * @param int|null $pos 省略記号の差し込み位置
      * @return string 丸められた文字列
      */
-    function str_ellipsis($string, $width, $trimmarker = '...', $pos = null)
+    function str_ellipsis(?string $string, $width, $trimmarker = '...', $pos = null)
     {
-        $string = (string) $string;
-
         $strlen = mb_strlen($string);
         if ($strlen <= $width) {
             return $string;
@@ -5188,14 +5236,12 @@ if (!function_exists('ryunosuke\\PHPUnit\\str_exists')) {
      * @param bool $and_flag すべて含む場合に true を返すか
      * @return bool $needle を含むなら true
      */
-    function str_exists($haystack, $needle, $case_insensitivity = false, $and_flag = false)
+    function str_exists(?string $haystack, $needle, $case_insensitivity = false, $and_flag = false)
     {
         if (!is_array($needle)) {
             $needle = [$needle];
         }
 
-        // あくまで文字列としての判定に徹する（strpos の第2引数は闇が深い気がする）
-        $haystack = (string) $haystack;
         $needle = array_map('strval', $needle);
 
         foreach ($needle as $str) {
@@ -5211,6 +5257,154 @@ if (!function_exists('ryunosuke\\PHPUnit\\str_exists')) {
             }
         }
         return !!$and_flag;
+    }
+}
+
+assert(!function_exists('ryunosuke\\PHPUnit\\str_quote') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\str_quote'))->isUserDefined());
+if (!function_exists('ryunosuke\\PHPUnit\\str_quote')) {
+    /**
+     * 文字列をダブルクォート文字列に変換する
+     *
+     * 文字ではうまく表現できないが、例えば「本当の改行」が \n になり、「本当のタブ文字」が \t になる。
+     * コントロール文字は "\code" 形式のようになる。
+     * 「得られた文字列は eval すると元に戻る」とでも言えばいいか。
+     *
+     * 制御文字をそのまま出力するとまずい状況が稀によくある（特に行指向媒体への改行文字）。
+     * この関数を通せば php の文字列の体裁を保ったまま1行化できる。
+     * 端的に言えば var_export の文字列特化版。
+     *
+     * 挙動は $options である程度制御可能。
+     * 各 $options は原則的に文字のマップか true を渡す（true の場合はデフォルトが使用される）。
+     * 一部、それ以外の値・型に対応しているものもある。
+     *
+     * - escape-character: 制御文字のうち、明確なエスケープシーケンスが存在する場合はそれを使用する
+     *   - control-character にオーバーラップするがこちらが優先される
+     * - control-character: 00 ～ 1F+7F の制御文字を \code 形式にする
+     *   - 文字列で "oct", "hex", "HEX" も指定できる。その場合それぞれ \oct, \xhex, \xHEX 形式になる
+     * - special-character: ダブルクオート内の文字列が文字列であるための変換を行う
+     *   - 原則的にデフォルトに任せて指定すべきではない
+     *
+     * Example:
+     * ```php
+     * // （非常に分かりにくいが）下記のように変換される
+     * that(str_quote("\$a\nb\rc\x00"))->isSame("\"\\\$a\\nb\\rc\\0\"");
+     * // 文字としての意味は一緒であり要するに表現形式の違いなので、php の世界で eval すれば元の文字列に戻る
+     * that(eval('return ' . str_quote("\$a\nb\rc\x00") . ';'))->isSame("\$a\nb\rc\x00");
+     * ```
+     *
+     * @package ryunosuke\Functions\Package\strings
+     *
+     * @param string $string 対象文字列
+     * @param array $options オプション配列
+     * @return string クォート文字列
+     */
+    function str_quote(string $string, array $options = []): string
+    {
+        $options += [
+            'escape-character'  => true,
+            'control-character' => true,
+            'special-character' => true,
+            'heredoc'           => '',
+            'nowdoc'            => '',
+            'indent'            => 0,
+        ];
+
+        assert(!($options['heredoc'] && $options['nowdoc']));
+
+        // nowdoc にエスケープは存在しないのでそのまま埋め込む（その結果壊れてもこの関数の責務ではない）
+        if (strlen($options['nowdoc'])) {
+            $indent = str_repeat(" ", $options['indent']);
+            $string = preg_replace('#(\R)#u', '$1' . $indent, $string);
+            return "<<<'{$options['nowdoc']}'\n{$indent}{$string}\n{$indent}{$options['nowdoc']}";
+        }
+
+        // @see https://www.php.net/manual/ja/language.types.string.php#language.types.string.syntax.double
+        $special_chars = [
+            '\\' => '\\\\', // バックスラッシュ
+            '"'  => '\\"',  // 二重引用符
+            '$'  => '\\$',  // ドル記号
+        ];
+        $escape_chars = [
+            "\11" => '\\t', // 水平タブ (HT またはアスキーの 0x09 (9))
+            "\12" => '\\n', // ラインフィード (LF またはアスキーの 0x0A (10))
+            "\13" => '\\v', // 垂直タブ (VT またはアスキーの 0x0B (11))
+            "\14" => '\\f', // フォームフィード (FF またはアスキーの 0x0C (12))
+            "\15" => '\\r', // キャリッジリターン (CR またはアスキーの 0x0D (13))
+            "\33" => '\\e', // エスケープ (ESC あるいはアスキーの 0x1B (27))
+        ];
+        $control_chars = [
+            "\0"   => "\\0",
+            "\1"   => "\\1",
+            "\2"   => "\\2",
+            "\3"   => "\\3",
+            "\4"   => "\\4",
+            "\5"   => "\\5",
+            "\6"   => "\\6",
+            "\7"   => "\\7",
+            "\10"  => "\\10",
+            "\11"  => "\\11",
+            "\12"  => "\\12",
+            "\13"  => "\\13",
+            "\14"  => "\\14",
+            "\15"  => "\\15",
+            "\16"  => "\\16",
+            "\17"  => "\\17",
+            "\20"  => "\\20",
+            "\21"  => "\\21",
+            "\22"  => "\\22",
+            "\23"  => "\\23",
+            "\24"  => "\\24",
+            "\25"  => "\\25",
+            "\26"  => "\\26",
+            "\27"  => "\\27",
+            "\30"  => "\\30",
+            "\31"  => "\\31",
+            "\32"  => "\\32",
+            "\33"  => "\\33",
+            "\34"  => "\\34",
+            "\35"  => "\\35",
+            "\36"  => "\\36",
+            "\37"  => "\\37",
+            "\177" => "\\177",
+        ];
+
+        // heredoc 用の特殊処理（タイプ可能な文字はエスケープしなくてもよいだろう）
+        if (strlen($options['heredoc'])) {
+            $control_chars = array_diff_key($control_chars, $escape_chars);
+            $escape_chars = [];
+            unset($special_chars['"']);
+        }
+
+        $charmap = [];
+        if ($options['special-character']) {
+            $charmap += is_array($options['special-character']) ? $options['special-character'] : $special_chars;
+        }
+        if ($options['escape-character']) {
+            $charmap += is_array($options['escape-character']) ? $options['escape-character'] : $escape_chars;
+        }
+        if ($options['control-character']) {
+            if ($options['control-character'] === 'oct') {
+                // デフォで oct にしてあるので変換不要
+                assert(end($control_chars) === "\\177");
+            }
+            if ($options['control-character'] === 'hex') {
+                $control_chars = array_map(fn($v) => sprintf('\\x%02x', octdec(trim($v, '\\'))), $control_chars);
+            }
+            if ($options['control-character'] === 'HEX') {
+                $control_chars = array_map(fn($v) => sprintf('\\x%02X', octdec(trim($v, '\\'))), $control_chars);
+            }
+            $charmap += is_array($options['control-character']) ? $options['control-character'] : $control_chars;
+        }
+
+        $string = strtr($string, $charmap);
+
+        if (strlen($options['heredoc'])) {
+            $indent = str_repeat(" ", $options['indent']);
+            $string = preg_replace('#(\R)#u', '$1' . $indent, $string);
+            return "<<<{$options['heredoc']}\n{$indent}{$string}\n{$indent}{$options['heredoc']}";
+        }
+
+        return '"' . $string . '"';
     }
 }
 
@@ -5242,7 +5436,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\strpos_array')) {
      * @param int $offset 開始位置
      * @return array $needles それぞれの位置配列
      */
-    function strpos_array($haystack, $needles, $offset = 0)
+    function strpos_array(?string $haystack, $needles, $offset = 0)
     {
         if ($offset < 0) {
             $offset += strlen($haystack);
@@ -5304,7 +5498,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\strpos_escaped')) {
      * @param ?string $found 見つかった文字が格納される
      * @return ?int 見つかった位置
      */
-    function strpos_escaped($haystack, $needle, $offset = 0, $escape = '\\', &$found = null)
+    function strpos_escaped(?string $haystack, $needle, $offset = 0, $escape = '\\', &$found = null)
     {
         $q_escape = preg_quote($escape, '#');
         if (is_stringable($needle)) {
@@ -5359,7 +5553,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\strpos_quoted')) {
      * @param ?string $found $needle の内、見つかった文字列が格納される
      * @return ?int $needle の位置
      */
-    function strpos_quoted($haystack, $needle, $offset = 0, $enclosure = "'\"", $escape = '\\', &$found = null)
+    function strpos_quoted(?string $haystack, $needle, $offset = 0, $enclosure = "'\"", $escape = '\\', &$found = null)
     {
         if (is_string($enclosure)) {
             if (strlen($enclosure)) {
@@ -5444,7 +5638,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\strtr_escaped')) {
      * @param string $escape エスケープ文字
      * @return string 置換された文字列
      */
-    function strtr_escaped($string, $replace_pairs, $escape = '\\')
+    function strtr_escaped(?string $string, $replace_pairs, $escape = '\\')
     {
         uksort($replace_pairs, fn($a, $b) => strlen($b) - strlen($a));
         $froms = array_keys($replace_pairs);
@@ -6121,11 +6315,11 @@ if (!function_exists('ryunosuke\\PHPUnit\\var_export2')) {
         $INDENT = 4;
 
         // 再帰用クロージャ
-        $export = function ($value, $nest = 0, $parents = []) use (&$export, $INDENT) {
+        $export = function ($value, $context, $nest = 0, $parents = []) use (&$export, $INDENT) {
             // 再帰を検出したら *RECURSION* とする（処理に関しては is_recursive のコメント参照）
             foreach ($parents as $parent) {
                 if ($parent === $value) {
-                    return $export('*RECURSION*');
+                    return $export('*RECURSION*', 'recursion');
                 }
             }
             // 配列は連想判定したり再帰したり色々
@@ -6137,19 +6331,19 @@ if (!function_exists('ryunosuke\\PHPUnit\\var_export2')) {
 
                 // スカラー値のみで構成されているならシンプルな再帰
                 if (!$hashed && array_all($value, fn(...$args) => is_primitive(...$args))) {
-                    return '[' . implode(', ', array_map($export, $value)) . ']';
+                    return '[' . implode(', ', array_map(fn($v) => $export($v, 'array-value'), $value)) . ']';
                 }
 
                 // 連想配列はキーを含めて桁あわせ
                 if ($hashed) {
-                    $keys = array_map($export, array_combine($keys = array_keys($value), $keys));
+                    $keys = array_map(fn($v) => $export($v, 'array-key'), array_combine($keys = array_keys($value), $keys));
                     $maxlen = max(array_map('strlen', $keys));
                 }
                 $kvl = '';
                 $parents[] = $value;
                 foreach ($value as $k => $v) {
                     $keystr = $hashed ? $keys[$k] . str_repeat(' ', $maxlen - strlen($keys[$k])) . ' => ' : '';
-                    $kvl .= $spacer1 . $keystr . $export($v, $nest + 1, $parents) . ",\n";
+                    $kvl .= $spacer1 . $keystr . $export($v, 'array-value', $nest + 1, $parents) . ",\n";
                 }
                 return "[\n{$kvl}{$spacer2}]";
             }
@@ -6158,13 +6352,27 @@ if (!function_exists('ryunosuke\\PHPUnit\\var_export2')) {
                 $parents[] = $value;
                 $classname = get_class($value);
                 if ($classname === \stdClass::class) {
-                    return '(object) ' . $export((array) $value, $nest, $parents);
+                    return '(object) ' . $export((array) $value, 'object', $nest, $parents);
                 }
-                return $classname . '::__set_state(' . $export(object_properties($value), $nest, $parents) . ')';
+                return $classname . '::__set_state(' . $export(object_properties($value), 'object', $nest, $parents) . ')';
             }
-            // 文字列はダブルクオート
+            // 文字列はダブルクオート（場合によってはヒアドキュメント）
             elseif (is_string($value)) {
-                return '"' . addcslashes($value, "\$\"\0\\") . '"';
+                // 列揃えのため配列のキーは常にダブルクォート
+                if ($context === 'array-key') {
+                    return str_quote($value);
+                }
+                // 改行を含むならヒアドキュメント
+                if (str_exists($value, ["\r", "\n"])) {
+                    // ただし、改行文字だけの場合は除く（何らかの引数で改行文字だけを渡すシチュエーションはそれなりにあるのでヒアドキュメントだと冗長）
+                    if (trim($value, "\r\n") !== '') {
+                        return str_quote($value, [
+                            'heredoc' => unique_string($value, 'TEXT', '_'),
+                            'indent'  => $nest * $INDENT,
+                        ]);
+                    }
+                }
+                return str_quote($value);
             }
             // null は小文字で居て欲しい
             elseif (is_null($value)) {
@@ -6177,7 +6385,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\var_export2')) {
         };
 
         // 結果を返したり出力したり
-        $result = $export($value);
+        $result = $export($value, null);
         if ($return) {
             return $result;
         }
