@@ -1699,19 +1699,127 @@ if (!function_exists('ryunosuke\\PHPUnit\\array_filter_map')) {
      *
      * @param iterable $array 対象配列
      * @param callable $callback 評価クロージャ
-     * @return array $callback が !false を返し map された配列
+     * @return iterable $callback が !false を返し map された配列
      */
     function array_filter_map($array, $callback)
     {
+        // Iterator だが ArrayAccess ではないオブジェクト（Generator とか）は unset できないので配列として扱わざるを得ない
+        if (!(function_configure('array.variant') && is_arrayable($array))) {
+            $array = arrayval($array, false);
+        }
+
         $callback = func_user_func_array($callback);
-        $result = [];
         $n = 0;
-        foreach ($array as $k => &$v) {
-            if ($callback($v, $k, $n++) !== false) {
-                $result[$k] = $v;
+        foreach (arrayval($array, false) as $k => $v) {
+            $map = $callback($v, $k, $n++);
+            if ($map === false) {
+                unset($array[$k]);
+            }
+            else {
+                $array[$k] = $v;
             }
         }
-        return $result;
+        return $array;
+    }
+}
+
+assert(!function_exists('ryunosuke\\PHPUnit\\array_filter_recursive') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\array_filter_recursive'))->isUserDefined());
+if (!function_exists('ryunosuke\\PHPUnit\\array_filter_recursive')) {
+    /**
+     * 再帰的に array_filter する
+     *
+     * 要素が配列だった場合に再帰する点とコールバックの引数以外は array_filter とほとんど変わらない。
+     * $callback が要求するならキーも渡ってくる。
+     *
+     * $unset_empty:true だと再帰で伏せられた結果が空になった場合、そのキーも伏せられる。
+     *
+     * Example:
+     * ```php
+     * $array = [
+     *     'a'  => 'A', // 生き残る
+     *     'e'  => '',  // 生き残らない
+     *     'a1' => [    // A がいるため $unset_empty は無関係に a1 自体も生き残る
+     *         'A', // 生き残る
+     *         '',  // 生き残らない
+     *     ],
+     *     'a2' => [    // 生き残りが居ないため $unset_empty:true だと a2 自体も生き残らない
+     *         '',  // 生き残らない
+     *         '',  // 生き残らない
+     *     ],
+     *     'b1' => [    // a1 のネスト版
+     *         'a' => [
+     *             'a' => 'A',
+     *             'e' => '',
+     *         ],
+     *     ],
+     *     'b2' => [    // a2 のネスト版
+     *         'a' => [
+     *             'a' => '',
+     *             'e' => '',
+     *         ],
+     *     ],
+     * ];
+     * // 親を伏せない版
+     * that(array_filter_recursive($array, fn($v) => strlen($v), false))->isSame([
+     *     "a"  => "A",
+     *     "a1" => ["A"],
+     *     "a2" => [],
+     *     "b1" => [
+     *         "a" => [
+     *             "a" => "A",
+     *         ],
+     *     ],
+     *     "b2" => [
+     *         "a" => [],
+     *     ],
+     * ]);
+     * // 親を伏せる版
+     * that(array_filter_recursive($array, fn($v) => strlen($v), true))->isSame([
+     *     "a"  => "A",
+     *     "a1" => ["A"],
+     *     "b1" => [
+     *         "a" => [
+     *             "a" => "A",
+     *         ],
+     *     ],
+     * ]);
+     * ```
+     *
+     * @package ryunosuke\Functions\Package\array
+     *
+     * @template T as iterable&\ArrayAccess
+     */
+    function array_filter_recursive(
+        /** @var T 対象配列 */ iterable $array,
+        /** 評価クロージャ（値, キー, 親キー配列） */ callable $callback,
+        /** 再帰の際に空になった要素も伏せるか */ bool $unset_empty = true,
+    ): /** フィルタされた配列 */ iterable
+    {
+        $callback = func_user_func_array($callback);
+
+        $main = function ($array, $parents) use (&$main, $callback, $unset_empty) {
+            // オブジェクトによっては活きたイテレータなのでループ内で unset することはできず、あらかじめ集めておく必要がある（ArrayObject 等）
+            $keys = [];
+            foreach ($array as $k => $v) {
+                $keys[] = $k;
+            }
+
+            foreach ($keys as $k) {
+                if (is_iterable($array[$k]) && is_arrayable($array[$k])) {
+                    $array[$k] = $main($array[$k], array_merge($parents, [$k]));
+                    if ($unset_empty && is_empty($array[$k])) {
+                        unset($array[$k]);
+                    }
+                }
+                else {
+                    if (!$callback($array[$k], $k, $parents)) {
+                        unset($array[$k]);
+                    }
+                }
+            }
+            return $array;
+        };
+        return $main($array, []);
     }
 }
 
@@ -1747,7 +1855,11 @@ if (!function_exists('ryunosuke\\PHPUnit\\array_filters')) {
      */
     function array_filters($array, ...$callbacks)
     {
-        $array = arrayval($array, false);
+        // Iterator だが ArrayAccess ではないオブジェクト（Generator とか）は unset できないので配列として扱わざるを得ない
+        if (!(function_configure('array.variant') && is_arrayable($array))) {
+            $array = arrayval($array, false);
+        }
+
         foreach ($callbacks as $callback) {
             if (is_string($callback) && $callback[0] === '@') {
                 $margs = [];
@@ -1770,7 +1882,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\array_filters')) {
                 $callback = func_user_func_array($callback);
             }
             $n = 0;
-            foreach ($array as $k => $v) {
+            foreach (arrayval($array, false) as $k => $v) {
                 if (isset($margs)) {
                     $flag = ([$v, $callback])(...$margs);
                 }
@@ -2742,20 +2854,27 @@ if (!function_exists('ryunosuke\\PHPUnit\\array_map_filter')) {
      * @param iterable $array 対象配列
      * @param callable $callback 評価クロージャ
      * @param bool $strict 厳密比較フラグ。 true だと null のみが偽とみなされる
-     * @return array $callback が真を返した新しい配列
+     * @return iterable $callback が真を返した新しい配列
      */
     function array_map_filter($array, $callback, $strict = false)
     {
+        // Iterator だが ArrayAccess ではないオブジェクト（Generator とか）は unset できないので配列として扱わざるを得ない
+        if (!(function_configure('array.variant') && is_arrayable($array))) {
+            $array = arrayval($array, false);
+        }
+
         $callback = func_user_func_array($callback);
-        $result = [];
         $n = 0;
-        foreach ($array as $k => $v) {
+        foreach (arrayval($array, false) as $k => $v) {
             $vv = $callback($v, $k, $n++);
             if (($strict && $vv !== null) || (!$strict && $vv)) {
-                $result[$k] = $vv;
+                $array[$k] = $vv;
+            }
+            else {
+                unset($array[$k]);
             }
         }
-        return $result;
+        return $array;
     }
 }
 
@@ -2917,11 +3036,15 @@ if (!function_exists('ryunosuke\\PHPUnit\\array_maps')) {
      *
      * @param iterable $array 対象配列
      * @param callable ...$callbacks 評価クロージャ配列
-     * @return array 評価クロージャを通した新しい配列
+     * @return iterable 評価クロージャを通した新しい配列
      */
     function array_maps($array, ...$callbacks)
     {
-        $result = arrayval($array, false);
+        // Iterator だが ArrayAccess ではないオブジェクト（Generator とか）は unset できないので配列として扱わざるを得ない
+        if (!(function_configure('array.variant') && is_arrayable($array))) {
+            $array = arrayval($array, false);
+        }
+
         foreach ($callbacks as $callback) {
             if (is_string($callback) && $callback[0] === '@') {
                 $margs = [];
@@ -2944,19 +3067,19 @@ if (!function_exists('ryunosuke\\PHPUnit\\array_maps')) {
                 $callback = func_user_func_array($callback);
             }
             $n = 0;
-            foreach ($result as $k => $v) {
+            foreach (arrayval($array, false) as $k => $v) {
                 if (isset($margs)) {
-                    $result[$k] = ([$v, $callback])(...$margs);
+                    $array[$k] = ([$v, $callback])(...$margs);
                 }
                 elseif ($vargs) {
-                    $result[$k] = $callback(...$v);
+                    $array[$k] = $callback(...$v);
                 }
                 else {
-                    $result[$k] = $callback($v, $k, $n++);
+                    $array[$k] = $callback($v, $k, $n++);
                 }
             }
         }
-        return $result;
+        return $array;
     }
 }
 
@@ -5549,27 +5672,27 @@ if (!function_exists('ryunosuke\\PHPUnit\\kvsort')) {
 
         // 一時配列の準備
         $n = 0;
-        $tmp = [];
+        $virtuals = [];
+        $result = [];
         foreach ($array as $k => $v) {
-            $virtuals = [];
             if ($is_array) {
                 foreach ($schwartzians as $s => $schwartzian) {
-                    $virtuals[$s] = $schwartzian($v, $k, $n);
+                    $virtuals[$k][$s] = $schwartzian($v, $k, $n);
                 }
             }
             else {
-                $virtuals = $schwartzians[0]($v, $k, $n);
+                $virtuals[$k] = $schwartzians[0]($v, $k, $n);
             }
-            $tmp[] = [$n++, $k, $v, $virtuals];
+            $result[$k] = $v;
         }
+        uksort($result, function ($keyA, $keyB) use ($result, $comparator, $virtuals) {
+            $a = $result[$keyA];
+            $b = $result[$keyB];
 
-        // ソートしてから元の配列の体裁で返す
-        usort($tmp, function ($a, $b) use ($comparator, $schwartzians) {
-            $virtuals = $schwartzians ? [$a[3], $b[3]] : [];
-            $com = $comparator(...$virtuals, ...[$a[2], $b[2], $a[1], $b[1]]);
-            return $com !== 0 ? $com : ($a[0] - $b[0]);
+            $virtual = $virtuals ? [$virtuals[$keyA], $virtuals[$keyB]] : [];
+            return $comparator(...$virtual, ...[$a, $b, $keyA, $keyB]);
         });
-        return array_column($tmp, 2, 1);
+        return $result;
     }
 }
 
@@ -6183,6 +6306,113 @@ if (!function_exists('ryunosuke\\PHPUnit\\class_loader')) {
     }
 }
 
+assert(!function_exists('ryunosuke\\PHPUnit\\class_map') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\class_map'))->isUserDefined());
+if (!function_exists('ryunosuke\\PHPUnit\\class_map')) {
+    /**
+     * 指定クラスローダで読み込まれるであろう class => file を返す
+     *
+     * 実質的には composer で読み込まれるクラスマップを返す。
+     * つまり `dump-autoload -o` したときの getClassMap 相当を返す。
+     *
+     * ファイル名からクラス名を逆引きする都合上、猛烈に遅いので注意。
+     *
+     * @package ryunosuke\Functions\Package\classobj
+     */
+    function class_map(
+        /** @var ?\Composer\Autoload\ClassLoader オートローダオブジェクト */
+        ?object $loader = null,
+        /** パスが相対パスだった場合の基底ディレクトリ */
+        ?string $basePath = null,
+        /** キャッシュを使用するか */
+        bool $cache = true,
+    ): /** [class => file] の配列 */ array
+    {
+        $loader ??= class_loader();
+        $basePath ??= dirname((new \ReflectionClass($loader))->getFileName(), 3);
+        $cachekey = json_encode([spl_object_id($loader), $basePath]);
+        if (!$cache) {
+            cache($cachekey, null, __FUNCTION__);
+        }
+        return cache($cachekey, function () use ($loader, $basePath) {
+            $result = [];
+
+            // psr0+4
+            foreach ([
+                0 => $loader->getPrefixes() + ["" => $loader->getFallbackDirs()],
+                4 => $loader->getPrefixesPsr4() + ["" => $loader->getFallbackDirsPsr4()],
+            ] as $level => $psr) {
+                foreach ($psr as $prefix => $dirs) {
+                    foreach ($dirs as $dir) {
+                        $dir = path_normalize(path_is_absolute($dir) ? $dir : "$basePath/$dir");
+                        foreach (file_list($dir, ['name' => '#^[a-z_\x80-\xff][a-z0-9_\x80-\xff]*\.php$#ui']) ?? [] as $file) {
+                            if ($level === 0) {
+                                $class = strtr(substr($file, strlen($dir) + 1, -4), [DIRECTORY_SEPARATOR => '\\']);
+                                if (!isset($result[$class]) && str_starts_with($class, $prefix)) {
+                                    $result[$class] = $file;
+                                }
+                            }
+                            elseif ($level === 4) {
+                                $class = strtr($prefix . substr($file, strlen($dir) + 1, -4), [DIRECTORY_SEPARATOR => '\\']);
+                                if (!isset($result[$class])) {
+                                    $result[$class] = $file;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // クラスファイル名が見つかったからといってクラス定義ファイルとは限らないので中身を見なければならない
+            $result = array_filter($result, function ($file, $class) {
+                try {
+                    [$N, $C] = namespace_split($class);
+                    $tokens = \PhpToken::tokenize(file_get_contents($file), TOKEN_PARSE);
+                    $namespace = '';
+                    $namespacing = false;
+                    foreach ($tokens as $n => $token) {
+                        switch (true) {
+                            case $token->is(T_NAMESPACE):
+                                $namespacing = true;
+                                $namespace = '';
+                                break;
+                            case $token->is([';', '{']):
+                                $namespacing = false;
+                                break;
+                            // namespace の文脈で T_NAME_FULLY_QUALIFIED は流れてこないが \\ がないと T_STRING で流れてくる
+                            case $token->is([T_NAME_QUALIFIED, T_STRING]):
+                                if ($namespacing) {
+                                    $namespace .= $token->text;
+                                }
+                                break;
+                            case $token->is([T_CLASS, T_INTERFACE, T_TRAIT, /*T_ENUM:*/]):
+                                // ある程度で区切らないと無名クラス（new class() { }）や class 定数（Hoge::class）で最後まで読んでしまい、極端に遅くなる
+                                // class/interface/trait/enum キーワードとクラス名が16トークンも離れてることはまずないだろう
+                                for ($i = $n + 1, $l = min($n + 16, count($tokens)); $i < $l; $i++) {
+                                    if ($tokens[$i]->is(T_STRING) && $namespace === $N && $tokens[$i]->is($C)) {
+                                        return true;
+                                    }
+                                }
+                                break;
+                        }
+                    }
+                }
+                catch (\ParseError) {
+                    // TOKEN_PARSE で tokenize するとパースエラーが発生するが、パースエラーになるファイルでクラス定義がされるわけないのでスルーでよい
+                }
+                return false;
+            }, ARRAY_FILTER_USE_BOTH);
+
+            // classmap は composer が生成するかユーザーが明示的に設定するので↑のような漁る処理は必要ない
+            // ただしパスの正規化は行わなければならない
+            foreach ($loader->getClassMap() as $class => $file) {
+                $result[$class] ??= path_normalize(path_is_absolute($file) ? $file : "$basePath/$file");
+            }
+
+            return $result;
+        }, __FUNCTION__);
+    }
+}
+
 assert(!function_exists('ryunosuke\\PHPUnit\\class_namespace') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\class_namespace'))->isUserDefined());
 if (!function_exists('ryunosuke\\PHPUnit\\class_namespace')) {
     /**
@@ -6421,9 +6651,9 @@ if (!function_exists('ryunosuke\\PHPUnit\\class_uses_all')) {
      * trait T2{use T1;}
      * trait T3{use T2;}
      * that(class_uses_all(new class{use T3;}))->isSame([
-     *     'Example\\T3', // クラスが直接 use している
-     *     'Example\\T2', // T3 が use している
-     *     'Example\\T1', // T2 が use している
+     *     'Example\\T3' => 'Example\\T3', // クラスが直接 use している
+     *     'Example\\T2' => 'Example\\T2', // T3 が use している
+     *     'Example\\T1' => 'Example\\T1', // T2 が use している
      * ]);
      * ```
      *
@@ -6435,6 +6665,14 @@ if (!function_exists('ryunosuke\\PHPUnit\\class_uses_all')) {
      */
     function class_uses_all($class, $autoload = true)
     {
+        static $cache = [];
+
+        $cachekey = ltrim(is_object($class) ? get_class($class) : $class, '\\');
+
+        if (isset($cache[$cachekey])) {
+            return $cache[$cachekey];
+        }
+
         // まずはクラス階層から取得
         $traits = [];
         do {
@@ -6457,7 +6695,9 @@ if (!function_exists('ryunosuke\\PHPUnit\\class_uses_all')) {
             }
             $count = count($traits);
         }
-        return array_keys($traits);
+
+        $names = array_keys($traits);
+        return $cache[$cachekey] = array_combine($names, $names);
     }
 }
 
@@ -10725,32 +10965,43 @@ if (!function_exists('ryunosuke\\PHPUnit\\date_interval')) {
      *
      * @package ryunosuke\Functions\Package\datetime
      *
-     * @param string $interval ISO8601継続時間文字列
+     * @param string $interval ISO8601継続時間文字列か相対表記
      * @return \DateInterval DateInterval オブジェクト
      */
     function date_interval($interval)
     {
-        if (!preg_match('#^(?P<S>[\-+])?P((?P<Y>-?\d+)Y)?((?P<M>-?\d+)M)?((?P<D>-?\d+)D)?(T((?P<h>-?\d+)H)?((?P<m>-?\d+)M)?((?P<s>-?\d+(\.\d+)?)S)?)?$#', $interval, $matches, PREG_UNMATCHED_AS_NULL)) {
-            throw new \InvalidArgumentException("$interval is invalid DateInterval string");
+        if (preg_match('#^(?P<S>[\-+])?P((?P<Y>-?\d+)Y)?((?P<M>-?\d+)M)?((?P<D>-?\d+)D)?(T((?P<h>-?\d+)H)?((?P<m>-?\d+)M)?((?P<s>-?\d+(\.\d+)?)S)?)?$#', $interval, $matches, PREG_UNMATCHED_AS_NULL)) {
+            $interval = new \DateInterval('P0Y');
+            $interval->y = (int) $matches['Y'];
+            $interval->m = (int) $matches['M'];
+            $interval->d = (int) $matches['D'];
+            $interval->h = (int) $matches['h'];
+            $interval->i = (int) $matches['m'];
+            $interval->s = (int) $matches['s'];
+            $interval->f = (float) $matches['s'] - $interval->s;
+
+            if ($matches['S'] === '-') {
+                $interval->y = -$interval->y;
+                $interval->m = -$interval->m;
+                $interval->d = -$interval->d;
+                $interval->h = -$interval->h;
+                $interval->i = -$interval->i;
+                $interval->s = -$interval->s;
+                $interval->f = -$interval->f;
+            }
         }
-
-        $interval = new \DateInterval('P0Y');
-        $interval->y = (int) $matches['Y'];
-        $interval->m = (int) $matches['M'];
-        $interval->d = (int) $matches['D'];
-        $interval->h = (int) $matches['h'];
-        $interval->i = (int) $matches['m'];
-        $interval->s = (int) $matches['s'];
-        $interval->f = (float) $matches['s'] - $interval->s;
-
-        if ($matches['S'] === '-') {
-            $interval->y = -$interval->y;
-            $interval->m = -$interval->m;
-            $interval->d = -$interval->d;
-            $interval->h = -$interval->h;
-            $interval->i = -$interval->i;
-            $interval->s = -$interval->s;
-            $interval->f = -$interval->f;
+        else {
+            $parsed = date_parse($interval);
+            if ($parsed['errors'] || !$parsed['relative']) {
+                throw new \InvalidArgumentException("$interval is invalid DateInterval string");
+            }
+            $interval = new \DateInterval('P0Y');
+            $interval->y = $parsed['relative']['year'];
+            $interval->m = $parsed['relative']['month'];
+            $interval->d = $parsed['relative']['day'];
+            $interval->h = $parsed['relative']['hour'];
+            $interval->i = $parsed['relative']['minute'];
+            $interval->s = $parsed['relative']['second'];
         }
 
         $now = new \DateTimeImmutable();
@@ -11922,6 +12173,132 @@ if (!function_exists('ryunosuke\\PHPUnit\\error')) {
     }
 }
 
+assert(!function_exists('ryunosuke\\PHPUnit\\set_all_error_handler') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\set_all_error_handler'))->isUserDefined());
+if (!function_exists('ryunosuke\\PHPUnit\\set_all_error_handler')) {
+    /**
+     * あらゆるエラーをハンドルする
+     *
+     * 実質的には set_error_handler+set_exception_handler+register_shutdown_function してるだけ。
+     * あと小細工して初動エラーも拾うがあまり気にしなくてよい。
+     *
+     * ハンドラの引数は Throwable 固定（エラーの場合は Error に変換されてコールされる）。
+     * ハンドラが true/null を返すと設定前（ない場合は標準）のハンドラがコールされる。
+     * 実用上は「ログるかログらないか」くらいの差でしかない。
+     *
+     * @package ryunosuke\Functions\Package\errorfunc
+     * @codeCoverageIgnore カバレッジ不可
+     */
+    function set_all_error_handler(
+        /** 実行されるクロージャ */ \Closure $handler,
+        /** エラー抑制演算子をハンドリングするか */ bool $atmark_error = false,
+        /** fatal 用に予約するサイズ */ int $reserved_byte = 0,
+    ): /** キャンセルする callable */ callable
+    {
+        $result = new class($handler, $atmark_error, $reserved_byte) {
+            private static array  $instances         = [];
+            private static string $reservedMemory    = '';
+            private static bool   $regsteredShutdown = false;
+
+            private $handler;
+            private $error_handler;
+            private $exception_handler;
+
+            public function __construct(\Closure $handler, bool $atmark_error, int $reserved_byte)
+            {
+                self::$instances[spl_object_id($this)] = $this;
+                if (strlen(self::$reservedMemory) < $reserved_byte) {
+                    self::$reservedMemory = str_repeat('x', $reserved_byte);
+                }
+
+                $this->handler = $handler;
+
+                $this->error_handler = set_error_handler(function ($errno, $errstr, $errfile, $errline) use ($atmark_error) {
+                    if (!$atmark_error && !(error_reporting() & $errno)) {
+                        return false;
+                    }
+
+                    $default = ($this->handler)($this->newError($errstr, 0, $errno, $errfile, $errline)) ?? true;
+                    if ($default) {
+                        return ($this->error_handler)($errno, $errstr, $errfile, $errline);
+                    }
+                }) ?? fn() => false;
+
+                $this->exception_handler = set_exception_handler(function (\Throwable $t) {
+                    $default = ($this->handler)($t) ?? true;
+                    if ($default) {
+                        return ($this->exception_handler)($t);
+                    }
+                }) ?? fn($t) => throw $t;
+
+                if (!self::$regsteredShutdown) {
+                    self::$regsteredShutdown = true;
+                    register_shutdown_function(function () {
+                        self::$reservedMemory = '';
+                        // php は循環参照を片付けずに memory size エラーを飛ばすのでやっておく意味はある
+                        gc_collect_cycles();
+                        foreach (self::$instances as $instance) {
+                            // 通常の実行時エラーは set_error_handler でハンドリングされているが
+                            // - 実行時ではないコンパイル時エラー
+                            // - エラーハンドラが呼ばれない実行時エラー（実行メモリ/時間など）
+                            // が存在するので個別にハンドリングしないと呼ばれる機会が失われる
+                            if (($error = error_get_last()) !== null) {
+                                if (false
+                                    || in_array($error['type'], [E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_CORE_WARNING, E_COMPILE_WARNING], true)
+                                    || strpos($error['message'], 'Allowed memory size') === 0
+                                    || strpos($error['message'], 'Maximum execution time') === 0
+                                ) {
+                                    ($instance->handler)($instance->newError($error['message'], 1, $error['type'], $error['file'], $error['line']));
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+
+            public function __invoke()
+            {
+                restore_error_handler();
+                restore_exception_handler();
+                unset(self::$instances[spl_object_id($this)]);
+            }
+
+            public function newError($message, $code, $errno, $errfile, $errline, $previous = null)
+            {
+                return new class($message, $code, $errno, $errfile, $errline, $previous) extends \Error {
+                    private int $severity;
+
+                    public function __construct($message, $code, $errno, $errfile, $errline, $previous)
+                    {
+                        parent::__construct($message, $code, $previous);
+
+                        $this->file = $errfile;
+                        $this->line = $errline;
+
+                        $this->severity = $errno;
+                    }
+
+                    public function getSeverity(): int
+                    {
+                        return $this->severity;
+                    }
+                };
+            }
+        };
+
+        // 初動エラーが error_get_last() で取得できることがある
+        if (($error = error_get_last()) !== null) {
+            // 初動エラーはスクリプト無関係なので line:0 で発生される
+            if ($error['line'] === 0) {
+                $handler($result->newError($error['message'], -1, $error['type'], $error['file'], $error['line']));
+                // 以後一度もエラーがないと shutdown で引っかかってしまう
+                error_clear_last();
+            }
+        }
+
+        return $result;
+    }
+}
+
 assert(!function_exists('ryunosuke\\PHPUnit\\set_error_exception_handler') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\set_error_exception_handler'))->isUserDefined());
 if (!function_exists('ryunosuke\\PHPUnit\\set_error_exception_handler')) {
     /**
@@ -12522,7 +12899,22 @@ if (!function_exists('ryunosuke\\PHPUnit\\process_closure')) {
         file_put_contents($mainscript = sys_get_temp_dir() . '/process-' . sha1($maincode) . '.php', $maincode);
 
         $return = tempnam($workdir, 'return');
-        $process = process_async(php_binary(), [$mainscript, $return], var_export3(arrayize($args), ["outmode" => "eval"]), $stdout, $stderr, $workdir, $env, $options);
+
+        $options ??= [];
+        $ini = arrayize($options['ini'] ?? []);
+        unset($options['ini']);
+
+        $ini_args = [];
+        foreach ($ini as $key => $value) {
+            if (is_int($key)) {
+                $ini_args[] = "-d$value";
+            }
+            else {
+                $ini_args[] = "-d$key=$value";
+            }
+        }
+
+        $process = process_async(php_binary(), [...$ini_args, $mainscript, $return], var_export3(arrayize($args), ["outmode" => "eval"]), $stdout, $stderr, $workdir, $env, $options);
         $process->setDestructAction('terminate');
         $process->setCompleteAction(function () use ($throw, $return) {
             /** @var $this \ProcessAsync */
@@ -13685,6 +14077,142 @@ if (!function_exists('ryunosuke\\PHPUnit\\file_rewrite_contents')) {
             }
             throw $ex;
         }
+    }
+}
+
+assert(!function_exists('ryunosuke\\PHPUnit\\file_rotate') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\file_rotate'))->isUserDefined());
+if (!function_exists('ryunosuke\\PHPUnit\\file_rotate')) {
+    /**
+     * ファイルをローテーションする
+     *
+     * オプションは logrotate に意図的に似せてある。
+     * 返り値としてローテーションファイル配列を返す。
+     * 基本的に決め打ちな使い方で細かいオプションは実装していない。
+     *
+     * Example:
+     * ```php
+     * // 適当にファイルを用意
+     * rm_rf(sys_get_temp_dir() . '/rotate');
+     * $logfile = sys_get_temp_dir() . '/rotate/log.txt';
+     * file_set_contents($logfile, '');
+     * // 5回ローテートしてみる
+     * foreach (range(1, 5) as $i) {
+     *     file_rotate($logfile, ifempty: true, rotate: 4, compress: 2, dateformat: "-$i"); // dateformat は普通は日付書式文字列（↓の確認がしんどくなるのでここでは連番）
+     * }
+     * // rotate:4 効果で全部で4世代であり、compress:2 効果でうち2世代は圧縮されている
+     * $dirname = dirname($logfile);
+     * that(glob("$dirname/log-*"))->is([
+     *     "$dirname/log-2.txt.gz",
+     *     "$dirname/log-3.txt.gz",
+     *     "$dirname/log-4.txt",
+     *     "$dirname/log-5.txt",
+     * ]);
+     * ```
+     *
+     * @package ryunosuke\Functions\Package\filesystem
+     */
+    function file_rotate(
+        /** 対象ファイル名 */ string $filename,
+        /** 空ファイルでもローテーションするか */ bool $ifempty = false,
+        /** 同じファイル（inode）を使い続けるか */ bool $copytruncate = false,
+        /** 既存ローテーションファイルに追記するか */ bool $append = false,
+        /** ローテーションファイルのディレクトリ */ ?string $olddir = null,
+        /** ローテーションファイルのサフィックス */ ?string $dateformat = null,
+        /** 保持世代数（null で無世代） */ ?int $rotate = null,
+        /** 圧縮世代数（例えば 3 を指定すると3世代目から圧縮される） */ ?int $compress = null,
+    ): /** ローテーションファイル配列 */ ?array
+    {
+        /// 共通処理
+
+        assert(!($copytruncate && $append), 'both $copytruncate and $append are true');
+        assert($rotate === null || $rotate >= 0, '$rotate is negative number');
+        assert($compress === null || $compress >= 0, '$compress is negative number');
+
+        $filename = realpath($filename);
+        $pathinfo = pathinfo($filename);
+
+        if ($filename === false) {
+            return null;
+        }
+        if (!$ifempty && !filesize($filename)) {
+            return null;
+        }
+
+        /// 世代ディレクトリ検出
+
+        $olddir ??= $pathinfo['dirname'];
+        if (!path_is_absolute($olddir)) {
+            $olddir = "{$pathinfo['dirname']}/$olddir";
+        }
+        if (!is_dir($olddir)) {
+            @mkdir($olddir, 0777, true);
+            if (is_dir($olddir) === false) {
+                throw new \RuntimeException("failed to mkdir($olddir)");
+            }
+        }
+
+        /// ローテーション
+
+        $oldfile = "$olddir/{$pathinfo['filename']}" . date($dateformat ?? '-Y-m-d', time()) . ".{$pathinfo['extension']}";
+        if ($copytruncate) {
+            if (@copy($filename, $oldfile) === false) {
+                throw new \RuntimeException("failed to copy($filename, $oldfile)");
+            }
+
+            file_put_contents($filename, "");
+        }
+        elseif ($append) {
+            if (@file_put_contents($oldfile, file_get_contents($filename), FILE_APPEND) === false) {
+                throw new \RuntimeException("failed to file_put_contents($oldfile, file_get_contents($filename), FILE_APPEND)");
+            }
+
+            file_put_contents($filename, "");
+        }
+        else {
+            if (@rename($filename, $oldfile) === false) {
+                throw new \RuntimeException("failed to rename($filename, $oldfile)");
+            }
+
+            file_put_contents($filename, "");
+            if (($perms = fileperms($oldfile)) !== false) {
+                chmod($filename, $perms);
+            }
+            if (($owner = fileowner($oldfile)) !== false) {
+                chown($filename, $owner);
+            }
+            if (($group = filegroup($oldfile)) !== false) {
+                chgrp($filename, $group);
+            }
+        }
+
+        /// 世代管理
+
+        $oldfiles = glob("$olddir/{$pathinfo['filename']}*");
+        $oldfiles = array_maps($oldfiles, 'realpath');
+        $oldfiles = array_diff($oldfiles, [$filename]);
+        rsort($oldfiles);
+
+        // 古い世代を削除
+        if ($rotate !== null) {
+            foreach (array_slice($oldfiles, $rotate, null, true) as $n => $file) {
+                if (unlink($file) !== false) {
+                    unset($oldfiles[$n]);
+                }
+            }
+        }
+
+        // 古い世代を圧縮
+        if ($compress !== null) {
+            foreach (array_slice($oldfiles, $compress, null, true) as $n => $file) {
+                if (pathinfo($file, PATHINFO_EXTENSION) !== 'gz') {
+                    if (file_put_contents("compress.zlib://$file.gz", file_get_contents($file)) !== false && unlink($file) !== false) {
+                        $oldfiles[$n] = "$file.gz";
+                    }
+                }
+            }
+        }
+
+        return $oldfiles;
     }
 }
 
@@ -20173,6 +20701,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\ip_info')) {
             'cachedir' => function_configure('storagedir') . '/' . rawurlencode(__FUNCTION__),
             'ttl'      => 60 * 60 * 24 + 120, // 120 は1日1回バッチで叩くことを前提としたバッファ
             'rir'      => [],
+            'throw'    => true, // テスト用で原則 true（例外が飛ばないと情報が膨大過ぎるので失敗しても気付けない）
         ];
         $options['rir'] += [
             'afrinic' => 'https://ftp.afrinic.net/pub/stats/afrinic/delegated-afrinic-latest',
@@ -20216,9 +20745,12 @@ if (!function_exists('ryunosuke\\PHPUnit\\ip_info')) {
 
         http_requests($urls, [
             'cachedir' => $options['cachedir'],
-            'callback' => function ($rir, $body) use ($files) {
+            'callback' => function ($rir, $body, $header, $info) use ($files, $options) {
+                if ($options['throw'] && ($body === null || $info['http_code'] >= 400)) {
+                    throw new \UnexpectedValueException("request {$info['url']} failed. caused by {$info['http_code']}(error {$info['errno']})");
+                }
                 $tmpfile = tmpfile();
-                fwrite($tmpfile, $body);
+                fwrite($tmpfile, $body ?? '');
                 rewind($tmpfile);
 
                 $cidrs = [];
@@ -20243,10 +20775,23 @@ if (!function_exists('ryunosuke\\PHPUnit\\ip_info')) {
             },
         ]);
 
+        // サイズがでかいので static 等にはしない（opcache に完全に任せる）
         $all = [];
         foreach ($files as $file) {
-            // サイズがでかいので static 等にはしない（opcache に完全に任せる）
-            $rir = is_array($file) ? $file : include $file;
+            if (is_array($file)) {
+                $rir = $file;
+            }
+            elseif (file_exists($file)) {
+                $rir = include $file;
+            }
+            else {
+                // @codeCoverageIgnoreStart http が失敗したときなので基本的に到達しない（http が失敗したときは既に例外投げられている）
+                $rir = [];
+                if ($options['throw']) {
+                    throw new \UnexpectedValueException("failed to load $file");
+                }
+                // @codeCoverageIgnoreEnd
+            }
 
             if ($ipaddr === null) {
                 $all += $rir;
@@ -21357,9 +21902,10 @@ if (!function_exists('ryunosuke\\PHPUnit\\callable_code')) {
      * @package ryunosuke\Functions\Package\reflection
      *
      * @param callable|\ReflectionFunctionAbstract $callable コードを取得する callable
+     * @param bool $return_token true にすると生のトークン配列で返す
      * @return array ['定義部分', '{処理コード}']
      */
-    function callable_code($callable)
+    function callable_code($callable, bool $return_token = false)
     {
         $ref = $callable instanceof \ReflectionFunctionAbstract ? $callable : reflect_callable($callable);
         $contents = file($ref->getFileName());
@@ -21390,7 +21936,79 @@ if (!function_exists('ryunosuke\\PHPUnit\\callable_code')) {
             ]);
         }
 
+        if ($return_token) {
+            return [$meta, $body];
+        }
+
         return [trim(implode('', array_column($meta, 'text'))), trim(implode('', array_column($body, 'text')))];
+    }
+}
+
+assert(!function_exists('ryunosuke\\PHPUnit\\function_doccomments') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\function_doccomments'))->isUserDefined());
+if (!function_exists('ryunosuke\\PHPUnit\\function_doccomments')) {
+    /**
+     * $callable の本体・引数・返り値の DocComment を返す
+     *
+     * 下記のような配列を返す（仕様上 Example が書けない）。
+     *
+     * ```
+     * [
+     *     "" => "本体の DocComment",
+     *     0  => "引数1の DocComment",
+     *     1  => "引数2の DocComment",
+     *     // ...他の引数
+     *     -1 => "返り値の DocComment",
+     * ];
+     * ```
+     *
+     * それぞれ存在しない場合はキー自体が抜け落ちる（null で入ったりはしない）。
+     * 非常に雑に実装しているので、配列や new(8.1以降)の引数に反応することがある。
+     *
+     * 本体の DocComment は ReflectionFunctionAbstract::getDocComment と同等である。
+     * 引数の DocComment は必ず型宣言の直前（ない場合は引数名の直前）に記述しなければならない。
+     * 返り値の DocComment は必ず型宣言の直前（ない場合は{の直前）に記述しなければならない。
+     *
+     * @package ryunosuke\Functions\Package\reflection
+     */
+    function function_doccomments(
+        /** 対象 callable */
+        \ReflectionFunctionAbstract|callable $callable,
+    ): /** 本体・引数・返り値の DocComment 配列 */ array
+    {
+        $ref = $callable instanceof \ReflectionFunctionAbstract ? $callable : reflect_callable($callable);
+        $parameters = array_each($ref->getParameters(), function (&$carry, $v) {
+            $carry[$v->getName()] = $v;
+        }, []);
+
+        $result = [];
+        if ($ref->getDocComment() !== false) {
+            $result[''] = $ref->getDocComment();
+        }
+
+        $doccomment = null;
+        $tokens = callable_code($ref, true)[0];
+        foreach ($tokens as $token) {
+            if ($token->is(T_DOC_COMMENT)) {
+                $doccomment = $token;
+            }
+
+            if ($token->is(T_VARIABLE)) {
+                $varname = substr($token->text, 1);
+                if ($doccomment && isset($parameters[$varname])) {
+                    $result[$parameters[$varname]->getPosition()] = $doccomment->text;
+                }
+                $doccomment = null;
+            }
+            if ($token->is([T_NEW])) {
+                $doccomment = null; // @codeCoverageIgnore for php8.1
+            }
+        }
+
+        if ($doccomment) {
+            $result[-1] = $doccomment->text;
+        }
+
+        return $result;
     }
 }
 
@@ -24721,13 +25339,15 @@ if (!function_exists('ryunosuke\\PHPUnit\\str_anyof')) {
      *
      * @package ryunosuke\Functions\Package\strings
      *
-     * @param string $needle 調べる文字列
+     * @param ?string $needle 調べる文字列
      * @param iterable $haystack 候補配列
      * @param bool $case_insensitivity 大文字小文字を無視するか
      * @return bool 候補の中にあるならそのキー。無いなら null
      */
     function str_anyof(?string $needle, $haystack, $case_insensitivity = false)
     {
+        $needle ??= '';
+
         foreach ($haystack as $k => $v) {
             if (!$case_insensitivity && strcmp($needle, $v) === 0) {
                 return $k;
@@ -28653,7 +29273,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\cache')) {
                 // 名前空間自体がないなら作る or 読む
                 if (!isset($this->cache[$namespace])) {
                     $nsarray = [];
-                    $cachpath = $this->cachedir . '/' . rawurldecode($namespace) . self::CACHE_EXT;
+                    $cachpath = $this->cachedir . '/' . rawurlencode($namespace) . self::CACHE_EXT;
                     if (file_exists($cachpath)) {
                         $nsarray = require $cachpath;
                     }
@@ -28749,8 +29369,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\cacheobject')) {
      * - キャッシュはファイルシステムに保存される
      * - キャッシュキーの . はディレクトリ区切りとして使用される
      * - TTL を指定しなかったときのデフォルト値は約100年（実質無期限だろう）
-     * - clear するとディレクトリ自体を吹き飛ばすのでそのディレクトリはキャッシュ以外の用途に使用してはならない
-     * - psr-16 にはない getOrSet が生えている（利便性が非常に高く使用頻度が多いため）
+     * - psr-16 にはない getOrSet(fetch) が生えている（利便性が非常に高く使用頻度が多いため）
      *
      * 性質上、参照されない期限切れキャッシュが溜まり続けるが $clean_probability を渡すと一定確率で削除される。
      * $clean_probability は 1 が 100%（必ず削除）、 0 が 0%（削除しない）である。
@@ -28763,13 +29382,16 @@ if (!function_exists('ryunosuke\\PHPUnit\\cacheobject')) {
      *
      * @package ryunosuke\Functions\Package\utility
      *
-     * @param string $directory キャッシュ保存ディレクトリ
+     * @param ?string $directory キャッシュ保存ディレクトリ
      * @param float $clean_probability 不要キャッシュの削除確率
      * @return \Cacheobject psr-16 実装オブジェクト
      */
-    function cacheobject($directory, $clean_probability = 0)
+    function cacheobject($directory = null, $clean_probability = 0)
     {
-        $cacheobject = new class($directory) {
+        static $cacheobjects = [];
+
+        $directory ??= function_configure('cachedir');
+        $cacheobject = $cacheobjects[$directory] ??= new class($directory) {
             private $directory;
             private $entries = [];
 
@@ -28825,14 +29447,22 @@ if (!function_exists('ryunosuke\\PHPUnit\\cacheobject')) {
 
             private function _getFilename(string $key): string
             {
-                return $this->directory . DIRECTORY_SEPARATOR . strtr(rawurlencode($key), ['.' => DIRECTORY_SEPARATOR]) . ".php";
+                return $this->directory . DIRECTORY_SEPARATOR . strtr(rawurlencode($key), ['.' => DIRECTORY_SEPARATOR]) . ".php-cache";
+            }
+
+            private function _getCacheFilenames(): array
+            {
+                return file_list($this->directory, [
+                    '!type'     => ['dir', 'link'],
+                    'extension' => ['php-cache'],
+                ]) ?? [];
             }
 
             private function _getMetadata(string $filename): ?array
             {
-                $fp = fopen($filename, "r");
+                $fp = @fopen($filename, "r");
                 if ($fp === false) {
-                    return null; // @codeCoverageIgnore
+                    return null;
                 }
                 try {
                     $first = fgets($fp);
@@ -28846,9 +29476,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\cacheobject')) {
 
             public function keys(?string $pattern = null)
             {
-                $files = file_list($this->directory, [
-                    '!type' => ['dir', 'link'],
-                ]);
+                $files = $this->_getCacheFilenames();
 
                 $now = time();
                 $result = [];
@@ -28930,8 +29558,16 @@ if (!function_exists('ryunosuke\\PHPUnit\\cacheobject')) {
                 $expire = time() + $ttl;
                 $this->entries[$key] = [$expire, $value];
                 $meta = json_encode(['key' => $key, 'expire' => $expire]);
-                $code = var_export3($this->entries[$key], ['outmode' => 'eval']);
-                return !!file_set_contents($this->_getFilename($key), "<?php # $meta\n$code\n");
+                // var_export3 はあらゆる出力を可能にしているので **読み込み時** のオーバーヘッドがでかく、もし var_export が使えるならその方が格段に速い
+                // しかし要素を再帰的に全舐め（is_exportable）しないと「var_export できるか？」は分からないというジレンマがある
+                // このコンテキストは「キャッシュ」なので書き込み時のオーバーヘッドよりも読み込み時のオーバーヘッドを優先して判定を行っている
+                if (is_exportable($this->entries[$key])) {
+                    $code = var_export($this->entries[$key], true);
+                }
+                else {
+                    $code = var_export3($this->entries[$key], true);
+                }
+                return !!file_set_contents($this->_getFilename($key), "<?php # $meta\nreturn $code;\n");
             }
 
             public function delete($key)
@@ -28942,10 +29578,30 @@ if (!function_exists('ryunosuke\\PHPUnit\\cacheobject')) {
                 return @unlink($this->_getFilename($key));
             }
 
+            public function provide($provider, ...$args)
+            {
+                $provider_hash = (string) new \ReflectionFunction($provider);
+                $cacheid = "autoprovide." . hash('fnv164', $provider_hash);
+                $key = $provider_hash . '@' . serialize($args);
+
+                $cache = $this->get($cacheid) ?? [];
+                if (!array_key_exists($key, $cache)) {
+                    $result = $provider(...$args);
+                    if ($result === null) {
+                        return null;
+                    }
+                    $cache[$key] = $result;
+                    $this->set($cacheid, $cache);
+                }
+                return $cache[$key];
+            }
+
             public function clear()
             {
                 $this->entries = [];
-                return rm_rf($this->directory, false);
+
+                $files = $this->_getCacheFilenames();
+                return count($files) === count(array_filter(array_map('unlink', $files)));
             }
 
             public function getMultiple($keys, $default = null)
@@ -29000,6 +29656,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\cacheobject')) {
             public function get($key, $default = null): mixed                { return $this->cacheobject->{__FUNCTION__}(...func_get_args()); }
             public function set($key, $value, $ttl = null): bool             { return $this->cacheobject->{__FUNCTION__}(...func_get_args()); }
             public function delete($key): bool                               { return $this->cacheobject->{__FUNCTION__}(...func_get_args()); }
+            public function provide($provider, ...$args): mixed              { return $this->cacheobject->{__FUNCTION__}(...func_get_args()); }
             public function clear(): bool                                    { return $this->cacheobject->{__FUNCTION__}(...func_get_args()); }
             public function getMultiple($keys, $default = null): iterable    { return $this->cacheobject->{__FUNCTION__}(...func_get_args()); }
             public function setMultiple($values, $ttl = null): bool          { return $this->cacheobject->{__FUNCTION__}(...func_get_args()); }
@@ -29032,6 +29689,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\function_configure')) {
         $config['placeholder'] ??= '';
         $config['var_stream'] ??= 'VarStreamV010000';
         $config['memory_stream'] ??= 'MemoryStreamV010000';
+        $config['array.variant'] ??= false;
         $config['chain.version'] ??= 2;
         $config['chain.nullsafe'] ??= false;
         $config['process.autoload'] ??= [];
@@ -29983,6 +30641,84 @@ if (!function_exists('ryunosuke\\PHPUnit\\is_empty')) {
     }
 }
 
+assert(!function_exists('ryunosuke\\PHPUnit\\is_exportable') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\is_exportable'))->isUserDefined());
+if (!function_exists('ryunosuke\\PHPUnit\\is_exportable')) {
+    /**
+     * 値が var_export で出力可能か検査する
+     *
+     * 「出力可能」とは「意味のある出力」を意味する。
+     * 例えば set_state のないオブジェクトはエラーなく set_state コール形式で出力されるが意味のある出力ではない。
+     * リソース型はエラーなく NULL で出力されるが意味のある出力ではない。
+     * 循環参照は出力できるものの warning が出てかつ循環は切れるため意味のある出力ではない。
+     *
+     * Example:
+     * ```php
+     * that(is_primitive(null))->isTrue();
+     * that(is_primitive(false))->isTrue();
+     * that(is_primitive(123))->isTrue();
+     * that(is_primitive(STDIN))->isTrue();
+     * that(is_primitive(new \stdClass))->isFalse();
+     * that(is_primitive(['array']))->isFalse();
+     * ```
+     *
+     * @package ryunosuke\Functions\Package\var
+     *
+     * @param mixed $var 調べる値
+     * @return bool 出力可能なら true
+     */
+    function is_exportable($var): bool
+    {
+        // スカラー/NULL は OK
+        if (is_scalar($var) || is_null($var)) {
+            return true;
+        }
+
+        // リソース型の変数は、この関数ではエクスポートする事ができません
+        if (is_resourcable($var)) {
+            return false;
+        }
+
+        // var_export() では循環参照を扱うことができません
+        if (is_recursive($var)) {
+            return false;
+        }
+
+        // 配列に制限はない。それゆえに全要素を再帰的に見なければならない
+        if (is_array($var)) {
+            foreach ($var as $v) {
+                if (!is_exportable($v)) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        if (is_object($var)) {
+            // 無名クラスは非常に特殊で、出力は class@anonymous{filename}:123$456::__set_state(...) のようになる
+            // set_state さえ実装してれば復元可能に思えるが php コードとして不正なのでそのまま実行するとシンタックスエラーになる
+            // 'class@anonymous{filename}:123$456'::__set_state(...) のようにクオートすれば実行可能になるが、それは標準 var_export の動作ではない
+            // 復元する側がクオートして読み込み…とすれば復元可能だが、そもそもクラスがロードされている保証もない
+            // これらのことを考慮するなら「意味のある出力」ではないとみなした方が手っ取り早い
+            if ((new \ReflectionClass($var))->isAnonymous()) {
+                return false;
+            }
+            // var_export() が生成する PHP を評価できるようにするためには、処理対象のすべてのオブジェクトがマジックメソッド __set_state を実装している必要があります
+            if (method_exists($var, '__set_state')) {
+                return true;
+            }
+            // これの唯一の例外は stdClass です。 stdClass は、配列をオブジェクトにキャストした形でエクスポートされます
+            if (get_class($var) === \stdClass::class) {
+                return true;
+            }
+            // マニュアルに記載はないが enum は export できる
+            if ($var instanceof \UnitEnum) {
+                return true;
+            }
+            return false;
+        }
+    }
+}
+
 assert(!function_exists('ryunosuke\\PHPUnit\\is_primitive') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\is_primitive'))->isUserDefined());
 if (!function_exists('ryunosuke\\PHPUnit\\is_primitive')) {
     /**
@@ -30178,6 +30914,8 @@ if (!function_exists('ryunosuke\\PHPUnit\\is_typeof')) {
      */
     function is_typeof($var, string $typestring, $context = null)
     {
+        $context ??= '';
+
         $match = function ($type) use ($var, $context) {
             $type = trim($type);
             // ?type は 7.4 を最後に姿を消したが $typestring はただの文字列なので与えられる可能性がなくはない
@@ -30643,7 +31381,6 @@ if (!function_exists('ryunosuke\\PHPUnit\\var_export2')) {
      * 下記の点が異なる。
      *
      * - 配列は 5.4 以降のショートシンタックス（[]）で出力
-     * - インデントは 4 固定
      * - ただの配列は1行（[1, 2, 3]）でケツカンマなし、連想配列は桁合わせインデントでケツカンマあり
      * - 文字列はダブルクオート
      * - null は null（小文字）
@@ -30689,32 +31426,45 @@ if (!function_exists('ryunosuke\\PHPUnit\\var_export2')) {
      * @package ryunosuke\Functions\Package\var
      *
      * @param mixed $value 出力する値
-     * @param bool $return 返すなら true 出すなら false
+     * @param bool|array $options オプション配列（var_export に寄せるため bool も受け付ける）
      * @return string|null $return=true の場合は出力せず結果を返す
      */
-    function var_export2($value, $return = false)
+    function var_export2($value, $options = [])
     {
-        // インデントの空白数
-        $INDENT = 4;
+        if (!is_array($options)) {
+            $options = [
+                'return' => !!$options,
+            ];
+        }
+
+        $options += [
+            'minify' => false, // 短縮形で返す（実質的には情報を減らして1行で返す）
+            'indent' => 4,     // インデントの空白数
+            'return' => false, // 値を戻すか出力するか
+        ];
 
         // 再帰用クロージャ
-        $export = function ($value, $context, $nest = 0, $parents = []) use (&$export, $INDENT) {
+        $export = function ($value, $context, $nest = 0, $parents = []) use (&$export, $options) {
             // 再帰を検出したら *RECURSION* とする（処理に関しては is_recursive のコメント参照）
             foreach ($parents as $parent) {
                 if ($parent === $value) {
                     return $export('*RECURSION*', 'recursion');
                 }
             }
+
+            $space = $options['minify'] ? "" : " ";
+            $break = $options['minify'] ? "" : "\n";
+
             // 配列は連想判定したり再帰したり色々
             if (is_array($value)) {
-                $spacer1 = str_repeat(' ', ($nest + 1) * $INDENT);
-                $spacer2 = str_repeat(' ', $nest * $INDENT);
+                $spacer1 = str_repeat($space, ($nest + 1) * $options['indent']);
+                $spacer2 = str_repeat($space, $nest * $options['indent']);
 
                 $hashed = is_hasharray($value);
 
                 // スカラー値のみで構成されているならシンプルな再帰
                 if (!$hashed && array_all($value, fn(...$args) => is_primitive(...$args))) {
-                    return '[' . implode(', ', array_map(fn($v) => $export($v, 'array-value'), $value)) . ']';
+                    return '[' . implode(",$space", array_map(fn($v) => $export($v, 'array-value'), $value)) . ']';
                 }
 
                 // 連想配列はキーを含めて桁あわせ
@@ -30723,19 +31473,20 @@ if (!function_exists('ryunosuke\\PHPUnit\\var_export2')) {
                     $maxlen = max(array_map('strlen', $keys));
                 }
                 $kvl = '';
+                $lastkey = array_key_last($value);
                 $parents[] = $value;
                 foreach ($value as $k => $v) {
-                    $keystr = $hashed ? $keys[$k] . str_repeat(' ', $maxlen - strlen($keys[$k])) . ' => ' : '';
-                    $kvl .= $spacer1 . $keystr . $export($v, 'array-value', $nest + 1, $parents) . ",\n";
+                    $keystr = $hashed ? $keys[$k] . str_repeat($space, $maxlen - strlen($keys[$k])) . "$space=>$space" : '';
+                    $kvl .= $spacer1 . $keystr . $export($v, 'array-value', $nest + 1, $parents) . ($k === $lastkey && $options['minify'] ? "" : ",") . "$break";
                 }
-                return "[\n{$kvl}{$spacer2}]";
+                return "[$break{$kvl}{$spacer2}]";
             }
             // オブジェクトは単にプロパティを __set_state する文字列を出力する
             elseif (is_object($value)) {
                 $parents[] = $value;
                 $classname = get_class($value);
                 if ($classname === \stdClass::class) {
-                    return '(object) ' . $export((array) $value, 'object', $nest, $parents);
+                    return "(object)$space" . $export((array) $value, 'object', $nest, $parents);
                 }
                 return $classname . '::__set_state(' . $export(object_properties($value), 'object', $nest, $parents) . ')';
             }
@@ -30746,12 +31497,12 @@ if (!function_exists('ryunosuke\\PHPUnit\\var_export2')) {
                     return str_quote($value);
                 }
                 // 改行を含むならヒアドキュメント
-                if (str_exists($value, ["\r", "\n"])) {
+                if (!$options['minify'] && str_exists($value, ["\r", "\n"])) {
                     // ただし、改行文字だけの場合は除く（何らかの引数で改行文字だけを渡すシチュエーションはそれなりにあるのでヒアドキュメントだと冗長）
                     if (trim($value, "\r\n") !== '') {
                         return str_quote($value, [
                             'heredoc' => unique_string($value, 'TEXT', '_'),
-                            'indent'  => $nest * $INDENT,
+                            'indent'  => $nest * $options['indent'],
                         ]);
                     }
                 }
@@ -30769,7 +31520,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\var_export2')) {
 
         // 結果を返したり出力したり
         $result = $export($value, null);
-        if ($return) {
+        if ($options['return']) {
             return $result;
         }
         echo $result, "\n";
@@ -30915,9 +31666,17 @@ if (!function_exists('ryunosuke\\PHPUnit\\var_export3')) {
                     }
                     elseif ($next->text === '(') {
                         $text = namespace_resolve($text, $ref->getFileName(), 'function') ?? $text;
+                        // 関数・定数は use しなくてもグローバルにフォールバックされる（=グローバルと名前空間の区別がつかない）
+                        if (!function_exists($text) && function_exists($nstext = '\\' . $ref->getNamespaceName() . '\\' . $text)) {
+                            $text = $nstext;
+                        }
                     }
                     else {
                         $text = namespace_resolve($text, $ref->getFileName(), 'const') ?? $text;
+                        // 関数・定数は use しなくてもグローバルにフォールバックされる（=グローバルと名前空間の区別がつかない）
+                        if (!const_exists($text) && const_exists($nstext = '\\' . $ref->getNamespaceName() . '\\' . $text)) {
+                            $text = $nstext;
+                        }
                     }
                 }
 
@@ -31214,11 +31973,16 @@ if (!function_exists('ryunosuke\\PHPUnit\\var_export3')) {
             if (is_resourcable($value)) {
                 // スタンダードなリソースなら復元できないこともない
                 $meta = stream_get_meta_data($value);
-                if (!in_array(strtolower($meta['stream_type']), ['stdio', 'output'], true)) {
+                $stream_type = strtolower($meta['stream_type']);
+                if (!in_array($stream_type, ['stdio', 'output', 'temp', 'memory'], true)) {
                     throw new \DomainException('resource is supported stream resource only.');
                 }
                 $meta['position'] = @ftell($value);
                 $meta['context'] = stream_context_get_options($value);
+                $meta['buffer'] = null;
+                if (in_array($stream_type, ['temp', 'memory'], true)) {
+                    $meta['buffer'] = stream_get_contents($value, null, 0);
+                }
                 return "\$this->$vid = \$this->open({$export($meta, $nest + 1)})";
             }
 
@@ -31288,6 +32052,9 @@ if (!function_exists('ryunosuke\\PHPUnit\\var_export3')) {
                     $resource = fopen($metadata['uri'], $metadata['mode'], false, stream_context_create($metadata['context']));
                     if ($resource === false) {
                         return null;
+                    }
+                    if ($metadata['seekable'] && is_string($metadata['buffer'])) {
+                        fwrite($resource, $metadata['buffer']);
                     }
                     if ($metadata['seekable'] && is_int($metadata['position'])) {
                         fseek($resource, $metadata['position']);
