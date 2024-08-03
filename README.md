@@ -456,6 +456,11 @@ This CodeCoverage changes on the following.
 
 Versioning is Semantic Versioning.
 
+### 4.2.1
+
+- [fixbug] fixed error in php8.2
+- [merge] 3.20.2
+
 ### 4.2.0
 
 - [feature] added tryableCallable
