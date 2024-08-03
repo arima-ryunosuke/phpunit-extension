@@ -430,7 +430,7 @@ Nzxc ');
 
     function test_var()
     {
-        $object = new class('testname') extends \ryunosuke\Test\AbstractTestCase {
+        $object = new #[\AllowDynamicProperties]class('testname') extends \ryunosuke\Test\AbstractTestCase {
             public static $staticProperty  = 'this is static';
             private       $privateProperty = 'this is private';
             public        $publicProperty  = 'this is public';
