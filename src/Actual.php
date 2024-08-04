@@ -980,8 +980,8 @@ class Actual implements \ArrayAccess
 
             $receiver = "{$method}({$v(implode(', ', $params))})";
             preg_match('#^(\s*)#', $line, $matches);
-            $newline = preg_replace('#(|::)\s*declare\s*\(.*?\)#u', '$1' . $receiver, $line);
-            $newline = preg_replace('#\n#u', "\n{$v($matches[1] ?? '')}", $newline);
+            $newline = preg_replace_callback('#(|::)\s*declare\s*\(.*?\)#u', fn($m) => $m[1] . $receiver, $line);
+            $newline = preg_replace_callback('#\n#u', fn() => "\n{$v($matches[1] ?? '')}", $newline);
             return self::$debugMode ? $line : $newline;
         };
 
