@@ -916,6 +916,7 @@ Nzxc ');
 
             $this->actual('hoge')->declare('')->debug('is("hoge")');
             $this->actual('hoge')->declare('length')->debug('stringLengthEquals(4)');
+            $this->actual('A\\B')->declare('')->debug('is("A\\\\B")');
 
             $this->actual('<label style="font-size:12px;color:#333"><input type="checkbox" class="checkbox" name="hoge" value="on">check</label>')->declare('html')->debug('htmlMatchesArray');
             $this->actual(json_encode(['a' => ['b' => ['c' => ['x', 'y', 'z']]]]))->declare('json')->debug('jsonMatchesArray');
