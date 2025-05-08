@@ -477,6 +477,10 @@ This CodeCoverage changes on the following.
 
 Versioning is Semantic Versioning.
 
+### 3.21.0
+
+- [feature] エラーを例外として扱う機能
+
 ### 3.20.2
 
 - [fixbug] fix declare escape
