@@ -38,7 +38,13 @@ class Actual implements \ArrayAccess
 {
     use Annotation;
 
+    /** @@deprecated */
     public static $debugMode = false;
+
+    public static array $configuration = [
+        'debugMode'        => false,
+        'errorAsException' => false,
+    ];
 
     public static $constraintVariations = [
         // alias
@@ -785,14 +791,24 @@ class Actual implements \ArrayAccess
     {
         try {
             ob_start();
-            $handler = set_error_handler(function ($code, $message, $file, $line) use (&$handler, &$error) {
-                try {
-                    return $handler($code, $message, $file, $line);
-                }
-                catch (\Throwable $t) {
-                    $error = $t;
-                }
-            });
+            if (self::$configuration['errorAsException']) {
+                set_error_handler(function ($code, $message, $file, $line) {
+                    if (!(error_reporting() & $code)) {
+                        return false;
+                    }
+                    throw new \ErrorException($message, 0, $code, $file, $line);
+                });
+            }
+            else {
+                $handler = set_error_handler(function ($code, $message, $file, $line) use (&$handler, &$error) {
+                    try {
+                        return $handler($code, $message, $file, $line);
+                    }
+                    catch (\Throwable $t) {
+                        $error = $t;
+                    }
+                });
+            }
             $time = microtime(true);
             $return = $this->use($methodname)(...$this->unwrap($arguments));
         }
@@ -807,7 +823,7 @@ class Actual implements \ArrayAccess
         $that = $this->create($return, $arguments);
         $that->___elapsed = $time;
         $that->___output = $output;
-        $that->___error = $error;
+        $that->___error = $error ?? null;
         return $that;
     }
 
