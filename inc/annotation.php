@@ -152,6 +152,10 @@ namespace ryunosuke\PHPUnit;
  * @method \ryunosuke\PHPUnit\Actual eachIsThrowable($expected = null)
  * @method \ryunosuke\PHPUnit\Actual isThrowable($expected = null)
  * @method \ryunosuke\PHPUnit\Actual isNotThrowable($expected = null)
+ * @method \ryunosuke\PHPUnit\Actual isThrowableAny(array $expecteds)
+ * @method \ryunosuke\PHPUnit\Actual isThrowableAll(array $expecteds)
+ * @method \ryunosuke\PHPUnit\Actual isNotThrowableAny(array $expecteds)
+ * @method \ryunosuke\PHPUnit\Actual isNotThrowableAll(array $expecteds)
  *
  * @see \ryunosuke\PHPUnit\Constraint\IsTruthy
  * @method \ryunosuke\PHPUnit\Actual eachIsTruthy()
@@ -243,6 +247,10 @@ namespace ryunosuke\PHPUnit;
  * @method \ryunosuke\PHPUnit\Actual eachThrows($expected = null)
  * @method \ryunosuke\PHPUnit\Actual throws($expected = null)
  * @method \ryunosuke\PHPUnit\Actual notThrows($expected = null)
+ * @method \ryunosuke\PHPUnit\Actual throwsAny(array $expecteds)
+ * @method \ryunosuke\PHPUnit\Actual throwsAll(array $expecteds)
+ * @method \ryunosuke\PHPUnit\Actual notThrowsAny(array $expecteds)
+ * @method \ryunosuke\PHPUnit\Actual notThrowsAll(array $expecteds)
  *
  * @see \PHPUnit\Framework\Constraint\IsFalse
  * @method \ryunosuke\PHPUnit\Actual eachIsFalse()
@@ -723,6 +731,10 @@ namespace ryunosuke\PHPUnit;
  * @method \ryunosuke\PHPUnit\Actual eachWasThrown($expected = null)
  * @method \ryunosuke\PHPUnit\Actual wasThrown($expected = null)
  * @method \ryunosuke\PHPUnit\Actual notWasThrown($expected = null)
+ * @method \ryunosuke\PHPUnit\Actual wasThrownAny(array $expecteds)
+ * @method \ryunosuke\PHPUnit\Actual wasThrownAll(array $expecteds)
+ * @method \ryunosuke\PHPUnit\Actual notWasThrownAny(array $expecteds)
+ * @method \ryunosuke\PHPUnit\Actual notWasThrownAll(array $expecteds)
  *
  * @see \PHPUnit\Framework\Constraint\IsInstanceOf::__construct() ["ryunosuke\\PHPUnit\\Exception\\UndefinedException"]
  * @method \ryunosuke\PHPUnit\Actual eachIsUndefined()

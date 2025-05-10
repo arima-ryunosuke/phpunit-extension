@@ -275,6 +275,10 @@ if (!defined('ryunosuke\\PHPUnit\\JSON_BARE_AS_STRING')) {
     define('ryunosuke\\PHPUnit\\JSON_BARE_AS_STRING', -106);
 }
 
+if (!defined('ryunosuke\\PHPUnit\\TOKEN_NAME')) {
+    define('ryunosuke\\PHPUnit\\TOKEN_NAME', 2);
+}
+
 if (!defined('ryunosuke\\PHPUnit\\SI_UNITS')) {
     define('ryunosuke\\PHPUnit\\SI_UNITS', [
         -8 => ["y"],
@@ -301,8 +305,8 @@ if (!defined('ryunosuke\\PHPUnit\\SORT_STRICT')) {
     define('ryunosuke\\PHPUnit\\SORT_STRICT', 256);
 }
 
-assert(!function_exists('ryunosuke\\PHPUnit\\array_all') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\array_all'))->isUserDefined());
-if (!function_exists('ryunosuke\\PHPUnit\\array_all')) {
+assert(!function_exists('ryunosuke\\PHPUnit\\array_and') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\array_and'))->isUserDefined());
+if (!function_exists('ryunosuke\\PHPUnit\\array_and')) {
     /**
      * 全要素が true になるなら true を返す（1つでも false なら false を返す）
      *
@@ -310,9 +314,9 @@ if (!function_exists('ryunosuke\\PHPUnit\\array_all')) {
      *
      * Example:
      * ```php
-     * that(array_all([true, true]))->isTrue();
-     * that(array_all([true, false]))->isFalse();
-     * that(array_all([false, false]))->isFalse();
+     * that(array_and([true, true]))->isTrue();
+     * that(array_and([true, false]))->isFalse();
+     * that(array_and([false, false]))->isFalse();
      * ```
      *
      * @package ryunosuke\Functions\Package\array
@@ -322,7 +326,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\array_all')) {
      * @param bool|mixed $default 空配列の場合のデフォルト値
      * @return bool 全要素が true なら true
      */
-    function array_all($array, $callback = null, $default = true)
+    function array_and($array, $callback = null, $default = true)
     {
         if (is_empty($array)) {
             return $default;
@@ -340,126 +344,8 @@ if (!function_exists('ryunosuke\\PHPUnit\\array_all')) {
     }
 }
 
-assert(!function_exists('ryunosuke\\PHPUnit\\array_any') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\array_any'))->isUserDefined());
-if (!function_exists('ryunosuke\\PHPUnit\\array_any')) {
-    /**
-     * 全要素が false になるなら false を返す（1つでも true なら true を返す）
-     *
-     * $callback が要求するならキーも渡ってくる。
-     *
-     * Example:
-     * ```php
-     * that(array_any([true, true]))->isTrue();
-     * that(array_any([true, false]))->isTrue();
-     * that(array_any([false, false]))->isFalse();
-     * ```
-     *
-     * @package ryunosuke\Functions\Package\array
-     *
-     * @param iterable $array 対象配列
-     * @param ?callable $callback 評価クロージャ。 null なら値そのもので評価
-     * @param bool|mixed $default 空配列の場合のデフォルト値
-     * @return bool 全要素が false なら false
-     */
-    function array_any($array, $callback = null, $default = false)
-    {
-        if (is_empty($array)) {
-            return $default;
-        }
-
-        $callback = func_user_func_array($callback);
-
-        $n = 0;
-        foreach ($array as $k => $v) {
-            if ($callback($v, $k, $n++)) {
-                return true;
-            }
-        }
-        return false;
-    }
-}
-
-assert(!function_exists('ryunosuke\\PHPUnit\\array_explode') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\array_explode'))->isUserDefined());
-if (!function_exists('ryunosuke\\PHPUnit\\array_explode')) {
-    /**
-     * 配列を指定条件で分割する
-     *
-     * 文字列の explode を更に一階層掘り下げたイメージ。
-     * $condition で指定された要素は結果配列に含まれない。
-     *
-     * $condition にはクロージャが指定できる。クロージャの場合は true 相当を返した場合に分割要素とみなされる。
-     * 引数は (値, キー)の順番。
-     *
-     * $limit に負数を与えると「その絶対値-1までを結合したものと残り」を返す。
-     * 端的に言えば「正数を与えると後詰めでその個数で返す」「負数を与えると前詰めでその（絶対値）個数で返す」という動作になる。
-     *
-     * Example:
-     * ```php
-     * // null 要素で分割
-     * that(array_explode(['a', null, 'b', 'c'], null))->isSame([['a'], [2 => 'b', 3 => 'c']]);
-     * // クロージャで分割（大文字で分割）
-     * that(array_explode(['a', 'B', 'c', 'D', 'e'], fn($v) => ctype_upper($v)))->isSame([['a'], [2 => 'c'], [4 => 'e']]);
-     * // 負数指定
-     * that(array_explode(['a', null, 'b', null, 'c'], null, -2))->isSame([[0 => 'a', 1 => null, 2 => 'b'], [4 => 'c']]);
-     * ```
-     *
-     * @package ryunosuke\Functions\Package\array
-     *
-     * @param iterable $array 対象配列
-     * @param mixed $condition 分割条件
-     * @param int $limit 最大分割数
-     * @return array 分割された配列
-     */
-    function array_explode($array, $condition, $limit = \PHP_INT_MAX)
-    {
-        $array = arrayval($array, false);
-
-        $limit = (int) $limit;
-        if ($limit < 0) {
-            // キーまで考慮するとかなりややこしくなるので富豪的にやる
-            $reverse = array_explode(array_reverse($array, true), $condition, -$limit);
-            $reverse = array_map(fn($v) => array_reverse($v, true), $reverse);
-            return array_reverse($reverse);
-        }
-        // explode において 0 は 1 と等しい
-        if ($limit === 0) {
-            $limit = 1;
-        }
-
-        $result = [];
-        $chunk = [];
-        $n = -1;
-        foreach ($array as $k => $v) {
-            $n++;
-
-            if ($limit === 1) {
-                $chunk = array_slice($array, $n, null, true);
-                break;
-            }
-
-            if ($condition instanceof \Closure) {
-                $match = $condition($v, $k, $n);
-            }
-            else {
-                $match = $condition === $v;
-            }
-
-            if ($match) {
-                $limit--;
-                $result[] = $chunk;
-                $chunk = [];
-            }
-            else {
-                $chunk[$k] = $v;
-            }
-        }
-        $result[] = $chunk;
-        return $result;
-    }
-}
-
-assert(!function_exists('ryunosuke\\PHPUnit\\array_find') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\array_find'))->isUserDefined());
-if (!function_exists('ryunosuke\\PHPUnit\\array_find')) {
+assert(!function_exists('ryunosuke\\PHPUnit\\array_find_first') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\array_find_first'))->isUserDefined());
+if (!function_exists('ryunosuke\\PHPUnit\\array_find_first')) {
     /**
      * array_search のクロージャ版のようなもの
      *
@@ -472,11 +358,11 @@ if (!function_exists('ryunosuke\\PHPUnit\\array_find')) {
      * Example:
      * ```php
      * // 最初に見つかったキーを返す
-     * that(array_find(['a', '8', '9'], 'ctype_digit'))->isSame(1);
-     * that(array_find(['a', 'b', 'b'], fn($v) => $v === 'b'))->isSame(1);
+     * that(array_find_first(['a', '8', '9'], 'ctype_digit'))->isSame(1);
+     * that(array_find_first(['a', 'b', 'b'], fn($v) => $v === 'b'))->isSame(1);
      * // 最初に見つかったコールバック結果を返す（最初の数字の2乗を返す）
      * $ifnumeric2power = fn($v) => ctype_digit($v) ? $v * $v : false;
-     * that(array_find(['a', '8', '9'], $ifnumeric2power, false))->isSame(64);
+     * that(array_find_first(['a', '8', '9'], $ifnumeric2power, false))->isSame(64);
      * ```
      *
      * @package ryunosuke\Functions\Package\array
@@ -486,7 +372,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\array_find')) {
      * @param bool $is_key キーを返すか否か
      * @return mixed コールバックが true を返した最初のキー。存在しなかったら null
      */
-    function array_find($array, $callback, $is_key = true)
+    function array_find_first($array, $callback, $is_key = true)
     {
         $callback = func_user_func_array($callback);
 
@@ -561,6 +447,45 @@ if (!function_exists('ryunosuke\\PHPUnit\\array_keys_exist')) {
             }
         }
         return true;
+    }
+}
+
+assert(!function_exists('ryunosuke\\PHPUnit\\array_or') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\array_or'))->isUserDefined());
+if (!function_exists('ryunosuke\\PHPUnit\\array_or')) {
+    /**
+     * 全要素が false になるなら false を返す（1つでも true なら true を返す）
+     *
+     * $callback が要求するならキーも渡ってくる。
+     *
+     * Example:
+     * ```php
+     * that(array_or([true, true]))->isTrue();
+     * that(array_or([true, false]))->isTrue();
+     * that(array_or([false, false]))->isFalse();
+     * ```
+     *
+     * @package ryunosuke\Functions\Package\array
+     *
+     * @param iterable $array 対象配列
+     * @param ?callable $callback 評価クロージャ。 null なら値そのもので評価
+     * @param bool|mixed $default 空配列の場合のデフォルト値
+     * @return bool 全要素が false なら false
+     */
+    function array_or($array, $callback = null, $default = false)
+    {
+        if (is_empty($array)) {
+            return $default;
+        }
+
+        $callback = func_user_func_array($callback);
+
+        $n = 0;
+        foreach ($array as $k => $v) {
+            if ($callback($v, $k, $n++)) {
+                return true;
+            }
+        }
+        return false;
     }
 }
 
@@ -927,7 +852,6 @@ if (!function_exists('ryunosuke\\PHPUnit\\last_keyvalue')) {
             $k = array_key_last($array);
             return [$k, $array[$k]];
         }
-        /** @noinspection PhpStatementHasEmptyBodyInspection */
         foreach ($array as $k => $v) {
             // dummy
         }
@@ -970,6 +894,63 @@ if (!function_exists('ryunosuke\\PHPUnit\\last_value')) {
     }
 }
 
+assert(!function_exists('ryunosuke\\PHPUnit\\next_key') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\next_key'))->isUserDefined());
+if (!function_exists('ryunosuke\\PHPUnit\\next_key')) {
+    /**
+     * 配列の指定キーの次のキーを返す
+     *
+     * $key が最後のキーだった場合は null を返す。
+     * $key が存在しない場合は false を返す。
+     * $key が未指定だと「次に生成されるキー」（$array[]='hoge' で生成されるキー）を返す。
+     *
+     * $array[] = 'hoge' で作成されるキーには完全準拠しない（標準は unset すると結構乱れる）。公式マニュアルを参照。
+     *
+     * Example:
+     * ```php
+     * $array = [9 => 9, 'a' => 'A', 'b' => 'B', 'c' => 'C'];
+     * // 'b' キーの次は 'c'
+     * that(next_key($array, 'b'))->isSame('c');
+     * // 'c' キーの次は無いので null
+     * that(next_key($array, 'c'))->isSame(null);
+     * // 'x' キーはそもそも存在しないので false
+     * that(next_key($array, 'x'))->isSame(false);
+     * // 次に生成されるキーは 10
+     * that(next_key($array, null))->isSame(10);
+     * ```
+     *
+     * @package ryunosuke\Functions\Package\array
+     *
+     * @param array $array 対象配列
+     * @param string|int|null $key 調べるキー
+     * @return string|int|bool|null $key の次のキー
+     */
+    function next_key($array, $key = null)
+    {
+        $keynull = $key === null;
+        $key = (string) $key;
+        $current = false;
+        $max = -1;
+        foreach ($array as $k => $v) {
+            if ($current !== false) {
+                return $k;
+            }
+            if ($key === (string) $k) {
+                $current = null;
+            }
+            if ($keynull && is_int($k) && $k > $max) {
+                $max = $k;
+            }
+        }
+        if ($keynull) {
+            // PHP 4.3.0 以降は0以下にはならない
+            return max(0, $max + 1);
+        }
+        else {
+            return $current;
+        }
+    }
+}
+
 assert(!function_exists('ryunosuke\\PHPUnit\\auto_loader') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\auto_loader'))->isUserDefined());
 if (!function_exists('ryunosuke\\PHPUnit\\auto_loader')) {
     /**
@@ -989,7 +970,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\auto_loader')) {
      */
     function auto_loader($startdir = null)
     {
-        return cache("path-$startdir", function () use ($startdir) {
+        return json_storage(__FUNCTION__)[$startdir] ??= (function () use ($startdir) {
             $cache = dirname_r($startdir ?: __DIR__, function ($dir) {
                 if (file_exists($file = "$dir/autoload.php") || file_exists($file = "$dir/vendor/autoload.php")) {
                     return $file;
@@ -999,7 +980,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\auto_loader')) {
                 throw new \DomainException('autoloader is not found.');
             }
             return $cache;
-        }, __FUNCTION__);
+        })();
     }
 }
 
@@ -1049,11 +1030,12 @@ if (!function_exists('ryunosuke\\PHPUnit\\class_map')) {
     {
         $loader ??= class_loader();
         $basePath ??= dirname((new \ReflectionClass($loader))->getFileName(), 3);
-        $cachekey = json_encode([spl_object_id($loader), $basePath]);
+        $storage = json_storage(__FUNCTION__);
+        $cachekey = [spl_object_id($loader), $basePath];
         if (!$cache) {
-            cache($cachekey, null, __FUNCTION__);
+            unset($storage[$cachekey]);
         }
-        return cache($cachekey, function () use ($loader, $basePath) {
+        return $storage[$cachekey] ??= (function () use ($loader, $basePath) {
             $result = [];
 
             // psr0+4
@@ -1129,7 +1111,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\class_map')) {
             }
 
             return $result;
-        }, __FUNCTION__);
+        })();
     }
 }
 
@@ -1346,13 +1328,17 @@ if (!function_exists('ryunosuke\\PHPUnit\\markdown_table')) {
             throw new \InvalidArgumentException('$array must be array of hasharray.');
         }
 
-        $option += [
-            'keylabel'  => null,   // 指定すると一番左端にキーの列が生える
-            'context'   => 'html', // html:改行がbrになる（html 以外は未定義）
-            'stringify' => fn($v) => var_pretty($v, ['return' => true, 'context' => $option['context'], 'table' => false]),
-        ];
+        $option['keylabel'] ??= null;
+        $option['context'] ??= (function () {
+            $result = 'html';
+            if (PHP_SAPI === 'cli') {
+                $result = is_ansi(STDOUT) ? 'cli' : 'plain';
+            }
+            return $result;
+        })();
+        $option['stringify'] ??= fn($v) => var_pretty($v, ['return' => true, 'context' => $option['context'], 'table' => false]);
 
-        $stringify = fn($v) => strtr(trim((is_stringable($v) ? $v : $option['stringify']($v)) ?? ''), ["\t" => '    ']);
+        $stringify = fn($v) => strtr(((is_stringable($v) && !is_null($v) ? $v : $option['stringify']($v)) ?? ''), ["\t" => '    ']);
         $is_numeric = function ($v) {
             $v = trim($v);
             if (strlen($v) === 0) {
@@ -1523,8 +1509,8 @@ if (!function_exists('ryunosuke\\PHPUnit\\date_convert')) {
      * that(date_convert('Y/m/d H:i:s.u', $now))->isSame('2009/02/14 08:31:30.122999');
      * // $format に DateTimeInterface 実装クラス名を与えるとそのインスタンスを返す
      * that(date_convert(\DateTimeImmutable::class, $now))->isInstanceOf(\DateTimeImmutable::class);
-     * // null は DateTime を意味する
-     * that(date_convert(null, $now))->isInstanceOf(\DateTime::class);
+     * // null は DateTimeInterface を意味する
+     * that(date_convert(null, $now))->isInstanceOf(\DateTimeImmutable::class);
      * ```
      *
      * @package ryunosuke\Functions\Package\datetime
@@ -1537,7 +1523,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\date_convert')) {
      */
     function date_convert($format, $datetimedata = null)
     {
-        $format ??= \DateTime::class;
+        $format ??= function_configure('datetime.class');
         $return_object = class_exists($format) && is_subclass_of($format, \DateTimeInterface::class);
 
         if ($return_object && $datetimedata instanceof \DateTimeInterface) {
@@ -1556,7 +1542,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\date_convert')) {
         }
 
         if (!$return_object) {
-            $era = array_find(JP_ERA, function ($era) use ($timestamp) {
+            $era = array_find_first(JP_ERA, function ($era) use ($timestamp) {
                 if ($era['since'] <= $timestamp) {
                     $era['year'] = idate('Y', (int) $timestamp) - idate('Y', $era['since']) + 1;
                     $era['gann'] = $era['year'] === 1 ? '元' : $era['year'];
@@ -1577,7 +1563,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\date_convert')) {
             return date($format, $timestamp);
         }
 
-        $class = $return_object ? $format : \DateTime::class;
+        $class = $return_object ? $format : function_configure('datetime.class');
         $dt = new $class();
         $dt = $dt->setTimestamp((int) $timestamp);
 
@@ -1730,7 +1716,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\date_timestamp')) {
             $jpnames = array_merge(array_column(JP_ERA, 'name'), array_column(JP_ERA, 'abbr'));
             $datetimedata = preg_replace_callback('/^(' . implode('|', $jpnames) . ')(\d{1,2}|元)/u', function ($matches) {
                 [, $era, $year] = $matches;
-                $eratime = array_find(JP_ERA, function ($v) use ($era) {
+                $eratime = array_find_first(JP_ERA, function ($v) use ($era) {
                     if (in_array($era, [$v['name'], $v['abbr']], true)) {
                         return $v['since'];
                     }
@@ -2107,7 +2093,6 @@ if (!function_exists('ryunosuke\\PHPUnit\\process_async')) {
                 }
 
                 try {
-                    /** @noinspection PhpStatementHasEmptyBodyInspection */
                     while ($this->update()) {
                         // noop
                     }
@@ -2947,6 +2932,54 @@ if (!function_exists('ryunosuke\\PHPUnit\\is_bindable_closure')) {
     }
 }
 
+assert(!function_exists('ryunosuke\\PHPUnit\\is_callback') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\is_callback'))->isUserDefined());
+if (!function_exists('ryunosuke\\PHPUnit\\is_callback')) {
+    /**
+     * callable のうち、関数文字列を false で返す
+     *
+     * 歴史的な経緯で php の callable は多岐に渡る。
+     *
+     * 1. 単純なコールバック: `"strtolower"`
+     * 2. staticメソッドのコール: `["ClassName", "method"]`
+     * 3. オブジェクトメソッドのコール: `[$object, "method"]`
+     * 4. staticメソッドのコール: `"ClassName::method"`
+     * 5. 相対指定によるstaticメソッドのコール: `["ClassName", "parent::method"]`
+     * 6. __invoke実装オブジェクト: `$object`
+     * 7. クロージャ: `fn() => something()`
+     *
+     * 上記のうち 1 を callable とはみなさず false を返す。
+     * 現代的には `Closure::fromCallable`, `$object->method(...)` などで callable == Closure という概念が浸透しているが、そうでないこともある。
+     * 本ライブラリでも `preg_splice` や `array_sprintf` などで頻出しているので関数として定義する。
+     *
+     * 副作用はなく、クラスのロードや関数の存在チェックなどは行わない。あくまで型と形式で判定する。
+     * 引数は callable でなくても構わない。その場合単に false を返す。
+     *
+     * @package ryunosuke\Functions\Package\funchand
+     *
+     * @param mixed $callable 対象 callable
+     * @return bool 関数呼び出しの callable なら false
+     */
+    function is_callback($callable)
+    {
+        // 大前提（不要に思えるが invoke や配列 [1, 2, 3] などを考慮すると必要）
+        if (!is_callable($callable, true)) {
+            return false;
+        }
+
+        // 変なオブジェクト・配列は↑で除かれている
+        if (is_object($callable) || is_array($callable)) {
+            return true;
+        }
+
+        // 文字列で :: を含んだら関数呼び出しではない
+        if (is_string($callable) && strpos($callable, '::') !== false) {
+            return true;
+        }
+
+        return false;
+    }
+}
+
 assert(!function_exists('ryunosuke\\PHPUnit\\ansi_colorize') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\ansi_colorize'))->isUserDefined());
 if (!function_exists('ryunosuke\\PHPUnit\\ansi_colorize')) {
     /**
@@ -3312,10 +3345,8 @@ if (!function_exists('ryunosuke\\PHPUnit\\evaluate')) {
      * また、素の eval は ParseError が起こったときの表示がわかりにくすぎるので少し見やすくしてある。
      *
      * 関数化してる以上 eval におけるコンテキストの引き継ぎはできない。
-     * ただし、引数で変数配列を渡せるようにしてあるので get_defined_vars を併用すれば基本的には同じ（$this はどうしようもない）。
-     *
-     * 短いステートメントだと opcode が少ないのでファイルを経由せず直接 eval したほうが速いことに留意。
-     * 一応引数で指定できるようにはしてある。
+     *  ただし、引数で変数配列を渡せるようにしてあるので get_defined_vars を併用すれば基本的には同じ。
+     * コンテキストに $this がある場合は bind して疑似的に模倣する。
      *
      * Example:
      * ```php
@@ -3332,34 +3363,40 @@ if (!function_exists('ryunosuke\\PHPUnit\\evaluate')) {
      *
      * @param string $phpcode 実行する php コード
      * @param array $contextvars コンテキスト変数配列
-     * @param int $cachesize キャッシュするサイズ
      * @return mixed eval の return 値
      */
-    function evaluate($phpcode, $contextvars = [], $cachesize = 256)
+    function evaluate($phpcode, $contextvars = [])
     {
-        $cachefile = null;
-        if ($cachesize && strlen($phpcode) >= $cachesize) {
-            $cachefile = function_configure('storagedir') . '/' . rawurlencode(__FUNCTION__) . '-' . sha1($phpcode) . '.php';
-            if (!file_exists($cachefile)) {
-                file_put_contents($cachefile, "<?php $phpcode", LOCK_EX);
-            }
+        $cachefile = function_configure('storagedir') . '/' . rawurlencode(__FUNCTION__) . '-' . sha1($phpcode) . '.php';
+        if (!file_exists($cachefile)) {
+            file_put_contents($cachefile, "<?php $phpcode", LOCK_EX);
         }
 
         try {
-            if ($cachefile) {
-                /** @noinspection PhpMethodParametersCountMismatchInspection */
-                return (static function () {
-                    extract(func_get_arg(1));
-                    return require func_get_arg(0);
-                })($cachefile, $contextvars);
+            $evaler = function () {
+                // extract は数値キーをそのまま展開できない
+                // しかし "${0}" のような記法で数値変数を利用することはできる（可変変数限定だし php8.2 で非推奨になったが）
+                // 要するに数値キーのみをローカルコンテキストに展開しないと完全な eval の代替にならない
+                if (func_get_arg(1)) {
+                    foreach (func_get_arg(1) as $k => $v) {
+                        $$k = $v;
+                    }
+                    // 現スコープで宣言してしまっているので伏せなければならない
+                    unset($k, $v);
+                }
+                extract(func_get_arg(1));
+                return require func_get_arg(0);
+            };
+
+            // $this を模倣する
+            if (isset($contextvars['this'])) {
+                assert(is_object($contextvars['this']));
+                $evaler = $evaler->bindTo($contextvars['this'], get_class($contextvars['this']));
+                unset($contextvars['this']);
             }
-            else {
-                /** @noinspection PhpMethodParametersCountMismatchInspection */
-                return (static function () {
-                    extract(func_get_arg(1));
-                    return eval(func_get_arg(0));
-                })($phpcode, $contextvars);
-            }
+
+            /** @noinspection PhpMethodParametersCountMismatchInspection */
+            return $evaler($cachefile, $contextvars);
         }
         catch (\ParseError $ex) {
             $errline = $ex->getLine();
@@ -3370,9 +3407,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\evaluate')) {
             $N = 5; // 前後の行数
             $message = $ex->getMessage();
             $message .= "\n" . implode("\n", array_slice($codes, max(0, $errline_1 - $N), $N * 2 + 1));
-            if ($cachefile) {
-                $message .= "\n in " . realpath($cachefile) . " on line " . $errline . "\n";
-            }
+            $message .= "\n in " . realpath($cachefile) . " on line " . $errline . "\n";
             throw new \ParseError($message, $ex->getCode(), $ex);
         }
     }
@@ -3384,6 +3419,13 @@ if (!function_exists('ryunosuke\\PHPUnit\\namespace_parse')) {
      * php ファイルをパースして名前空間配列を返す
      *
      * ファイル内で use/use const/use function していたり、シンボルを定義していたりする箇所を検出して名前空間単位で返す。
+     * クラスコンテキストでの解決できないシンボルはその名前空間として返す。
+     * つまり、 use せずに いきなり new Hoge() などとしてもその同一名前空間の Hoge として返す。
+     * これは同一名前空間であれば use せずとも使用できる php の仕様に合わせるため。
+     * 対象はクラスのみであり、定数・関数は対象外。
+     * use せずに hoge_function() などとしても、それが同一名前空間なのかグローバルにフォールバックされるのかは静的には決して分からないため。
+     *
+     * その他、#[AttributeName]や ClassName::class など、おおよそクラス名が必要とされるコンテキストでのシンボルは全て返される。
      *
      * Example:
      * ```php
@@ -3402,6 +3444,9 @@ if (!function_exists('ryunosuke\\PHPUnit\\namespace_parse')) {
      * use const COUNT_RECURSIVE as CR;
      * class InnerClass{}
      * const InnerConst = 123;
+     *
+     * // いきなり Hoge を new してみる
+     * new Hoge();
      * ');
      * // このような名前空間配列が得られる
      * that(namespace_parse(sys_get_temp_dir() . '/namespace.php'))->isSame([
@@ -3432,6 +3477,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\namespace_parse')) {
      *         'alias'    => [
      *             'RE'         => 'RuntimeException',
      *             'InnerClass' => 'NS2\\InnerClass',
+     *             'Hoge'       => 'NS2\\Hoge', // 同一名前空間として返される
      *         ],
      *     ],
      * ]);
@@ -3450,124 +3496,225 @@ if (!function_exists('ryunosuke\\PHPUnit\\namespace_parse')) {
         $options += [
             'cache' => null,
         ];
-        if ($options['cache'] === null) {
-            $options['cache'] = cache($filename, fn() => $filemtime, 'filemtime') >= $filemtime;
-        }
+
+        $storage = json_storage(__FUNCTION__);
+
+        $storage['mtime'] ??= $filemtime;
+        $options['cache'] ??= $storage['mtime'] >= $filemtime;
         if (!$options['cache']) {
-            cache($filename, null, 'filemtime');
-            cache($filename, null, __FUNCTION__);
+            unset($storage['mtime']);
+            unset($storage[$filename]);
         }
-        return cache($filename, function () use ($filename) {
-            $stringify = function ($tokens) {
-                return trim(implode('', array_column(array_filter($tokens, function ($token) {
-                    return in_array($token->id, [T_NAME_QUALIFIED, T_NAME_FULLY_QUALIFIED, T_NAME_RELATIVE, T_STRING], true);
-                }), 'text')), '\\');
-            };
-
-            $keys = [
-                null        => 'alias', // for use
-                T_CLASS     => 'alias',
-                T_INTERFACE => 'alias',
-                T_TRAIT     => 'alias',
-                T_STRING    => 'const', // for define
-                T_CONST     => 'const',
-                T_FUNCTION  => 'function',
-            ];
-
-            $contents = file_get_contents($filename);
+        return $storage[$filename] ??= (function () use ($filename) {
             $namespace = '';
-            $tokens = [-1 => null];
+            $classend = null;
+
+            $tokens = php_tokens(file_get_contents($filename));
+            $token = $tokens[0];
+
+            $T_ENUM = defined('T_ENUM') ? T_ENUM : -1; // for compatible
             $result = [];
             while (true) {
-                $tokens = php_parse($contents, [
-                    'flags'  => TOKEN_PARSE,
-                    'begin'  => ["define", T_NAMESPACE, T_USE, T_CONST, T_FUNCTION, T_CLASS, T_INTERFACE, T_TRAIT],
-                    'end'    => ['{', ';', '(', T_EXTENDS, T_IMPLEMENTS],
-                    'offset' => last_key($tokens) + 1,
-                ]);
-                if (!$tokens) {
+                $token = $token->next(["define", T_NAMESPACE, T_USE, T_CONST, T_FUNCTION, T_CLASS, T_INTERFACE, T_TRAIT, $T_ENUM, T_EXTENDS, T_IMPLEMENTS, T_ATTRIBUTE, T_NAME_QUALIFIED, T_STRING]);
+                if ($token === null) {
                     break;
                 }
-                $token = reset($tokens);
-                // define は現在の名前空間とは無関係に名前空間定数を宣言することができる
-                if ($token->id === T_STRING && $token->text === "define") {
-                    $tokens = php_parse($contents, [
-                        'flags'  => TOKEN_PARSE,
-                        'begin'  => [T_CONSTANT_ENCAPSED_STRING],
-                        'end'    => [T_CONSTANT_ENCAPSED_STRING],
-                        'offset' => last_key($tokens),
-                    ]);
-                    $cname = substr(implode('', array_column($tokens, 'text')), 1, -1);
-                    $define = trim(json_decode("\"$cname\""), '\\');
-                    [$ns, $nm] = namespace_split($define);
-                    if (!isset($result[$ns])) {
-                        $result[$ns] = [
-                            'const'    => [],
-                            'function' => [],
-                            'alias'    => [],
-                        ];
-                    }
-                    $result[$ns][$keys[$token->id]][$nm] = $define;
+                if ($classend !== null && $token->index >= $classend) {
+                    $classend = null;
                 }
-                switch ($token->id) {
-                    case T_NAMESPACE:
-                        $namespace = $stringify($tokens);
-                        $result[$namespace] = [
+
+                // define は現在の名前空間とは無関係に名前空間定数を宣言することができる
+                if ($token->is(T_STRING) && $token->is("define")) {
+                    // ただし実行されないと定義されないので class 内は無視
+                    if ($classend !== null) {
+                        continue;
+                    }
+
+                    // しかも変数が使えたりして静的には決まらないので "" or '' のみとする
+                    $token = $token->next([T_CONSTANT_ENCAPSED_STRING, ',']);
+                    if ($token->is(T_CONSTANT_ENCAPSED_STRING)) {
+                        $define = trim(stripslashes(substr($token, 1, -1)), '\\');
+                        [$ns, $nm] = namespace_split($define);
+                        $result[$ns] ??= [
                             'const'    => [],
                             'function' => [],
                             'alias'    => [],
                         ];
-                        break;
-                    case T_USE:
-                        $tokenCorF = array_find($tokens, fn($token) => ($token->id === T_CONST || $token->id === T_FUNCTION) ? $token->id : 0, false);
+                        $result[$ns]['const'][$nm] = $define;
+                    }
+                }
+                // 識別子。多岐に渡るので文脈を見て無視しなければならない
+                if ($token->is(T_STRING)) {
+                    if ($token->prev()->is([
+                        T_OBJECT_OPERATOR,          // $object->member
+                        T_NULLSAFE_OBJECT_OPERATOR, // $object?->member
+                        T_CONST,                    // const CONST = 'dummy'
+                        T_GOTO,                     // goto LABEL
+                    ])) {
+                        continue;
+                    }
+                    // hoge_function(named: $argument)
+                    if ($token->next()->is(':')) {
+                        continue;
+                    }
+                    // hoge_function()
+                    if (!$token->prev()->is(T_NEW) && $token->next()->is('(')) {
+                        continue;
+                    }
+                    if ($token->is([
+                        // typehint
+                        ...['never', 'void', 'null', 'false', 'true', 'bool', 'int', 'float', 'string', 'object', 'iterable', 'mixed'],
+                        // specials
+                        ...['self', 'static', 'parent'],
+                    ])) {
+                        continue;
+                    }
+                    if (defined($token->text)) {
+                        continue;
+                    }
 
-                        $prefix = '';
-                        if (end($tokens)->text === '{') {
-                            $prefix = $stringify($tokens);
-                            $tokens = php_parse($contents, [
-                                'flags'  => TOKEN_PARSE,
-                                'begin'  => ['{'],
-                                'end'    => ['}'],
-                                'offset' => last_key($tokens),
-                            ]);
+                    if (false
+                        || $token->prev()->is(T_NEW)           // new ClassName
+                        || $token->prev()->is(':')             // function method(): ClassName
+                        || $token->next()->is(T_VARIABLE)      // ClassName $argument
+                        || $token->next()->is(T_DOUBLE_COLON)  // ClassName::CONSTANT
+                    ) {
+                        $result[$namespace]['alias'][$token->text] ??= concat($namespace, '\\') . $token->text;
+                    }
+                }
+                // T_STRING とほぼ同じ（修飾版）。T_NAME_QUALIFIED である時点で Space\Name であることはほぼ確定だがいくつか除外するものがある
+                if ($token->is(T_NAME_QUALIFIED)) {
+                    // hoge_function()
+                    if (!$token->prev()->is(T_NEW) && $token->next()->is('(')) {
+                        continue;
+                    }
+                    // 最近の php は標準でも名前空間を持つものがあるので除外しておく
+                    if (defined($token->text)) {
+                        continue;
+                    }
+                    $result[$namespace]['alias'][$token->text] ??= concat($namespace, '\\') . $token->text;
+                }
+                if ($token->is(T_NAMESPACE)) {
+                    $token = $token->next();
+                    $namespace = $token->text;
+                    $result[$namespace] = [
+                        'const'    => [],
+                        'function' => [],
+                        'alias'    => [],
+                    ];
+                }
+                if ($token->is(T_USE)) {
+                    // function () **use** ($var) {...}
+                    if ($token->prev()?->is(')')) {
+                        continue;
+                    }
+                    // class {**use** Trait;}
+                    if ($classend !== null) {
+                        while (!$token->is(['{', ';'])) {
+                            $token = $token->next(['{', ';', ',']);
+                            if (!$token->prev()->is(T_NAME_FULLY_QUALIFIED)) {
+                                $result[$namespace]['alias'][$token->prev()->text] ??= concat($namespace, '\\') . $token->prev()->text;
+                            }
                         }
+                        continue;
+                    }
 
-                        $multi = array_explode($tokens, fn($token) => $token->text === ',');
-                        foreach ($multi as $ttt) {
-                            $as = array_explode($ttt, fn($token) => $token->id === T_AS);
+                    $next = $token->next();
+                    $key = 'alias';
+                    if ($next->is(T_CONST)) {
+                        $key = 'const';
+                        $token = $next;
+                    }
+                    if ($next->is(T_FUNCTION)) {
+                        $key = 'function';
+                        $token = $next;
+                    }
 
-                            $alias = $stringify($as[0]);
-                            if (isset($as[1])) {
-                                $result[$namespace][$keys[$tokenCorF]][$stringify($as[1])] = concat($prefix, '\\') . $alias;
+                    $token = $token->next();
+                    $qualified = trim($token->text, '\\');
+
+                    $next = $token->next();
+                    if ($next->is(T_NS_SEPARATOR)) {
+                        while (!$token->is('}')) {
+                            $token = $token->next(['}', ',', T_AS]);
+                            if ($token->is(T_AS)) {
+                                $qualified2 = $qualified . "\\" . $token->prev()->text;
+                                $result[$namespace][$key][$token->next()->text] = $qualified2;
+                                $token = $token->next()->next();
                             }
                             else {
-                                $result[$namespace][$keys[$tokenCorF]][namespace_split($alias)[1]] = concat($prefix, '\\') . $alias;
+                                $qualified2 = $qualified . "\\" . $token->prev()->text;
+                                $result[$namespace][$key][namespace_split($qualified2)[1]] = $qualified2;
                             }
                         }
-                        break;
-                    case T_CONST:
-                    case T_FUNCTION:
-                    case T_CLASS:
-                    case T_INTERFACE:
-                    case T_TRAIT:
-                        $alias = $stringify($tokens);
-                        if (strlen($alias)) {
-                            $result[$namespace][$keys[$token->id]][$alias] = concat($namespace, '\\') . $alias;
+                    }
+                    elseif ($next->is(T_AS)) {
+                        $token = $next->next();
+                        $result[$namespace][$key][$token->text] = $qualified;
+                    }
+                    else {
+                        $result[$namespace][$key][namespace_split($qualified)[1]] = $qualified;
+                    }
+                }
+                if ($token->is([T_CLASS, T_TRAIT, T_INTERFACE, $T_ENUM])) {
+                    // class ClassName {...}, $anonymous = new class() {...}
+                    if ($token->next()->is(T_STRING) || $token->prev()->is(T_NEW) || $token->prev(T_ATTRIBUTE)?->prev()->is(T_NEW)) {
+                        // new class {}, new class(new class {}) {}
+                        $next = $token->next(['{', '(']);
+                        if ($next->is('(')) {
+                            $next = $next->end()->next('{');
                         }
-                        // ブロック内に興味はないので進めておく（function 内 function などはあり得るが考慮しない）
-                        if ($token->id !== T_CONST) {
-                            $tokens = php_parse($contents, [
-                                'flags'  => TOKEN_PARSE,
-                                'begin'  => ['{'],
-                                'end'    => ['}'],
-                                'offset' => last_key($tokens),
-                            ]);
-                            break;
+                        $classend = max($classend ?? -1, $next->end()->index);
+                    }
+                    // class ClassName
+                    if ($token->next()->is(T_STRING)) {
+                        $result[$namespace]['alias'][$token->next()->text] = concat($namespace, '\\') . $token->next()->text;
+                    }
+                }
+                if ($token->is(T_EXTENDS)) {
+                    while (!$token->is([T_IMPLEMENTS, '{'])) {
+                        $token = $token->next([T_IMPLEMENTS, '{', ',']);
+                        if (!$token->prev()->is(T_NAME_FULLY_QUALIFIED)) {
+                            $result[$namespace]['alias'][$token->prev()->text] ??= concat($namespace, '\\') . $token->prev()->text;
                         }
+                    }
+                }
+                if ($token->is(T_IMPLEMENTS)) {
+                    while (!$token->is(['{'])) {
+                        $token = $token->next(['{', ',']);
+                        if (!$token->prev()->is(T_NAME_FULLY_QUALIFIED)) {
+                            $result[$namespace]['alias'][$token->prev()->text] ??= concat($namespace, '\\') . $token->prev()->text;
+                        }
+                    }
+                }
+                if ($token->is(T_CONST)) {
+                    // class {**const** HOGE=1;}
+                    if ($classend !== null) {
+                        continue;
+                    }
+                    $result[$namespace]['const'][$token->next()->text] ??= concat($namespace, '\\') . $token->next()->text;
+                }
+                if ($token->is(T_FUNCTION)) {
+                    // class {**function** hoge() {}}
+                    if ($classend !== null) {
+                        continue;
+                    }
+                    // $closure = function () {};
+                    if ($token->next()->is('(')) {
+                        continue;
+                    }
+                    $result[$namespace]['function'][$token->next()->text] ??= concat($namespace, '\\') . $token->next()->text;
+                }
+                if ($token->is(T_ATTRIBUTE)) {
+                    $token = $token->next([T_NAME_FULLY_QUALIFIED, T_NAME_QUALIFIED, T_STRING]);
+                    if (!$token->is(T_NAME_FULLY_QUALIFIED)) {
+                        $result[$namespace]['alias'][$token->text] ??= concat($namespace, '\\') . $token->text;
+                    }
                 }
             }
+
             return $result;
-        }, __FUNCTION__);
+        })();
     }
 }
 
@@ -3773,246 +3920,236 @@ if (!function_exists('ryunosuke\\PHPUnit\\php_indent')) {
     }
 }
 
-assert(!function_exists('ryunosuke\\PHPUnit\\php_parse') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\php_parse'))->isUserDefined());
-if (!function_exists('ryunosuke\\PHPUnit\\php_parse')) {
+assert(!function_exists('ryunosuke\\PHPUnit\\php_tokens') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\php_tokens'))->isUserDefined());
+if (!function_exists('ryunosuke\\PHPUnit\\php_tokens')) {
     /**
-     * php のコード断片をパースする
+     * PhpToken に便利メソッドを生やした配列を返す
      *
-     * @todo そもそも何がしたいのかよくわからない関数になってきたので動作の洗い出しが必要
+     * php_parse とは似て非なる（あっちは何がしたいのかよく分からなくなっている）。
+     * この関数はシンプルに PhpToken の拡張版として動作する。
+     *
+     * 生えているメソッドは下記。
+     * - __debugInfo: デバッグしやすい情報で吐き出す
+     * - clone: 新プロパティを指定して clone する
+     * - name: getTokenName のエイリアス
+     * - prev: 条件一致した直前のトークンを返す
+     *   - 引数未指定時は isIgnorable でないもの
+     * - next: 条件一致した直後のトークンを返す
+     *   - 引数未指定時は isIgnorable でないもの
+     * - find: ブロック内部を読み飛ばしつつ指定トークンを探す
+     * - end: 自身の対応するペアトークンまで飛ばして返す
+     *   - 要するに { や (, " などの中途半端ではない終わりのトークンを返す
+     * - contents: 自身と end 間のトークンを文字列化する
+     * - resolve: text が名前空間を解決して完全修飾になったトークンを返す
      *
      * Example:
      * ```php
      * $phpcode = '<?php
+     * // dummy
      * namespace Hogera;
      * class Example
      * {
      *     // something
      * }';
      *
-     * // namespace ～ ; を取得
-     * $part = php_parse($phpcode, [
-     *     'begin' => T_NAMESPACE,
-     *     'end'   => ';',
-     * ]);
-     * that(implode('', array_column($part, 'text')))->isSame('namespace Hogera;');
-     *
-     * // class ～ { を取得
-     * $part = php_parse($phpcode, [
-     *     'begin' => T_CLASS,
-     *     'end'   => '{',
-     * ]);
-     * that(implode('', array_column($part, 'text')))->isSame("class Example\n{");
+     * $tokens = php_tokens($phpcode);
+     * // name でトークン名が得られる
+     * that($tokens[0])->name()->is('T_OPEN_TAG');
+     * // ↑の次はコメントだが next で namespace が得られる
+     * that($tokens[0])->next()->text->is('namespace');
+     * // 同じく↑の次はホワイトスペースだが next で Hogera が得られる
+     * that($tokens[0])->next()->next()->text->is('Hogera');
      * ```
      *
      * @package ryunosuke\Functions\Package\misc
      *
+     * @noinspection PhpPossiblePolymorphicInvocationInspection
+     *
      * @param string $phpcode パースする php コード
-     * @param array|int $option パースオプション
-     * @return \PhpToken[] トークン配列
+     * @param int $flags パースオプション
+     * @return \PhpTokens[] トークン配列
      */
-    function php_parse($phpcode, $option = [])
+    function php_tokens(string $code, int $flags = 0)
     {
-        if (is_int($option)) {
-            $option = ['flags' => $option];
-        }
+        $PhpToken = null;
+        $PhpToken ??= new #[\AllowDynamicProperties] class (0, "") extends \PhpToken {
+            public array $tokens;
+            public int   $index;
 
-        $default = [
-            'short_open_tag' => null, // ショートオープンタグを扱うか（null だと余計なことはせず ini に従う）
-            'line'           => [],   // 行の範囲（以上以下）
-            'position'       => [],   // 文字位置の範囲（以上以下）
-            'begin'          => [],   // 開始トークン
-            'end'            => [],   // 終了トークン
-            'offset'         => 0,    // 開始トークン位置
-            'flags'          => 0,    // PHPToken の $flags. TOKEN_PARSE を与えると ParseError が出ることがあるのでデフォルト 0
-            'cache'          => true, // キャッシュするか否か
-            'greedy'         => false,// end と nest か一致したときに処理を継続するか
-            'backtick'       => true, // `` もパースするか
-            'nest_token'     => [
-                ')' => '(',
-                '}' => '{',
-                ']' => '[',
-            ],
-        ];
-        $option += $default;
+            public function __debugInfo(): array
+            {
+                $result = get_object_vars($this);
 
-        $cachekey = var_hash($phpcode) . $option['flags'] . '-' . $option['backtick'] . '-' . var_export($option['short_open_tag'], true);
-        static $cache = [];
-        if (!($option['cache'] && isset($cache[$cachekey]))) {
-            $position = 0;
-            $backtick = '';
-            $backticktoken = null;
-            $backticking = false;
+                unset($result['tokens'], $result['cache']);
 
-            $tokens = [];
-            $tmp = \PhpToken::tokenize($phpcode, $option['flags']);
-            for ($i = 0; $i < count($tmp); $i++) {
-                $token = $tmp[$i];
+                $result['name'] = $this->name();
+                $result['prev'] = $this->prev()?->getTokenName();
+                $result['next'] = $this->next()?->getTokenName();
 
-                // @codeCoverageIgnoreStart
-                if ($option['short_open_tag'] === true && $token->id === T_INLINE_HTML && ($p = strpos($token->text, '<?')) !== false) {
-                    $newtokens = [];
-                    $nlcount = 0;
+                return $result;
+            }
 
-                    if ($p !== 0) {
-                        $html = substr($token->text, 0, $p);
-                        $nlcount = preg_match_all('#\r\n|\r|\n#u', $html);
-                        $newtokens[] = new \PhpToken(T_INLINE_HTML, $html, $token->line);
-                    }
-
-                    $code = substr($token->text, $p + 2);
-                    $subtokens = \PhpToken::tokenize("<?php $code");
-                    $subtokens[0]->text = '<?';
-                    foreach ($subtokens as $subtoken) {
-                        $subtoken->line += $token->line + $nlcount - 1;
-                        $newtokens[] = $subtoken;
-                    }
-
-                    array_splice($tmp, $i + 1, 0, $newtokens);
-                    continue;
+            public function clone(...$newparams): self
+            {
+                $that = clone $this;
+                foreach ($newparams as $param => $value) {
+                    $that->{$param} = $value;
                 }
-                if ($option['short_open_tag'] === false && $token->id === T_OPEN_TAG && $token->text === '<?') {
-                    for ($j = $i + 1; $j < count($tmp); $j++) {
-                        if ($tmp[$j]->id === T_CLOSE_TAG) {
-                            break;
-                        }
+                return $that;
+            }
+
+            public function name(): string
+            {
+                return $this->getTokenName();
+            }
+
+            public function prev($condition = null): ?self
+            {
+                $condition ??= fn($token) => !$token->isIgnorable();
+                return $this->sibling(-1, $condition);
+            }
+
+            public function next($condition = null): ?self
+            {
+                $condition ??= fn($token) => !$token->isIgnorable();
+                return $this->sibling(+1, $condition);
+            }
+
+            public function find($condition): ?self
+            {
+                $condition = (array) $condition;
+                $token = $this;
+                while (true) {
+                    $token = $token->sibling(+1, array_merge($condition, ['{', '${', '"', T_START_HEREDOC, '#[', '[', '(']));
+                    if ($token === null) {
+                        return null;
                     }
-                    $html = implode('', array_map(fn($token) => $token->text, array_slice($tmp, $i, $j - $i + 1)));
-                    array_splice($tmp, $i + 1, $j - $i, [new \PhpToken(T_INLINE_HTML, $html, $token->line)]);
-                    continue;
+                    if ($token->is($condition)) {
+                        return $token;
+                    }
+                    $token = $token->end();
                 }
-                // @codeCoverageIgnoreEnd
+            }
 
-                if (!$option['backtick']) {
-                    if ($token->text === '`') {
-                        if ($backticking) {
-                            $token->text = $backtick . $token->text;
-                            $token->line = $backticktoken->line;
-                            $token->pos = $backticktoken->pos;
-                            $backtick = '';
+            public function end(): self
+            {
+                $skip = function ($starts, $ends) {
+                    $token = $this;
+                    while (true) {
+                        $token = $token->sibling(+1, array_merge($starts, $ends)) ?? throw new \DomainException(sprintf("token mismatch(line:%d, pos:%d, '%s')", $token->line, $token->pos, $token->text));
+                        if ($token->is($starts)) {
+                            $token = $token->end();
                         }
-                        else {
-                            $backticktoken = $token;
-                        }
-                        $backticking = !$backticking;
-                    }
-                    if ($backticking) {
-                        $backtick .= $token->text;
-                        continue;
-                    }
-                }
-
-                $token->pos = $position;
-                $position += strlen($token->text);
-
-                /* PhpToken になりコピーオンライトが効かなくなったので時々書き換えをチェックした方が良い
-                $token = new class($token->id, $token->text, $token->line, $token->pos) extends \PhpToken {
-                    private array $backup = [];
-    
-                    public function backup()
-                    {
-                        $this->backup = [
-                            'id'   => $this->id,
-                            'text' => $this->text,
-                            'line' => $this->line,
-                            'pos'  => $this->pos,
-                        ];
-                    }
-    
-                    public function __clone(): void
-                    {
-                        $this->backup = [];
-                    }
-    
-                    public function __destruct()
-                    {
-                        foreach ($this->backup as $name => $value) {
-                            assert($this->$name === $value);
+                        elseif ($token->is($ends)) {
+                            return $token;
                         }
                     }
                 };
-                $token->backup();
-                 */
 
-                $tokens[] = $token;
+                if ($this->is('"')) {
+                    return $skip(['{', '${'], ['"']);
+                }
+                if ($this->is('`')) {
+                    return $skip(['{', '${'], ['`']);
+                }
+                if ($this->is(T_START_HEREDOC)) {
+                    return $skip(['{', '${'], [T_END_HEREDOC]);
+                }
+                if ($this->is('#[')) {
+                    return $skip(['#[', '['], [']']);
+                }
+                if ($this->is('[')) {
+                    return $skip(['#[', '['], [']']);
+                }
+                if ($this->is('${')) {
+                    return $skip(['${'], ['}']); // @codeCoverageIgnore deprecated php8.2
+                }
+                if ($this->is('{')) {
+                    return $skip(['{', '"'], ['}']);
+                }
+                if ($this->is('(')) {
+                    return $skip(['('], [')']);
+                }
+
+                throw new \DomainException(sprintf("token is not pairable(line:%d, pos:%d, '%s')", $this->line, $this->pos, $this->text));
             }
-            // @codeCoverageIgnoreStart
-            if ($option['short_open_tag'] === false) {
-                for ($i = 0; $i < count($tokens); $i++) {
-                    if ($tokens[$i]->id === T_INLINE_HTML && isset($tokens[$i + 1]) && $tokens[$i + 1]->id === T_INLINE_HTML) {
-                        $tokens[$i]->text .= $tokens[$i + 1]->text;
-                        array_splice($tokens, $i + 1, 1, []);
-                        $i--;
+
+            public function contents(?int $end = null): string
+            {
+                $end ??= $this->end()->index;
+                return implode('', array_column(array_slice($this->tokens, $this->index, $end - $this->index + 1), 'text'));
+            }
+
+            public function resolve($ref): string
+            {
+                $var_export = fn($v) => var_export($v, true);
+                $prev = $this->prev();
+                $next = $this->next();
+
+                $text = $this->text;
+                if ($this->id === T_STRING) {
+                    $namespaces = [$ref->getNamespaceName()];
+                    if ($ref instanceof \ReflectionFunctionAbstract) {
+                        $namespaces[] = $ref->getClosureScopeClass()?->getNamespaceName();
                     }
-                }
-            }
-            // @codeCoverageIgnoreEnd
-            $cache[$cachekey] = $tokens;
-        }
-        $tokens = $cache[$cachekey];
-
-        $lines = $option['line'] + [-PHP_INT_MAX, PHP_INT_MAX];
-        $positions = $option['position'] + [-PHP_INT_MAX, PHP_INT_MAX];
-        $begin_tokens = (array) $option['begin'];
-        $end_tokens = (array) $option['end'];
-        $nest_tokens = $option['nest_token'];
-        $greedy = $option['greedy'];
-
-        $result = [];
-        $starting = !$begin_tokens;
-        $nesting = 0;
-        $offset = is_array($option['offset']) ? ($option['offset'][0] ?? 0) : $option['offset'];
-        $endset = is_array($option['offset']) ? ($option['offset'][1] ?? count($tokens)) : count($tokens);
-
-        for ($i = $offset; $i < $endset; $i++) {
-            $token = $tokens[$i];
-
-            if ($lines[0] > $token->line) {
-                continue;
-            }
-            if ($lines[1] < $token->line) {
-                continue;
-            }
-            if ($positions[0] > $token->pos) {
-                continue;
-            }
-            if ($positions[1] < $token->pos) {
-                continue;
-            }
-
-            foreach ($begin_tokens as $t) {
-                if ($t === $token->id || $t === $token->text) {
-                    $starting = true;
-                    break;
-                }
-            }
-            if (!$starting) {
-                continue;
-            }
-
-            $result[$i] = $token;
-
-            foreach ($nest_tokens as $end_nest => $start_nest) {
-                if ($token->id === $start_nest || $token->text === $start_nest) {
-                    $nesting++;
-                }
-                if ($token->id === $end_nest || $token->text === $end_nest) {
-                    $nesting--;
-                }
-            }
-
-            foreach ($end_tokens as $t) {
-                if ($t === $token->id || $t === $token->text) {
-                    if ($nesting <= 0 || ($nesting === 1 && in_array($t, $nest_tokens, true))) {
-                        if ($nesting === 0 && $greedy && isset($nest_tokens[$t])) {
-                            break;
+                    if ($prev->id === T_NEW || $prev->id === T_ATTRIBUTE || $next->id === T_DOUBLE_COLON || $next->id === T_VARIABLE || $next->text === '{') {
+                        $text = namespace_resolve($text, $ref->getFileName(), 'alias') ?? $text;
+                    }
+                    elseif ($next->text === '(') {
+                        $text = namespace_resolve($text, $ref->getFileName(), 'function') ?? $text;
+                        // 関数・定数は use しなくてもグローバルにフォールバックされる（=グローバルと名前空間の区別がつかない）
+                        foreach ($namespaces as $namespace) {
+                            if (!function_exists($text) && function_exists($nstext = "\\$namespace\\$text")) {
+                                $text = $nstext;
+                                break;
+                            }
                         }
-                        break 2;
                     }
-                    break;
+                    else {
+                        $text = namespace_resolve($text, $ref->getFileName(), 'const') ?? $text;
+                        // 関数・定数は use しなくてもグローバルにフォールバックされる（=グローバルと名前空間の区別がつかない）
+                        foreach ($namespaces as $namespace) {
+                            if (!const_exists($text) && const_exists($nstext = "\\$namespace\\$text")) {
+                                $text = $nstext;
+                                break;
+                            }
+                        }
+                    }
                 }
+
+                // マジック定数の解決
+                if ($this->id === T_DIR) {
+                    $text = $var_export(dirname($ref->getFileName()));
+                }
+                if ($this->id === T_FILE) {
+                    $text = $var_export($ref->getFileName());
+                }
+                if ($this->id === T_NS_C) {
+                    $text = $var_export($ref->getNamespaceName());
+                }
+                return $text;
             }
+
+            private function sibling(int $step, $condition)
+            {
+                if (is_array($condition) || !is_callback($condition)) {
+                    $condition = fn($token) => $token->is($condition);
+                }
+                for ($i = $this->index + $step; isset($this->tokens[$i]); $i += $step) {
+                    if ($condition($this->tokens[$i])) {
+                        return $this->tokens[$i];
+                    }
+                }
+                return null;
+            }
+        };
+
+        $tokens = $PhpToken::tokenize($code, $flags);
+        foreach ($tokens as $i => $token) {
+            $token->tokens = $tokens;
+            $token->index = $i;
         }
-        return $result;
+        return $tokens;
     }
 }
 
@@ -4115,27 +4252,38 @@ if (!function_exists('ryunosuke\\PHPUnit\\callable_code')) {
         $end = $ref->getEndLine();
         $codeblock = implode('', array_slice($contents, $start - 1, $end - $start + 1));
 
-        $meta = php_parse("<?php $codeblock", [
-            'begin' => [T_FN, T_FUNCTION],
-            'end'   => ['{', T_DOUBLE_ARROW],
-        ]);
-        $end = array_pop($meta);
+        $tokens = php_tokens("<?php $codeblock");
 
-        if ($end->id === T_DOUBLE_ARROW) {
-            $body = php_parse("<?php $codeblock", [
-                'begin'  => T_DOUBLE_ARROW,
-                'end'    => [';', ',', ')'],
-                'offset' => last_key($meta),
-                'greedy' => true,
-            ]);
-            $body = array_slice($body, 1, -1);
+        $begin = $tokens[0]->next([T_FUNCTION, T_FN]);
+        $close = $begin->next(['{', T_DOUBLE_ARROW]);
+
+        if ($begin->is(T_FN)) {
+            $meta = array_slice($tokens, $begin->index, $close->prev()->index - $begin->index + 1);
+            $temp = $close->find([';', ',', T_CLOSE_TAG]);
+            // アロー関数は終了トークンが明確ではない
+            // - $x = fn() => 123;         // セミコロン
+            // - $x = fn() => [123];       // セミコロンであって ] ではない
+            // - $x = [fn() => 123, null]; // こうだとカンマになるし
+            // - $x = [fn() => 123];       // こうだと ] になる
+            // しっかり実装できなくもないが、（多分）戻り読みが必要なのでここでは構文チェックをパスするまでループする実装とした
+            while ($temp) {
+                $test = array_slice($tokens, $close->next()->index, $temp->index - $close->next()->index);
+                $text = implode('', array_column($test, 'text'));
+                try {
+                    /** @noinspection PhpExpressionResultUnusedInspection */
+                    token_get_all("<?php $text;", TOKEN_PARSE);
+                    break;
+                }
+                catch (\Throwable) {
+                    $temp = $temp->prev();
+                }
+            }
+            $body = array_slice($tokens, $close->next()->index, $temp ? $temp->index - $close->next()->index : null);
         }
         else {
-            $body = php_parse("<?php $codeblock", [
-                'begin'  => '{',
-                'end'    => '}',
-                'offset' => last_key($meta),
-            ]);
+            $meta = array_slice($tokens, $begin->index, $close->index - $begin->index);
+            $body = $close->end();
+            $body = array_slice($tokens, $close->index, $body->index - $close->index + 1);
         }
 
         if ($return_token) {
@@ -4226,10 +4374,6 @@ if (!function_exists('ryunosuke\\PHPUnit\\parameter_length')) {
     /**
      * callable の引数の数を返す
      *
-     * クロージャはキャッシュされない。毎回リフレクションを生成し、引数の数を調べてそれを返す。
-     * （クロージャには一意性がないので key-value なキャッシュが適用できない）。
-     * ので、ループ内で使ったりすると目に見えてパフォーマンスが低下するので注意。
-     *
      * Example:
      * ```php
      * // trim の引数は2つ
@@ -4247,35 +4391,17 @@ if (!function_exists('ryunosuke\\PHPUnit\\parameter_length')) {
      */
     function parameter_length($callable, $require_only = false, $thought_variadic = false)
     {
-        // クロージャの $call_name には一意性がないのでキャッシュできない（spl_object_hash でもいいが、かなり重複するので完全ではない）
-        if ($callable instanceof \Closure) {
-            /** @var \ReflectionFunctionAbstract $ref */
-            $ref = reflect_callable($callable);
-            if ($thought_variadic && $ref->isVariadic()) {
-                return INF;
-            }
-            elseif ($require_only) {
-                return $ref->getNumberOfRequiredParameters();
-            }
-            else {
-                return $ref->getNumberOfParameters();
-            }
+        /** @var \ReflectionFunctionAbstract $ref */
+        $ref = reflect_callable($callable);
+        if ($thought_variadic && $ref->isVariadic()) {
+            return INF;
         }
-
-        // $call_name 取得
-        is_callable($callable, false, $call_name);
-
-        $cache = cache($call_name, function () use ($callable) {
-            /** @var \ReflectionFunctionAbstract $ref */
-            $ref = reflect_callable($callable);
-            return [
-                '00' => $ref->getNumberOfParameters(),
-                '01' => $ref->isVariadic() ? INF : $ref->getNumberOfParameters(),
-                '10' => $ref->getNumberOfRequiredParameters(),
-                '11' => $ref->isVariadic() ? INF : $ref->getNumberOfRequiredParameters(),
-            ];
-        }, __FUNCTION__);
-        return $cache[(int) $require_only . (int) $thought_variadic];
+        elseif ($require_only) {
+            return $ref->getNumberOfRequiredParameters();
+        }
+        else {
+            return $ref->getNumberOfParameters();
+        }
     }
 }
 
@@ -4290,8 +4416,13 @@ if (!function_exists('ryunosuke\\PHPUnit\\reflect_callable')) {
      *   - 上記二つは __call/__callStatic のメソッドも呼び出せる
      * - getDeclaration: 宣言部のコードを返す
      * - getCode: 定義部のコードを返す
+     * - isAnonymous: 無名関数なら true を返す（8.2 の isAnonymous 互換）
+     * - isArrow: アロー演算子で定義されたかを返す（クロージャのみ）
      * - isStatic: $this バインド可能かを返す（クロージャのみ）
      * - getUsedVariables: use している変数配列を返す（クロージャのみ）
+     * - getClosure: 元となったオブジェクトを $object としたクロージャを返す（メソッドのみ）
+     *   - 上記二つは __call/__callStatic のメソッドも呼び出せる
+     * - getTraitMethod: トレイト側のリフレクションを返す（メソッドのみ）
      *
      * Example:
      * ```php
@@ -4345,6 +4476,11 @@ if (!function_exists('ryunosuke\\PHPUnit\\reflect_callable')) {
                 {
                     return ($this->definition ??= callable_code($this))[1];
                 }
+
+                public function isAnonymous(): bool
+                {
+                    return false;
+                }
             };
         }
         elseif ($callable instanceof \Closure) {
@@ -4379,6 +4515,21 @@ if (!function_exists('ryunosuke\\PHPUnit\\reflect_callable')) {
                     return ($this->definition ??= callable_code($this))[1];
                 }
 
+                public function isAnonymous(): bool
+                {
+                    if (method_exists(\ReflectionFunction::class, 'isAnonymous')) {
+                        return parent::isAnonymous(); // @codeCoverageIgnore
+                    }
+
+                    return strpos($this->name, '{closure}') !== false;
+                }
+
+                public function isArrow(): bool
+                {
+                    // しっかりやるなら PHPToken を使った方がいいけど今の php 構文ならこれで大丈夫のはず
+                    return str_starts_with($this->getDeclaration(), 'fn') !== false;
+                }
+
                 public function isStatic(): bool
                 {
                     return !is_bindable_closure($this->callable);
@@ -4386,6 +4537,10 @@ if (!function_exists('ryunosuke\\PHPUnit\\reflect_callable')) {
 
                 public function getUsedVariables(): array
                 {
+                    if (method_exists(\ReflectionFunction::class, 'getClosureUsedVariables')) {
+                        return parent::getClosureUsedVariables(); // @codeCoverageIgnore
+                    }
+
                     $uses = object_properties($this->callable);
                     unset($uses['this']);
                     return $uses;
@@ -4444,6 +4599,59 @@ if (!function_exists('ryunosuke\\PHPUnit\\reflect_callable')) {
                 public function getCode(): string
                 {
                     return ($this->definition ??= callable_code($this))[1];
+                }
+
+                public function isAnonymous(): bool
+                {
+                    return false;
+                }
+
+                public function getClosure(?object $object = null): \Closure
+                {
+                    $name = strtolower($this->name);
+
+                    if ($this->isStatic()) {
+                        if ($name === '__callstatic') {
+                            return \Closure::fromCallable([$this->class, $this->call_name]);
+                        }
+                        return parent::getClosure();
+                    }
+
+                    $object ??= $this->callable[0];
+                    if ($name === '__call') {
+                        return \Closure::fromCallable([$object, $this->call_name]);
+                    }
+                    return parent::getClosure($object);
+                }
+
+                public function getTraitMethod(): ?\ReflectionMethod
+                {
+                    $name = strtolower($this->name);
+                    $class = $this->getDeclaringClass();
+                    $aliases = array_change_key_case($class->getTraitAliases(), CASE_LOWER);
+
+                    if (!isset($aliases[$name])) {
+                        if ($this->getFileName() === $class->getFileName()) {
+                            return null;
+                        }
+                        else {
+                            return $this;
+                        }
+                    }
+
+                    [$tname, $mname] = explode('::', $aliases[$name]);
+                    $result = new self($tname, $mname, $this->callable, $this->call_name);
+
+                    // alias を張ったとしても自身で再宣言はエラーなく可能で、その場合自身が採用されるようだ
+                    if (false
+                        || $this->getFileName() !== $result->getFileName()
+                        || $this->getStartLine() !== $result->getStartLine()
+                        || $this->getEndLine() !== $result->getEndLine()
+                    ) {
+                        return null;
+                    }
+
+                    return $result;
                 }
             };
         }
@@ -5183,7 +5391,12 @@ if (!function_exists('ryunosuke\\PHPUnit\\starts_with')) {
     function starts_with(?string $string, $with, $case_insensitivity = false)
     {
         foreach ((array) $with as $w) {
-            assert(strlen($w));
+            $w = (string) $w;
+
+            // All strings end with the empty string
+            if ($w === '') {
+                return true;
+            }
 
             if (str_equals(substr($string, 0, strlen($w)), $w, $case_insensitivity)) {
                 return true;
@@ -5240,6 +5453,34 @@ if (!function_exists('ryunosuke\\PHPUnit\\str_array')) {
      *         '%idle'    => '98.74',
      *     ],
      * ]);
+     *
+     * // strict:false だと列数が一致していなくてもよい（null で埋められる）
+     * that(str_array("
+     * 13:00:01        CPU     %user     %nice   %system   %iowait
+     * 13:10:01        all      0.99      0.10      0.71      0.00      0.00     98.19
+     * 13:20:01        all      0.60      0.10
+     * ", ' ', false, false))->isSame([
+     *     1 => [
+     *         '13:00:01' => '13:10:01',
+     *         'CPU'      => 'all',
+     *         '%user'    => '0.99',
+     *         '%nice'    => '0.10',
+     *         '%system'  => '0.71',
+     *         '%iowait'  => '0.00',
+     *         '6'        => '0.00',
+     *         '7'        => '98.19',
+     *     ],
+     *     2 => [
+     *         '13:00:01' => '13:20:01',
+     *         'CPU'      => 'all',
+     *         '%user'    => '0.60',
+     *         '%nice'    => '0.10',
+     *         '%system'  => null,
+     *         '%iowait'  => null,
+     *         '6'        => null,
+     *         '7'        => null,
+     *     ],
+     * ]);
      * ```
      *
      * @package ryunosuke\Functions\Package\strings
@@ -5247,9 +5488,10 @@ if (!function_exists('ryunosuke\\PHPUnit\\str_array')) {
      * @param string|array $string 対象文字列。配列を与えても動作する
      * @param string $delimiter 区切り文字
      * @param bool $hashmode 連想配列モードか
+     * @param bool $strict true にすると列数が一致しない場合に null になる
      * @return array 配列
      */
-    function str_array($string, ?string $delimiter, $hashmode)
+    function str_array($string, ?string $delimiter, $hashmode, $strict = true)
     {
         $array = $string;
         if (is_stringable($string)) {
@@ -5272,7 +5514,20 @@ if (!function_exists('ryunosuke\\PHPUnit\\str_array')) {
                     $keys = $parts;
                     continue;
                 }
-                $result[$n] = count($keys) === count($parts) ? array_combine($keys, $parts) : null;
+                if ($strict) {
+                    $result[$n] = count($keys) === count($parts) ? array_combine($keys, $parts) : null;
+                }
+                else {
+                    if (count($keys) < count($parts)) {
+                        for ($i = count($keys); $i < count($parts); $i++) {
+                            $keys[] = next_key($keys);
+                        }
+                    }
+                    elseif (count($keys) > count($parts)) {
+                        $parts = array_pad($parts, count($keys), null);
+                    }
+                    $result[$n] = array_combine($keys, $parts);
+                }
             }
         }
         return $result;
@@ -5400,12 +5655,9 @@ if (!function_exists('ryunosuke\\PHPUnit\\str_exists')) {
             $needle = [$needle];
         }
 
-        $needle = array_map('strval', $needle);
+        $needle = array_filter(array_map('strval', $needle), 'strlen');
 
         foreach ($needle as $str) {
-            if ($str === '') {
-                continue;
-            }
             $pos = $case_insensitivity ? stripos($haystack, $str) : strpos($haystack, $str);
             if ($and_flag && $pos === false) {
                 return false;
@@ -5831,149 +6083,6 @@ if (!function_exists('ryunosuke\\PHPUnit\\base64url_encode')) {
     }
 }
 
-assert(!function_exists('ryunosuke\\PHPUnit\\cache') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\cache'))->isUserDefined());
-if (!function_exists('ryunosuke\\PHPUnit\\cache')) {
-    /**
-     * シンプルにキャッシュする
-     *
-     * この関数は get/set/delete を兼ねる。
-     * キャッシュがある場合はそれを返し、ない場合は $provider を呼び出してその結果をキャッシュしつつそれを返す。
-     *
-     * $provider に null を与えるとキャッシュの削除となる。
-     *
-     * Example:
-     * ```php
-     * $provider = fn() => rand();
-     * // 乱数を返す処理だが、キャッシュされるので同じ値になる
-     * $rand1 = cache('rand', $provider);
-     * $rand2 = cache('rand', $provider);
-     * that($rand1)->isSame($rand2);
-     * // $provider に null を与えると削除される
-     * cache('rand', null);
-     * $rand3 = cache('rand', $provider);
-     * that($rand1)->isNotSame($rand3);
-     * ```
-     *
-     * @package ryunosuke\Functions\Package\utility
-     *
-     * @param string $key キャッシュのキー
-     * @param ?callable $provider キャッシュがない場合にコールされる callable
-     * @param ?string $namespace 名前空間
-     * @return mixed キャッシュ
-     */
-    function cache($key, $provider, $namespace = null)
-    {
-        static $cacheobject;
-        $cacheobject ??= new class(function_configure('cachedir')) {
-            const CACHE_EXT = '.php-cache';
-
-            /** @var string キャッシュディレクトリ */
-            private $cachedir;
-
-            /** @var array 内部キャッシュ */
-            private $cache;
-
-            /** @var array 変更感知配列 */
-            private $changed;
-
-            public function __construct($cachedir)
-            {
-                $this->cachedir = $cachedir;
-                $this->cache = [];
-                $this->changed = [];
-            }
-
-            public function __destruct()
-            {
-                // 変更されているもののみ保存
-                foreach ($this->changed as $namespace => $dummy) {
-                    $filepath = $this->cachedir . '/' . rawurlencode($namespace) . self::CACHE_EXT;
-                    $content = "<?php\nreturn " . var_export($this->cache[$namespace], true) . ";\n";
-
-                    $temppath = tempnam(sys_get_temp_dir(), 'cache');
-                    if (file_put_contents($temppath, $content) !== false) {
-                        @chmod($temppath, 0644);
-                        if (!@rename($temppath, $filepath)) {
-                            @unlink($temppath); // @codeCoverageIgnore
-                        }
-                    }
-                }
-            }
-
-            public function has($namespace, $key)
-            {
-                // ファイルから読み込む必要があるので get しておく
-                $this->get($namespace, $key);
-                return array_key_exists($key, $this->cache[$namespace]);
-            }
-
-            public function get($namespace, $key)
-            {
-                // 名前空間自体がないなら作る or 読む
-                if (!isset($this->cache[$namespace])) {
-                    $nsarray = [];
-                    $cachpath = $this->cachedir . '/' . rawurlencode($namespace) . self::CACHE_EXT;
-                    if (file_exists($cachpath)) {
-                        $nsarray = require $cachpath;
-                    }
-                    $this->cache[$namespace] = $nsarray;
-                }
-
-                return $this->cache[$namespace][$key] ?? null;
-            }
-
-            public function set($namespace, $key, $value)
-            {
-                // 新しい値が来たら変更フラグを立てる
-                if (!isset($this->cache[$namespace]) || !array_key_exists($key, $this->cache[$namespace]) || $this->cache[$namespace][$key] !== $value) {
-                    $this->changed[$namespace] = true;
-                }
-
-                $this->cache[$namespace][$key] = $value;
-            }
-
-            public function delete($namespace, $key)
-            {
-                $this->changed[$namespace] = true;
-                unset($this->cache[$namespace][$key]);
-            }
-
-            public function clear()
-            {
-                // インメモリ情報をクリアして・・・
-                $this->cache = [];
-                $this->changed = [];
-
-                // ファイルも消す
-                foreach (glob($this->cachedir . '/*' . self::CACHE_EXT) as $file) {
-                    unlink($file);
-                }
-            }
-        };
-
-        // flush (for test)
-        if ($key === null) {
-            if ($provider === null) {
-                $cacheobject->clear();
-            }
-            $cacheobject = null;
-            return;
-        }
-
-        $namespace ??= __FILE__;
-
-        $exist = $cacheobject->has($namespace, $key);
-        if ($provider === null) {
-            $cacheobject->delete($namespace, $key);
-            return $exist;
-        }
-        if (!$exist) {
-            $cacheobject->set($namespace, $key, $provider());
-        }
-        return $cacheobject->get($namespace, $key);
-    }
-}
-
 assert(!function_exists('ryunosuke\\PHPUnit\\function_configure') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\function_configure'))->isUserDefined());
 if (!function_exists('ryunosuke\\PHPUnit\\function_configure')) {
     /**
@@ -5991,8 +6100,8 @@ if (!function_exists('ryunosuke\\PHPUnit\\function_configure')) {
         static $config = [];
 
         // default
-        $config['cachedir'] ??= sys_get_temp_dir() . DIRECTORY_SEPARATOR . strtr(__NAMESPACE__, ['\\' => '%']);
-        $config['storagedir'] ??= DIRECTORY_SEPARATOR === '/' ? '/var/tmp/rf' : (getenv('ALLUSERSPROFILE') ?: sys_get_temp_dir()) . '\\rf';
+        $config['cachedir'] ??= sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'rf' . DIRECTORY_SEPARATOR . strtr(__NAMESPACE__, ['\\' => '%']);
+        $config['storagedir'] ??= DIRECTORY_SEPARATOR === '/' ? '/var/tmp/rf/' . strtr(__NAMESPACE__, ['\\' => '%']) : (getenv('ALLUSERSPROFILE') ?: sys_get_temp_dir()) . '\\rf\\' . strtr(__NAMESPACE__, ['\\' => '%']);
         $config['placeholder'] ??= '';
         $config['var_stream'] ??= 'VarStreamV010000';
         $config['memory_stream'] ??= 'MemoryStreamV010000';
@@ -6000,6 +6109,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\function_configure')) {
         $config['chain.version'] ??= 2;
         $config['chain.nullsafe'] ??= false;
         $config['process.autoload'] ??= [];
+        $config['datetime.class'] ??= \DateTimeImmutable::class;
 
         // setting
         if (is_array($option)) {
@@ -6054,6 +6164,149 @@ if (!function_exists('ryunosuke\\PHPUnit\\function_configure')) {
         }
 
         throw new \InvalidArgumentException(sprintf('$option is unknown type(%s)', gettype($option)));
+    }
+}
+
+assert(!function_exists('ryunosuke\\PHPUnit\\json_storage') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\json_storage'))->isUserDefined());
+if (!function_exists('ryunosuke\\PHPUnit\\json_storage')) {
+    /**
+     * キーが json 化されてファイルシステムに永続化される ArrayAccess を返す
+     *
+     * 非常にシンプルで PSR-16 も実装せず、クリア手段も（基本的には）存在しない。
+     * ArrayAccess なので `$storage['hoge'] ??= something()` として使うのがほぼ唯一の利用法。
+     * その仕様・利用上、値として null を使用することはできない（使用した場合の動作は未定義とする）。
+     *
+     * キーに指定できるのは json_encode 可能なもののみ。
+     * 値に指定できるのは var_export 可能なもののみ。
+     * 上記以外を与えたときの動作は未定義。
+     * TTL を指定すると次回読み込み時に期限切れをチェックし、切れていた場合 null を返す。
+     * 一度読み込まれればそのリクエスト中は期限切れになることはない。
+     *
+     * 得てして簡単な関数・メソッドのメモ化や内部的なキャッシュに使用する。
+     *
+     * Example:
+     * ```php
+     * // ??= を使えば「無かったら値を、有ったらそれを」を単純に実現できる
+     * $storage = json_storage();
+     * that($storage['key'] ??= (fn() => 123)())->is(123);
+     * that($storage['key'] ??= (fn() => 456)())->is(123);
+     * // 引数に与えた prefix で別空間になる
+     * $storage = json_storage('other');
+     * that($storage['key'] ??= (fn() => 789)())->is(789);
+     * ```
+     *
+     * @package ryunosuke\Functions\Package\utility
+     *
+     * @param string $directory 永続化ディレクトリ
+     * @param int $ttl TTL
+     * @return \ArrayObject
+     */
+    function json_storage(string $prefix = 'global', int $ttl = PHP_INT_MAX)
+    {
+        $cachedir = function_configure('cachedir') . '/' . strtr(__FUNCTION__, ['\\' => '%']);
+        if (!file_exists($cachedir)) {
+            @mkdir($cachedir, 0777, true);
+        }
+
+        static $objects = [];
+        $objects[$prefix] ??= new class("$cachedir/" . strtr($prefix, ['\\' => '%', '/' => '-'])) extends \ArrayObject {
+            public int $defaultTtl = PHP_INT_MAX;
+
+            public function __construct(private string $directory)
+            {
+                parent::__construct();
+            }
+
+            public function offsetExists(mixed $key): bool
+            {
+                return $this->offsetGet($key) !== null;
+            }
+
+            public function offsetGet(mixed $key): mixed
+            {
+                $json = $this->json($key);
+
+                // 有るならそれでよい
+                if (parent::offsetExists($json)) {
+                    return parent::offsetGet($json);
+                }
+
+                // 無くてもストレージにある可能性がある
+                $filename = $this->filename($json);
+                clearstatcache(true, $filename);
+                if (file_exists($filename)) {
+                    [$k, $v, $t] = include $filename;
+                    // TTL 兼 hash 化してるので万が一競合すると異なるデータを返してしまう
+                    if (($k !== $key) || ((time() - $t) >= $this->defaultTtl)) {
+                        return null;
+                    }
+                    // ストレージに有ったら内部キャッシュしてそれを使う
+                    parent::offsetSet($json, $v);
+                    return $v;
+                }
+
+                return null;
+            }
+
+            public function offsetSet(mixed $key, mixed $value): void
+            {
+                $json = $this->json($key);
+
+                // 値が変化したらストレージにも保存
+                if (!parent::offsetExists($json) || parent::offsetGet($json) !== $value) {
+                    assert(is_exportable($value));
+                    $filename = $this->filename($json);
+                    if ($value === null) {
+                        opcache_invalidate($filename, true);
+                        @unlink($filename);
+                    }
+                    else {
+                        file_put_contents($filename, '<?php return ' . var_export([$key, $value, time()], true) . ';', LOCK_EX);
+                    }
+                }
+
+                parent::offsetSet($json, $value);
+            }
+
+            public function offsetUnset(mixed $key): void
+            {
+                $this->offsetSet($key, null);
+            }
+
+            private function json(mixed $data): string
+            {
+                assert((function () use ($data) {
+                    $tmp = [$data];
+                    array_walk_recursive($tmp, function ($value) {
+                        if (is_resourcable($value)) {
+                            throw new \Exception("\$value is resource");
+                        }
+                        if (is_object($value) && (!$value instanceof \JsonSerializable && get_class($value) !== \stdClass::class)) {
+                            throw new \Exception("\$value is not JsonSerializable");
+                        }
+                    });
+                    return true;
+                })());
+                return json_encode($data, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+            }
+
+            private function filename(string $json): string
+            {
+                $filename = base64url_encode(implode("\n", [
+                    hash('fnv164', $json, true),
+                    hash('crc32', $json, true),
+                ]));
+                return "{$this->directory}-$filename.php-cache";
+            }
+
+            /** @noinspection PhpUnusedPrivateMethodInspection */
+            private function debug($closure)
+            {
+                return $closure->call($this);
+            }
+        };
+        $objects[$prefix]->defaultTtl = $ttl;
+        return $objects[$prefix];
     }
 }
 
@@ -6180,6 +6433,84 @@ if (!function_exists('ryunosuke\\PHPUnit\\is_empty')) {
     }
 }
 
+assert(!function_exists('ryunosuke\\PHPUnit\\is_exportable') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\is_exportable'))->isUserDefined());
+if (!function_exists('ryunosuke\\PHPUnit\\is_exportable')) {
+    /**
+     * 値が var_export で出力可能か検査する
+     *
+     * 「出力可能」とは「意味のある出力」を意味する。
+     * 例えば set_state のないオブジェクトはエラーなく set_state コール形式で出力されるが意味のある出力ではない。
+     * リソース型はエラーなく NULL で出力されるが意味のある出力ではない。
+     * 循環参照は出力できるものの warning が出てかつ循環は切れるため意味のある出力ではない。
+     *
+     * Example:
+     * ```php
+     * that(is_primitive(null))->isTrue();
+     * that(is_primitive(false))->isTrue();
+     * that(is_primitive(123))->isTrue();
+     * that(is_primitive(STDIN))->isTrue();
+     * that(is_primitive(new \stdClass))->isFalse();
+     * that(is_primitive(['array']))->isFalse();
+     * ```
+     *
+     * @package ryunosuke\Functions\Package\var
+     *
+     * @param mixed $var 調べる値
+     * @return bool 出力可能なら true
+     */
+    function is_exportable($var): bool
+    {
+        // スカラー/NULL は OK
+        if (is_scalar($var) || is_null($var)) {
+            return true;
+        }
+
+        // リソース型の変数は、この関数ではエクスポートする事ができません
+        if (is_resourcable($var)) {
+            return false;
+        }
+
+        // var_export() では循環参照を扱うことができません
+        if (is_recursive($var)) {
+            return false;
+        }
+
+        // 配列に制限はない。それゆえに全要素を再帰的に見なければならない
+        if (is_array($var)) {
+            foreach ($var as $v) {
+                if (!is_exportable($v)) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        if (is_object($var)) {
+            // 無名クラスは非常に特殊で、出力は class@anonymous{filename}:123$456::__set_state(...) のようになる
+            // set_state さえ実装してれば復元可能に思えるが php コードとして不正なのでそのまま実行するとシンタックスエラーになる
+            // 'class@anonymous{filename}:123$456'::__set_state(...) のようにクオートすれば実行可能になるが、それは標準 var_export の動作ではない
+            // 復元する側がクオートして読み込み…とすれば復元可能だが、そもそもクラスがロードされている保証もない
+            // これらのことを考慮するなら「意味のある出力」ではないとみなした方が手っ取り早い
+            if ((new \ReflectionClass($var))->isAnonymous()) {
+                return false;
+            }
+            // var_export() が生成する PHP を評価できるようにするためには、処理対象のすべてのオブジェクトがマジックメソッド __set_state を実装している必要があります
+            if (method_exists($var, '__set_state')) {
+                return true;
+            }
+            // これの唯一の例外は stdClass です。 stdClass は、配列をオブジェクトにキャストした形でエクスポートされます
+            if (get_class($var) === \stdClass::class) {
+                return true;
+            }
+            // マニュアルに記載はないが enum は export できる
+            if ($var instanceof \UnitEnum) {
+                return true;
+            }
+            return false;
+        }
+    }
+}
+
 assert(!function_exists('ryunosuke\\PHPUnit\\is_primitive') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\is_primitive'))->isUserDefined());
 if (!function_exists('ryunosuke\\PHPUnit\\is_primitive')) {
     /**
@@ -6210,6 +6541,59 @@ if (!function_exists('ryunosuke\\PHPUnit\\is_primitive')) {
     function is_primitive($var)
     {
         return is_scalar($var) || is_null($var) || is_resourcable($var);
+    }
+}
+
+assert(!function_exists('ryunosuke\\PHPUnit\\is_recursive') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\is_recursive'))->isUserDefined());
+if (!function_exists('ryunosuke\\PHPUnit\\is_recursive')) {
+    /**
+     * 変数が再帰参照を含むか調べる
+     *
+     * Example:
+     * ```php
+     * // 配列の再帰
+     * $array = [];
+     * $array['recursive'] = &$array;
+     * that(is_recursive($array))->isTrue();
+     * // オブジェクトの再帰
+     * $object = new \stdClass();
+     * $object->recursive = $object;
+     * that(is_recursive($object))->isTrue();
+     * ```
+     *
+     * @package ryunosuke\Functions\Package\var
+     *
+     * @param mixed $var 調べる値
+     * @return bool 再帰参照を含むなら true
+     */
+    function is_recursive($var)
+    {
+        $core = function ($var, $parents) use (&$core) {
+            // 複合型でないなら間違いなく false
+            if (is_primitive($var)) {
+                return false;
+            }
+
+            // 「親と同じ子」は再帰以外あり得ない。よって === で良い（オブジェクトに関してはそもそも等値比較で絶対に一致しない）
+            // sql_object_hash とか serialize でキーに保持して isset の方が速いか？
+            // → ベンチ取ったところ in_array の方が10倍くらい速い。多分生成コストに起因
+            // raw な比較であれば瞬時に比較できるが、isset だと文字列化が必要でかなり無駄が生じていると考えられる
+            foreach ($parents as $parent) {
+                if ($parent === $var) {
+                    return true;
+                }
+            }
+
+            // 全要素を再帰的にチェック
+            $parents[] = $var;
+            foreach ($var as $v) {
+                if ($core($v, $parents)) {
+                    return true;
+                }
+            }
+            return false;
+        };
+        return $core($var, []);
     }
 }
 
@@ -6353,21 +6737,22 @@ if (!function_exists('ryunosuke\\PHPUnit\\si_unprefix')) {
      * @param int $unit 桁単位。実用上は 1000, 1024 の2値しか指定することはないはず
      * @return int|float SI 接頭辞を取り払った実際の数値
      */
-    function si_unprefix($var, $unit = 1000)
+    function si_unprefix($var, $unit = 1000, $format = '%d%s')
     {
         assert($unit > 0);
 
         $var = trim($var);
+        $num = numval($var);
 
         foreach (SI_UNITS as $exp => $sis) {
             foreach ($sis as $si) {
-                if (strpos($var, $si) === (strlen($var) - strlen($si))) {
-                    return numval($var) * pow($unit, $exp);
+                if (sprintf($format, $num, $si) === $var) {
+                    return $num * pow($unit, $exp);
                 }
             }
         }
 
-        return numval($var);
+        return $num;
     }
 }
 
@@ -6501,7 +6886,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\var_export2')) {
                 $hashed = is_hasharray($value);
 
                 // スカラー値のみで構成されているならシンプルな再帰
-                if (!$hashed && array_all($value, fn(...$args) => is_primitive(...$args))) {
+                if (!$hashed && array_and($value, fn(...$args) => is_primitive(...$args))) {
                     return '[' . implode(",$space", array_map(fn($v) => $export($v, 'array-value'), $value)) . ']';
                 }
 
@@ -6578,6 +6963,8 @@ if (!function_exists('ryunosuke\\PHPUnit\\var_export3')) {
      * - 特定の内部クラス（PDO など）
      * - 大部分のリソース
      *
+     * ただし args キーに指定した値は出力されず、import 時にそれらを引数とするクロージャを返すようになるため、疑似的に出力することは可能。
+     *
      * オブジェクトは「リフレクションを用いてコンストラクタなしで生成してプロパティを代入する」という手法で復元する。
      * ただしコンストラクタが必須引数無しの場合はコールされる。
      * のでクラスによってはおかしな状態で復元されることがある（大体はリソース型のせいだが…）。
@@ -6595,6 +6982,28 @@ if (!function_exists('ryunosuke\\PHPUnit\\var_export3')) {
      * 軽くベンチを取ったところ、オブジェクトを含まない純粋な配列の場合、serialize の 200 倍くらいは速い（それでも var_export の方が速いが…）。
      * オブジェクトを含めば含むほど遅くなり、全要素がオブジェクトになると serialize と同程度になる。
      * 大体 var_export:var_export3:serialize が 1:5:1000 くらい。
+     *
+     * Example:
+     * ```php
+     * // 出力不可を含む配列
+     * $value = [
+     *     'stdout' => STDOUT,
+     *     'pdo'    => new \PDO('sqlite::memory:'),
+     * ];
+     * // args を指定すると実際はエクスポートされず、クロージャ表現を返すようになる（値だけ見るのでキーはなんでもよい）
+     * $exported = var_export3($value, ['outmode' => 'eval', 'args' => ['k1' => STDOUT, 'k2' => $value['pdo']]]);
+     * // import するとクロージャが得られる
+     * $closure = eval($exported);
+     * that($closure)->isInstanceOf(\Closure::class);
+     * // 引数付きで実行すれば値が得られる（この引数のキーは出力時のキーと合わせなければならない）
+     * $imported = $closure(['k1' => STDOUT, 'k2' => $value['pdo']]);
+     * that($imported['stdout'])->isSame($value['stdout']);
+     * that($imported['pdo'])->isSame($value['pdo']);
+     * // 要するに実行時に与えられるわけなので、やる気になれば全く関係ない値でも可能
+     * $imported = $closure(['k1' => 123, 'k2' => 456]);
+     * that($imported['stdout'])->isSame(123);
+     * that($imported['pdo'])->isSame(456);
+     * ```
      *
      * @package ryunosuke\Functions\Package\var
      *
@@ -6614,6 +7023,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\var_export3')) {
         $options += [
             'format'  => 'pretty', // pretty or minify
             'outmode' => null,     // null: 本体のみ, 'eval': return ...;, 'file': <?php return ...;
+            'args'    => [],       // ここで指定した値は export に含まれず、import 時に引数で要求されるようになる
         ];
         $options['return'] ??= !!$options['outmode'];
 
@@ -6644,6 +7054,14 @@ if (!function_exists('ryunosuke\\PHPUnit\\var_export3')) {
                     return $id;
                 }
                 // 配列は明確な ID が存在しないので、貯めて検索して ID を振る（参照さえ含まなければ ID に意味はないので参照込みのみ）
+                // 何度か検証してしまったので備忘:
+                // ID を振らない方が格段に速いのでそのための分岐の目的もある
+                // ID を振ると参照は関係なく・・・
+                // - return $this->array1 = [$this->array2 = [$this->array3 = [...]]];
+                // のようになり、（多分プロパティの動的作成で）結構遅くなる
+                // ID を振らなければ・・・
+                // - return [[[...]]];
+                // のようになり、実質的に opcache を返すだけになる
                 if (is_array($var) && $this->arrayHasReference($var)) {
                     $id = array_search($var, $this->vars, true);
                     if (!$id) {
@@ -6684,56 +7102,11 @@ if (!function_exists('ryunosuke\\PHPUnit\\var_export3')) {
 
         // 再帰用クロージャ
         $vars = [];
-        $export = function ($value, $nest = 0, $raw = false) use (&$export, &$vars, $var_manager) {
+        $export = function ($value, $nest = 0, $raw = false) use (&$export, &$vars, $var_manager, $options) {
             $spacer0 = str_repeat(" ", 4 * max(0, $nest + 0));
             $spacer1 = str_repeat(" ", 4 * max(0, $nest + 1));
             $raw_export = fn($v) => $v;
             $var_export = fn($v) => var_export($v, true);
-            $neighborToken = function ($n, $d, $tokens) {
-                for ($i = $n + $d; isset($tokens[$i]); $i += $d) {
-                    if ($tokens[$i]->id !== T_WHITESPACE) {
-                        return $tokens[$i];
-                    }
-                }
-            };
-            $resolveSymbol = function ($token, $prev, $next, $ref) use ($var_export) {
-                $text = $token->text;
-                if ($token->id === T_STRING) {
-                    if ($prev->id === T_NEW || $next->id === T_DOUBLE_COLON || $next->id === T_VARIABLE || $next->text === '{') {
-                        $text = namespace_resolve($text, $ref->getFileName(), 'alias') ?? $text;
-                    }
-                    elseif ($next->text === '(') {
-                        $text = namespace_resolve($text, $ref->getFileName(), 'function') ?? $text;
-                        // 関数・定数は use しなくてもグローバルにフォールバックされる（=グローバルと名前空間の区別がつかない）
-                        if (!function_exists($text) && function_exists($nstext = '\\' . $ref->getNamespaceName() . '\\' . $text)) {
-                            $text = $nstext;
-                        }
-                    }
-                    else {
-                        $text = namespace_resolve($text, $ref->getFileName(), 'const') ?? $text;
-                        // 関数・定数は use しなくてもグローバルにフォールバックされる（=グローバルと名前空間の区別がつかない）
-                        if (!const_exists($text) && const_exists($nstext = '\\' . $ref->getNamespaceName() . '\\' . $text)) {
-                            $text = $nstext;
-                        }
-                    }
-                }
-
-                // マジック定数の解決（__CLASS__, __TRAIT__ も書き換えなければならないが、非常に大変なので下記のみ）
-                if ($token->id === T_FILE) {
-                    $text = $var_export($ref->getFileName());
-                }
-                if ($token->id === T_DIR) {
-                    $text = $var_export(dirname($ref->getFileName()));
-                }
-                if ($token->id === T_NS_C) {
-                    $text = $var_export($ref->getNamespaceName());
-                }
-                if ($text !== null) {
-                    $token = clone $token;
-                    $token->text = $text;
-                }
-                return $token;
-            };
 
             $vid = $var_manager->varId($value);
             if ($vid) {
@@ -6743,9 +7116,13 @@ if (!function_exists('ryunosuke\\PHPUnit\\var_export3')) {
                 $vars[$vid] = $value;
             }
 
+            if (($arg = array_search($value, $options['args'], true)) !== false) {
+                return "\$this->$vid = \$this->args[{$var_export($arg)}]";
+            }
+
             if (is_array($value)) {
                 $hashed = is_hasharray($value);
-                if (!$hashed && array_all($value, fn(...$args) => is_primitive(...$args))) {
+                if (!$hashed && array_and($value, fn(...$args) => is_primitive(...$args))) {
                     [$begin, $middle, $end] = ["", ", ", ""];
                 }
                 else {
@@ -6795,19 +7172,19 @@ if (!function_exists('ryunosuke\\PHPUnit\\var_export3')) {
             if ($value instanceof \Closure) {
                 $ref = new \ReflectionFunction($value);
                 $bind = $ref->getClosureThis();
-                $class = $ref->getClosureScopeClass() ? $ref->getClosureScopeClass()->getName() : null;
+                $class = $ref->getClosureScopeClass();
                 $statics = $ref->getStaticVariables();
 
                 // 内部由来はきちんと fromCallable しないと差異が出てしまう
                 if ($ref->isInternal()) {
-                    $receiver = $bind ?? $class;
+                    $receiver = $bind ?? $class?->getName();
                     $callee = $receiver ? [$receiver, $ref->getName()] : $ref->getName();
                     return "\$this->$vid = \\Closure::fromCallable({$export($callee, $nest)})";
                 }
 
                 [$meta, $body] = callable_code($value);
                 $arrow = starts_with($meta, 'fn') ? ' => ' : ' ';
-                $tokens = array_slice(php_parse("<?php $meta{$arrow}$body;", TOKEN_PARSE), 1, -1);
+                $tokens = array_slice(php_tokens("<?php $meta{$arrow}$body;", TOKEN_PARSE), 1, -1);
 
                 $uses = [];
                 $context = [
@@ -6815,8 +7192,9 @@ if (!function_exists('ryunosuke\\PHPUnit\\var_export3')) {
                     'brace' => 0,
                 ];
                 foreach ($tokens as $n => $token) {
-                    $prev = $neighborToken($n, -1, $tokens) ?? (object) ['id' => null, 'text' => null, 'line' => null];
-                    $next = $neighborToken($n, +1, $tokens) ?? (object) ['id' => null, 'text' => null, 'line' => null];
+                    $prev = $token->prev() ?? (object) ['id' => null, 'text' => null, 'line' => null];
+                    $next = $token->next() ?? (object) ['id' => null, 'text' => null, 'line' => null];
+                    assert([$prev, $next]); // あらかじめ取得しておかないとズレるかもしれない
 
                     // クロージャは何でもかける（クロージャ・無名クラス・ジェネレータ etc）のでネスト（ブレース）レベルを記録しておく
                     if ($token->text === '{') {
@@ -6851,19 +7229,32 @@ if (!function_exists('ryunosuke\\PHPUnit\\var_export3')) {
                         }
                     }
 
-                    $tokens[$n] = $resolveSymbol($token, $prev, $next, $ref);
+                    $tokens[$n] = $token->clone(text: $token->resolve($ref));
                 }
 
                 $code = php_indent(implode('', array_column($tokens, 'text')), [
                     'indent'   => $spacer1,
                     'baseline' => -1,
                 ]);
+
+                $attrs = [];
+                foreach ($ref->getAttributes() as $attr) {
+                    $attrs[] = "#[{$raw_export($attr->getName())}({$raw_export(implode(', ', array_map($export, $attr->getArguments())))})]";
+                }
+                $attrs = $attrs ? (implode(' ', $attrs) . ' ') : '';
+
                 if ($bind) {
-                    $scope = $var_export($class === 'Closure' ? 'static' : $class);
-                    $code = "\Closure::bind($code, {$export($bind, $nest + 1)}, $scope)";
+                    $instance = $export($bind, $nest + 1);
+                    if ($class->isAnonymous()) {
+                        $scope = "get_class({$export($bind, $nest + 1)})";
+                    }
+                    else {
+                        $scope = $var_export($class?->getName() === 'Closure' ? 'static' : $class?->getName());
+                    }
+                    $code = "\Closure::bind({$attrs}$code, $instance, $scope)";
                 }
                 elseif (!is_bindable_closure($value)) {
-                    $code = "static $code";
+                    $code = "{$attrs}static $code";
                 }
 
                 return "\$this->$vid = (function () {\n{$raw_export(implode('', $uses))}{$spacer1}return $code;\n$spacer0})->call(\$this)";
@@ -6913,8 +7304,11 @@ if (!function_exists('ryunosuke\\PHPUnit\\var_export3')) {
                         serialize($value);
                     }
                 }
-                catch (\Exception) {
-                    return "\$this->$vid = new \\__PHP_Incomplete_Class()";
+                catch (\Exception $e) {
+                    // ただし無名クラス由来の失敗なら何とかできる（かもしれない。やってみないと分からない）のでスルー
+                    if (!str_contains($e->getMessage(), '@anonymous')) {
+                        return "\$this->$vid = new \\__PHP_Incomplete_Class()";
+                    }
                 }
 
                 // 無名クラスは定義がないのでパースが必要
@@ -6923,15 +7317,16 @@ if (!function_exists('ryunosuke\\PHPUnit\\var_export3')) {
                     $fname = $ref->getFileName();
                     $sline = $ref->getStartLine();
                     $eline = $ref->getEndLine();
-                    $tokens = php_parse('<?php ' . implode('', array_slice(file($fname), $sline - 1, $eline - $sline + 1)));
+                    $tokens = php_tokens('<?php ' . implode('', array_slice(file($fname), $sline - 1, $eline - $sline + 1)));
 
                     $block = [];
                     $starting = false;
                     $constructing = 0;
                     $nesting = 0;
-                    foreach ($tokens as $n => $token) {
-                        $prev = $neighborToken($n, -1, $tokens) ?? [null, null, null];
-                        $next = $neighborToken($n, +1, $tokens) ?? [null, null, null];
+                    foreach ($tokens as $token) {
+                        $prev = $token->prev() ?? (object) ['id' => null, 'text' => null, 'line' => null];
+                        $next = $token->next() ?? (object) ['id' => null, 'text' => null, 'line' => null];
+                        assert([$prev, $next]); // あらかじめ取得しておかないとズレるかもしれない
 
                         // 無名クラスは new class か new #[Attribute] で始まるはず（new #[A] ClassName は許可されていない）
                         if (($token->id === T_NEW && $next->id === T_CLASS) || ($token->id === T_NEW && $next->id === T_ATTRIBUTE)) {
@@ -6965,7 +7360,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\var_export3')) {
                             $token->text = "replaced__construct";
                         }
 
-                        $block[] = $resolveSymbol($token, $prev, $next, $ref);
+                        $block[] = $token->clone(text: $token->resolve($ref));
 
                         if ($token->text === '{') {
                             $nesting++;
@@ -7130,12 +7525,20 @@ if (!function_exists('ryunosuke\\PHPUnit\\var_export3')) {
         }
 
         $E = fn($v) => $v;
-        $result = <<<PHP
-            (function () {
+        $function = <<<PHP
+            function (\$args) {
+                \$this->args = \$args;
                 {$E(implode("\n    ", $others))}
                 return $exported;
-            })->call($factory)
+            }
             PHP;
+
+        if ($options['args']) {
+            $result = "fn(\$args) => ({$function})->call($factory, \$args)";
+        }
+        else {
+            $result = "({$function})->call($factory, [])";
+        }
 
         if ($options['format'] === 'minify') {
             $tmp = tempnam(sys_get_temp_dir(), 've3');
@@ -7154,52 +7557,6 @@ if (!function_exists('ryunosuke\\PHPUnit\\var_export3')) {
             echo $result;
         }
         return $result;
-    }
-}
-
-assert(!function_exists('ryunosuke\\PHPUnit\\var_hash') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\var_hash'))->isUserDefined());
-if (!function_exists('ryunosuke\\PHPUnit\\var_hash')) {
-    /**
-     * 値に複数のハッシュアルゴリズムを適用させて結合して返す
-     *
-     * $data は何らかの方法で文字列化される（この「何らかの方法」は互換性を担保しない）。
-     * 文字長がかなり増えるため、 $base64 に true を与えるとバイナリ変換してその結果を base64（url セーフ）して返す。
-     * さらに false を与えると 16進数文字列で返し、 null を与えるとバイナリ文字列で返す。
-     *
-     * Example:
-     * ```php
-     * // 配列をハッシュ化する
-     * that(var_hash(['a', 'b', 'c']))->isSame('7BDgx6NE2hkXAKtKzhpeJm6-mheMOQWNgrCe7768OiFeoWgA');
-     * // オブジェクトをハッシュ化する
-     * that(var_hash(new \ArrayObject(['a', 'b', 'c'])))->isSame('-zR2rZ58CzuYhhdHn1Oq90zkYSaxMS-dHUbmb0MTRM4gBpj2');
-     * ```
-     *
-     * @package ryunosuke\Functions\Package\var
-     *
-     * @param mixed $var ハッシュ化する値
-     * @param string[] $algos ハッシュアルゴリズム
-     * @param ?bool $base64 結果を base64 化するか
-     * @return string ハッシュ文字列
-     */
-    function var_hash($var, $algos = ['md5', 'sha1'], $base64 = true)
-    {
-        if (!is_string($var)) {
-            $var = serialize($var);
-        }
-
-        $algos = arrayize($algos);
-        assert($algos);
-
-        $hash = '';
-        foreach ($algos as $algo) {
-            $hash .= hash($algo, "$var", $base64 !== false);
-        }
-
-        if ($base64 !== true) {
-            return $hash;
-        }
-
-        return base64url_encode($hash);
     }
 }
 
@@ -7459,12 +7816,12 @@ if (!function_exists('ryunosuke\\PHPUnit\\var_pretty')) {
                 if (is_object($value)) {
                     if ($this->options['debuginfo'] && method_exists($value, '__debugInfo')) {
                         $properties = [];
-                        foreach (array_reverse($value->__debugInfo(), true) as $k => $v) {
+                        foreach ($value->__debugInfo() as $k => $v) {
                             $p = strrpos($k, "\0");
                             if ($p !== false) {
                                 $k = substr($k, $p + 1);
                             }
-                            $properties[$k] = $v;
+                            $properties[$k] ??= $v;
                         }
                     }
                     else {
@@ -7514,7 +7871,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\var_pretty')) {
                     }
 
                     $is_hasharray = is_hasharray($value);
-                    $primitive_only = array_all($value, fn(...$args) => is_primitive(...$args));
+                    $primitive_only = array_and($value, fn(...$args) => is_primitive(...$args));
                     $assoc = !$this->options['minify'] && ($is_hasharray || !$primitive_only);
                     $tableofarray = (function () use ($count, $value) {
                         if ($this->options['minify'] || !$this->options['table'] || $count <= 1) {
@@ -7533,7 +7890,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\var_pretty')) {
                         }
                         else {
                             $first_condition = array_keys($first);
-                            if (array_any($first_condition, 'is_int')) {
+                            if (array_or($first_condition, 'is_int')) {
                                 return null;
                             }
                         }
@@ -7610,7 +7967,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\var_pretty')) {
                             }
                             $this->plain($spacer1);
                             if ($is_hasharray) {
-                                $this->index($k)->plain(': ');
+                                $this->index($k === '' ? '""' : $k)->plain(': ');
                             }
                             $this->export($v, $nest + 1, $parents, array_merge($keys, [$k]), true);
                             $this->plain(",\n");
@@ -7637,7 +7994,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\var_pretty')) {
                                 $this->plain('...(too length)...')->plain(', ');
                             }
                             if ($is_hasharray && $n !== $k) {
-                                $this->index($k)->plain(':');
+                                $this->index($k === '' ? '""' : $k)->plain(':');
                             }
                             $this->export($v, $nest, $parents, array_merge($keys, [$k]), true);
                             if ($k !== $lastkey) {
@@ -7673,13 +8030,24 @@ if (!function_exists('ryunosuke\\PHPUnit\\var_pretty')) {
                 elseif ($value instanceof \Closure) {
                     $this->value($value);
 
+                    $ref = reflect_callable($value);
+
+                    if (!str_contains($ref->getFileName(), "eval()'d code") && $ref->isArrow()) {
+                        $this->plain("(");
+                        if ($ref->isStatic()) {
+                            $this->plain("static ");
+                        }
+                        $this->plain("{$ref->getDeclaration()} => {$ref->getCode()}");
+                        $this->plain(')');
+                        goto FINALLY_;
+                    }
+
                     if ($this->options['minify']) {
                         goto FINALLY_;
                     }
 
-                    $ref = reflect_callable($value);
                     $that = $ref->getClosureThis();
-                    $properties = $ref->getStaticVariables();
+                    $properties = $ref->getUsedVariables();
 
                     $this->plain("(");
                     if ($that) {
@@ -7688,12 +8056,10 @@ if (!function_exists('ryunosuke\\PHPUnit\\var_pretty')) {
                     else {
                         $this->plain("static");
                     }
-                    $this->plain(') use ');
+                    $this->plain(')');
                     if ($properties) {
+                        $this->plain(' use ');
                         $this->export($properties, $nest, $parents, $keys, false);
-                    }
-                    else {
-                        $this->plain('{}');
                     }
                 }
                 elseif (is_object($value)) {
@@ -7713,7 +8079,12 @@ if (!function_exists('ryunosuke\\PHPUnit\\var_pretty')) {
 
                     $this->plain(" ");
                     if ($properties) {
-                        $this->export($properties, $nest, $parents, $keys, false);
+                        if (count($properties) === 1 && array_keys($properties) === [''] && is_string($properties[''])) {
+                            $this->plain($properties['']);
+                        }
+                        else {
+                            $this->export($properties, $nest, $parents, $keys, false);
+                        }
                     }
                     else {
                         $this->plain('{}');
