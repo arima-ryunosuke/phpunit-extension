@@ -456,6 +456,11 @@ This CodeCoverage changes on the following.
 
 Versioning is Semantic Versioning.
 
+### 4.2.2
+
+- [fixbug] 一部の意味のある引数で all,any が出ていない
+- [merge] Merge tag 'v3.21.0'
+
 ### 4.2.1
 
 - [fixbug] fixed error in php8.2
