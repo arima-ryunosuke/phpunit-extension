@@ -8,8 +8,10 @@ class IsThrowable extends AbstractConstraint
     private $expectedMessage = '';
     private $expectedCode    = 0;
 
-    public function __construct($expected = null)
-    {
+    public function __construct(
+        #[\Requirement]
+        $expected = null,
+    ) {
         if ($expected === null) {
             assert($expected === null);
         }

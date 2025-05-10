@@ -174,7 +174,7 @@ class Actual implements \ArrayAccess
             $result[$notName] = "$returnType $notName($argstring)";
 
             $requiredCount = array_reduce($parameters, function ($carry, \ReflectionParameter $parameter) use ($defaults) {
-                return $carry + (int) !($parameter->isOptional() || array_key_exists($parameter->getPosition(), $defaults));
+                return $carry + (int) ($parameter->getAttributes(\Requirement::class) || (!$parameter->isOptional() && !array_key_exists($parameter->getPosition(), $defaults)));
             }, 0);
             if ($requiredCount) {
                 $requiredParams = array_slice($parameters, 0, $requiredCount);

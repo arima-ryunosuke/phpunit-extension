@@ -1120,5 +1120,12 @@ Nzxc ');
         $this->actual("1\r2\r3\r4\r")->lineCount(5, "\r");
 
         $this->actual("Ff")->dummy()->wasThrown('');
+
+        $throw = fn() => throw new \Exception('msg', 123);
+        $this->actual($throw)()->wasThrownAll(['msg', 123]);
+        $this->actual($throw)()->notWasThrownAll(['bad', 456]);
+        $this->actual($throw)()->wasThrownAny(['msg', 456]);
+        $this->actual($throw)()->wasThrownAny(['bad', 123]);
+        $this->actual($throw)()->notWasThrownAny(['bad', 123]);
     }
 }
