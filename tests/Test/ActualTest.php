@@ -433,6 +433,12 @@ Nzxc ');
         $this->assertEquals(['XX', 'XX', 'XX'], array_values(get_mangled_object_vars($object)));
     }
 
+    function test_iterator()
+    {
+        $actual = $this->actual(['a' => 'A', 'b' => 'B', 'c' => 'C']);
+        $this->assertEquals(['a' => 'A', 'b' => 'B', 'c' => 'C'], iterator_to_array($actual));
+    }
+
     function test_var()
     {
         $object = new class('testname') extends \ryunosuke\Test\AbstractTestCase {
