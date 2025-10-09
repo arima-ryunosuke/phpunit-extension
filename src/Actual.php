@@ -531,6 +531,18 @@ class Actual implements \ArrayAccess, \IteratorAggregate
         gc_collect_cycles();
     }
 
+    public function __debugInfo(): array
+    {
+        if (is_object($this->___actual) && method_exists($this->___actual, '__debugInfo')) {
+            return $this->___actual->__debugInfo();
+        }
+        if (is_array($this->___actual)) {
+            return $this->___actual;
+        }
+
+        return (array) $this;
+    }
+
     public function __toString()
     {
         if (is_object($this->___actual)) {
