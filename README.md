@@ -477,6 +477,11 @@ This CodeCoverage changes on the following.
 
 Versioning is Semantic Versioning.
 
+### 3.22.0
+
+- [feature] actual の debugInfo をそのまま生かす機能
+- [feature] actual の iterable をそのまま生かす機能
+
 ### 3.21.0
 
 - [feature] エラーを例外として扱う機能
