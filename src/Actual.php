@@ -29,12 +29,13 @@ use ryunosuke\PHPUnit\Constraint\LogicalNot;
 use ryunosuke\PHPUnit\Constraint\LogicalOr;
 use ryunosuke\PHPUnit\Constraint\OutputMatches;
 use ryunosuke\PHPUnit\Exception\UndefinedException;
+use Traversable;
 
 if (!trait_exists(Annotation::class)) { // @codeCoverageIgnore
     trait Annotation { }
 }
 
-class Actual implements \ArrayAccess
+class Actual implements \ArrayAccess, \IteratorAggregate
 {
     use Annotation;
 
@@ -483,6 +484,18 @@ class Actual implements \ArrayAccess
         }
 
         gc_collect_cycles();
+    }
+
+    public function __debugInfo(): array
+    {
+        if (is_object($this->___actual) && method_exists($this->___actual, '__debugInfo')) {
+            return $this->___actual->__debugInfo();
+        }
+        if (is_array($this->___actual)) {
+            return $this->___actual;
+        }
+
+        return (array) $this;
     }
 
     public function __toString()
@@ -1046,4 +1059,9 @@ class Actual implements \ArrayAccess
     public function __isset($name) { throw new \DomainException(__FUNCTION__ . ' is not supported.'); }
 
     public function offsetExists($offset): bool { throw new \DomainException(__FUNCTION__ . ' is not supported.'); }
+
+    public function getIterator(): Traversable
+    {
+        yield from $this->___actual;
+    }
 }

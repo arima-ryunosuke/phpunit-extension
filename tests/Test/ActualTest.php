@@ -204,6 +204,34 @@ class ActualTest extends \ryunosuke\Test\AbstractTestCase
         $this->actual('hogefugapiyo')->undefined();
     }
 
+    function test___debugInfo()
+    {
+        $actual = print_r($this->actual('this is scalar value'), true);
+        $this->assertStringContainsString('this is scalar value', $actual);
+
+        $actual = print_r($this->actual([1, 2, 3]), true);
+        $this->assertEquals(<<<EXPECTED
+        ryunosuke\\PHPUnit\\Actual Object
+        (
+            [0] => 1
+            [1] => 2
+            [2] => 3
+        )
+        
+        EXPECTED, $actual);
+
+        $actual = print_r($this->actual(new class { public function __debugInfo() { return [4, 5, 6]; } }), true);
+        $this->assertEquals(<<<EXPECTED
+        ryunosuke\\PHPUnit\\Actual Object
+        (
+            [0] => 4
+            [1] => 5
+            [2] => 6
+        )
+        
+        EXPECTED, $actual);
+    }
+
     function test_ok()
     {
         /** @noinspection PhpUndefinedMethodInspection */
@@ -426,6 +454,12 @@ Nzxc ');
 
         $actual->x->is('XX');
         $this->assertEquals(['XX', 'XX', 'XX'], array_values(get_mangled_object_vars($object)));
+    }
+
+    function test_iterator()
+    {
+        $actual = $this->actual(['a' => 'A', 'b' => 'B', 'c' => 'C']);
+        $this->assertEquals(['a' => 'A', 'b' => 'B', 'c' => 'C'], iterator_to_array($actual));
     }
 
     function test_var()

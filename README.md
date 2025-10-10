@@ -480,6 +480,11 @@ Versioning is Semantic Versioning.
 - [change] php>=8.0
 - [*change] delete deprecated feature
 
+### 3.22.0
+
+- [feature] actual の debugInfo をそのまま生かす機能
+- [feature] actual の iterable をそのまま生かす機能
+
 ### 3.21.0
 
 - [feature] エラーを例外として扱う機能
