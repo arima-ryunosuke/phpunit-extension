@@ -498,7 +498,7 @@ class Actual implements \ArrayAccess, \IteratorAggregate
         return (array) $this;
     }
 
-    public function __toString()
+    public function __toString(): string
     {
         if (is_object($this->___actual)) {
             if (is_stringable($this->___actual) && strpos($this->getCallerLine(), '::') === false) {
@@ -508,7 +508,7 @@ class Actual implements \ArrayAccess, \IteratorAggregate
         return var_export2($this->___actual, true) . "\n";
     }
 
-    public function __call($name, $arguments)
+    public function __call($name, $arguments): mixed
     {
         if (self::$debugMode && $name === 'debug') {
             return $this->assert([$this->___actual], new StringContains(...$arguments));
@@ -691,7 +691,7 @@ class Actual implements \ArrayAccess, \IteratorAggregate
         unset($this->___actual[$offset]);
     }
 
-    public function var(string $propertyname)
+    public function var(string $propertyname): mixed
     {
         return Util::propertyToValue($this->___actual, $propertyname);
     }
@@ -775,7 +775,7 @@ class Actual implements \ArrayAccess, \IteratorAggregate
         return $that;
     }
 
-    public function insteadof(callable $callback)
+    public function insteadof(callable $callback): Actual
     {
         return $this->create($callback($this->___actual));
     }
@@ -788,7 +788,7 @@ class Actual implements \ArrayAccess, \IteratorAggregate
         return $this->create($this->___arguments[$index]);
     }
 
-    public function return()
+    public function return(): mixed
     {
         return $this->___actual;
     }
