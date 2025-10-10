@@ -275,8 +275,12 @@ if (!defined('ryunosuke\\PHPUnit\\JSON_BARE_AS_STRING')) {
     define('ryunosuke\\PHPUnit\\JSON_BARE_AS_STRING', -106);
 }
 
-if (!defined('ryunosuke\\PHPUnit\\TOKEN_NAME')) {
-    define('ryunosuke\\PHPUnit\\TOKEN_NAME', 2);
+if (!defined('ryunosuke\\PHPUnit\\JSON_OBJECT_HANDLER')) {
+    define('ryunosuke\\PHPUnit\\JSON_OBJECT_HANDLER', -107);
+}
+
+if (!defined('ryunosuke\\PHPUnit\\JSON_ESCAPE_SINGLE_QUOTE')) {
+    define('ryunosuke\\PHPUnit\\JSON_ESCAPE_SINGLE_QUOTE', -108);
 }
 
 if (!defined('ryunosuke\\PHPUnit\\SI_UNITS')) {
@@ -1338,7 +1342,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\markdown_table')) {
         })();
         $option['stringify'] ??= fn($v) => var_pretty($v, ['return' => true, 'context' => $option['context'], 'table' => false]);
 
-        $stringify = fn($v) => strtr(((is_stringable($v) && !is_null($v) ? $v : $option['stringify']($v)) ?? ''), ["\t" => '    ']);
+        $stringify = fn($v) => strtr(((is_stringable($v) && !is_null($v) && !is_bool($v) ? $v : $option['stringify']($v)) ?? ''), ["\t" => '    ']);
         $is_numeric = function ($v) {
             $v = trim($v);
             if (strlen($v) === 0) {
@@ -2262,6 +2266,77 @@ if (!function_exists('ryunosuke\\PHPUnit\\dirname_r')) {
     }
 }
 
+assert(!function_exists('ryunosuke\\PHPUnit\\file_generator') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\file_generator'))->isUserDefined());
+if (!function_exists('ryunosuke\\PHPUnit\\file_generator')) {
+    /**
+     * ファイルを少しずつ読む Generator を返す
+     *
+     * $stopper で読み込み単位を指定できる
+     * - null: fgets で1行読み込み
+     * - int: fread でサイズ指定
+     * - string: stream_get_line で特定文字列指定
+     *
+     * $stopper が文字列の場合、$with_stopper でその文字列自体を含むかを指定できる。
+     * というよりも stream_get_line だとデフォルトで含まないので、含むようにするフラグに近い。
+     * 処理を合わせるためデフォルトは true になっている。
+     *
+     * Generator は返り値として「返した文字列長の合計」を返す。
+     * 区切り文字を捨てる場合、単純なファイルサイズとは一致しないので注意。
+     *
+     * Example:
+     * ```php
+     * // 適当にファイルを用意
+     * $testpath = sys_get_temp_dir() . '/file_generator.txt';
+     * file_put_contents($testpath, "hoge\n---\nhogefuga\n---\nhogefugapiyo\n");
+     * // 改行で generator
+     * that(file_generator($testpath))->is(["hoge\n", "---\n", "hogefuga\n", "---\n", "hogefugapiyo\n"]);
+     * // 3文字で generator
+     * that(file_generator($testpath, 3))->is(["hog", "e\n-", "--\n", "hog", "efu", "ga\n", "---", "\nho", "gef", "uga", "piy", "o\n"]);
+     * // 区切り文字で generator
+     * that(file_generator($testpath, "---\n"))->is(["hoge\n---\n", "hogefuga\n---\n", "hogefugapiyo\n"]);
+     * // 区切り文字で generator（そのものを含まない）
+     * that(file_generator($testpath, "---\n", false))->is(["hoge\n", "hogefuga\n", "hogefugapiyo\n"]);
+     * ```
+     *
+     * @package ryunosuke\Functions\Package\filesystem
+     */
+    function file_generator(
+        /** @var string|resource ファイル名|リソース */ $filename,
+        /** チャンク/区切り文字 */ null|int|string $stopper = null,
+        /** 区切り文字を含めるか */ bool $with_stopper = true,
+    ): \Generator {
+        $fp = is_resource($filename) ? $filename : fopen($filename, 'rb');
+
+        try {
+            $result = 0;
+            while (!feof($fp)) {
+                $buffer = match (true) {
+                    is_null($stopper)   => fgets($fp),
+                    is_int($stopper)    => fread($fp, $stopper),
+                    is_string($stopper) => stream_get_line($fp, PHP_INT_MAX, $stopper),
+                };
+                if ($buffer === false) {
+                    break;
+                }
+
+                if (is_string($stopper) && $with_stopper) {
+                    // 読み込み途中なら $stopper で終了したと言える（stream_get_line はそのものを含まないので付け足す）
+                    if (!feof($fp)) {
+                        $buffer .= $stopper;
+                    }
+                }
+
+                $result += strlen($buffer);
+                yield $buffer;
+            }
+            return $result;
+        }
+        finally {
+            fclose($fp);
+        }
+    }
+}
+
 assert(!function_exists('ryunosuke\\PHPUnit\\file_list') || (new \ReflectionFunction('ryunosuke\\PHPUnit\\file_list'))->isUserDefined());
 if (!function_exists('ryunosuke\\PHPUnit\\file_list')) {
     /**
@@ -2603,7 +2678,7 @@ if (!function_exists('ryunosuke\\PHPUnit\\file_pos')) {
      * that(file_pos($testpath, 'fuga'))->is(5);
      * // 2つ目の fuga の位置を返す
      * that(file_pos($testpath, 'fuga', 6))->is(15);
-     * // 見つからない場合は false を返す
+     * // 見つからない場合は null を返す
      * that(file_pos($testpath, 'hogera'))->is(null);
      * ```
      *
@@ -2642,31 +2717,27 @@ if (!function_exists('ryunosuke\\PHPUnit\\file_pos')) {
         assert($chunksize >= $maxlength);
 
         $fp = fopen($filename, 'rb');
-        try {
-            fseek($fp, $start);
-            while (!feof($fp)) {
-                if ($start > $end) {
-                    break;
-                }
-                $last = $part ?? '';
-                $part = fread($fp, $chunksize);
-                if (($p = strpos_array($part, $needle))) {
-                    $min = min($p);
-                    $result = $start + $min;
-                    return $result + strlen($needle[array_flip($p)[$min]]) > $end ? false : $result;
-                }
-                if (($p = strpos_array($last . $part, $needle))) {
-                    $min = min($p);
-                    $result = $start + $min - strlen($last);
-                    return $result + strlen($needle[array_flip($p)[$min]]) > $end ? false : $result;
-                }
-                $start += strlen($part);
+        fseek($fp, $start);
+
+        $last = '';
+        foreach (file_generator($fp, $chunksize) as $part) {
+            if ($start > $end) {
+                break;
             }
-            return null;
+            if (($p = strpos_array($part, $needle))) {
+                $min = min($p);
+                $result = $start + $min;
+                return $result + strlen($needle[array_flip($p)[$min]]) > $end ? false : $result;
+            }
+            if (($p = strpos_array($last . $part, $needle))) {
+                $min = min($p);
+                $result = $start + $min - strlen($last);
+                return $result + strlen($needle[array_flip($p)[$min]]) > $end ? false : $result;
+            }
+            $start += strlen($part);
+            $last = $part;
         }
-        finally {
-            fclose($fp);
-        }
+        return null;
     }
 }
 
@@ -4247,6 +4318,15 @@ if (!function_exists('ryunosuke\\PHPUnit\\callable_code')) {
     function callable_code($callable, bool $return_token = false)
     {
         $ref = $callable instanceof \ReflectionFunctionAbstract ? $callable : reflect_callable($callable);
+        if ($ref->getFileName() === false) {
+            $reference = $ref->returnsReference() ? '&' : '';
+            $return = reflect_type_resolve($ref->getReturnType()) ?? 'void';
+            $params = function_parameter($ref);
+            $keys = implode(', ', array_map(fn($v) => ltrim($v, '&'), array_keys($params)));
+            $vals = implode(', ', $params);
+            return ["fn$reference($vals): $return", "\\$ref->name($keys)"];
+        }
+
         $contents = file($ref->getFileName());
         $start = $ref->getStartLine();
         $end = $ref->getEndLine();
@@ -4255,7 +4335,10 @@ if (!function_exists('ryunosuke\\PHPUnit\\callable_code')) {
         $tokens = php_tokens("<?php $codeblock");
 
         $begin = $tokens[0]->next([T_FUNCTION, T_FN]);
-        $close = $begin->next(['{', T_DOUBLE_ARROW]);
+        $close = $begin->next(['{', T_DOUBLE_ARROW, '[']);
+        if ($close->is('[')) {
+            $close = $close->end()->next(['{', T_DOUBLE_ARROW]);
+        }
 
         if ($begin->is(T_FN)) {
             $meta = array_slice($tokens, $begin->index, $close->prev()->index - $begin->index + 1);
@@ -6110,6 +6193,13 @@ if (!function_exists('ryunosuke\\PHPUnit\\function_configure')) {
         $config['chain.nullsafe'] ??= false;
         $config['process.autoload'] ??= [];
         $config['datetime.class'] ??= \DateTimeImmutable::class;
+        $config['unique_id.config'] ??= [
+            'timestamp_base'      => 1704034800, // 2024-01-01 00:00:00
+            'timestamp_precision' => 1,
+            'timestamp_bit'       => 41,
+            'sequence_bit'        => 7,
+            'ipaddress_bit'       => 16,
+        ];
 
         // setting
         if (is_array($option)) {

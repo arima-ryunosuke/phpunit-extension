@@ -61,6 +61,18 @@
              }
  
              $array[$key] = $val;
+@@ -240,9 +246,9 @@
+             ini_set('precision', '-1');
+ 
+             try {
+-                $valueStr = @(string) $value;
++                $valueStr = (string) $value;
+ 
+-                if ((string) @(int) $value === $valueStr) {
++                if ((string) (int) $value === $valueStr) {
+                     return $valueStr . '.0';
+                 }
+ 
 @@ -267,20 +273,20 @@
          if (is_string($value)) {
              // Match for most non printable chars somewhat taking multibyte chars into account
