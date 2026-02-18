@@ -485,6 +485,10 @@ Versioning is Semantic Versioning.
 - [change] php>=8.0
 - [*change] delete deprecated feature
 
+### 3.22.1
+
+- [fixbug] 処理が速すぎると Division by zero が出る不具合
+
 ### 3.22.0
 
 - [feature] actual の debugInfo をそのまま生かす機能
