@@ -1057,7 +1057,7 @@ class Actual implements \ArrayAccess, \IteratorAggregate
         }
 
         $after = getrusage();
-        $elapsed = microtime(true) - $time;
+        $elapsed = max(microtime(true) - $time, 0.000001);
         $cpu_usr = $after['ru_utime.tv_sec'] - $before['ru_utime.tv_sec'] + ($after['ru_utime.tv_usec'] - $before['ru_utime.tv_usec']) / 1000 / 1000;
         $cpu_sys = $after['ru_stime.tv_sec'] - $before['ru_stime.tv_sec'] + ($after['ru_stime.tv_usec'] - $before['ru_stime.tv_usec']) / 1000 / 1000;
         $this->___results = array_replace($this->___results, [
