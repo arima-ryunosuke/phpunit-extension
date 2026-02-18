@@ -456,6 +456,10 @@ This CodeCoverage changes on the following.
 
 Versioning is Semantic Versioning.
 
+### 4.3.1
+
+- [merge] Merge tag 'v3.22.1'
+
 ### 4.3.0
 
 - [feature] stub 生成に影響があるので型を強化
