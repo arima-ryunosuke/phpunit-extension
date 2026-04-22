@@ -477,6 +477,10 @@ This CodeCoverage changes on the following.
 
 Versioning is Semantic Versioning.
 
+### 3.23.0
+
+- [feature] テスト用環境変数を追加
+
 ### 3.22.1
 
 - [fixbug] 処理が速すぎると Division by zero が出る不具合
