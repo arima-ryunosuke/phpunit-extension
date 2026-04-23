@@ -456,6 +456,10 @@ This CodeCoverage changes on the following.
 
 Versioning is Semantic Versioning.
 
+### 4.4.0
+
+- [merge] Merge tag 'v3.23.0'
+
 ### 4.3.1
 
 - [merge] Merge tag 'v3.22.1'
