@@ -2,6 +2,9 @@
 
 # boilerplates
 
+// env
+putenv('_PHPUNIT_RUNNING=1');
+
 // replace classes
 \ryunosuke\PHPUnit\Replacer::insteadOf();
 
