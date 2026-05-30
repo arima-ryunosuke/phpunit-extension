@@ -199,7 +199,7 @@ trait TestCaseTrait
             public function set($value)
             {
                 if ($this->refproperty->isStatic()) {
-                    return $this->refproperty->setValue($value);
+                    return $this->refproperty->setValue(null, $value);
                 }
                 else {
                     return $this->refproperty->setValue($this->instance, $value);

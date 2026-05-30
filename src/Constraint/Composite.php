@@ -11,7 +11,7 @@ abstract class Composite extends AbstractConstraint
     /** @var Constraint */
     private $staticConstraint, $dynamicConstraint;
 
-    public function __construct(Constraint $innerConstraint = null)
+    public function __construct(?Constraint $innerConstraint = null)
     {
         $this->staticConstraint = $innerConstraint;
         $this->dynamicConstraint = null;

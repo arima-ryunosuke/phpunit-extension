@@ -13,7 +13,7 @@ abstract class AbstractConstraint extends Constraint
         return strtolower(preg_replace('/(?!^)([A-Z])/', ' $0', (new \ReflectionClass($this))->getShortName()));
     }
 
-    protected function failLogically(Constraint $failed, $other, $description, ExpectationFailedException $prev = null)
+    protected function failLogically(Constraint $failed, $other, $description, ?ExpectationFailedException $prev = null)
     {
         $comparisonFailure = $prev ? $prev->getComparisonFailure() : null;
         $failureDescription = sprintf('Failed asserting that %s.', $this->failureDescription($other));

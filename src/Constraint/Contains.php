@@ -12,7 +12,7 @@ class Contains extends Composite
 {
     private $needle, $strict;
 
-    public function __construct($needle, bool $strict = null)
+    public function __construct($needle, ?bool $strict = null)
     {
         parent::__construct();
 

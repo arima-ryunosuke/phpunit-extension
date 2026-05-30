@@ -88,7 +88,7 @@ class Util
         throw new UndefinedException((is_string($object) ? $object : get_class($object)) . '::$' . $property . ' is not defined.');
     }
 
-    public static function methodToCallable($object, string $method = null): callable
+    public static function methodToCallable($object, ?string $method = null): callable
     {
         try {
             $refclass = new \ReflectionClass($object);

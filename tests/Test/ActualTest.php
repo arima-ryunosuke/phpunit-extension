@@ -926,7 +926,6 @@ Nzxc ');
         @$this->actual(fn() => trigger_error('E_USER_DEPRECATED', E_USER_DEPRECATED))()->isTrue();
         $this->actual(fn() => trigger_error('E_USER_NOTICE', E_USER_NOTICE))()->wasErrored('USER_NOTICE');
         $this->actual(fn() => trigger_error('E_USER_WARNING', E_USER_WARNING))()->wasErrored('USER_WARNING');
-        $this->actual(fn() => trigger_error('E_USER_ERROR', E_USER_ERROR))()->wasErrored('E_USER_ERROR');
 
         $this->actual(fn() => []['undefined'])()->wasErrored('Undefined');
         $this->actual(fn() => file('noexists-file'))()->wasErrored('No such file');

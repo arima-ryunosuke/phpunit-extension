@@ -60,7 +60,7 @@ class AbstractConstraintTest extends \ryunosuke\Test\AbstractTestCase
 
 class ConcreteConstraint extends AbstractConstraint
 {
-    public function failLogically(Constraint $failed, $other, $description, ExpectationFailedException $prev = null)
+    public function failLogically(Constraint $failed, $other, $description, ?ExpectationFailedException $prev = null)
     {
         return parent::failLogically(...func_get_args());
     }
