@@ -456,6 +456,10 @@ This CodeCoverage changes on the following.
 
 Versioning is Semantic Versioning.
 
+### 4.4.1
+
+- [feature] php8.4 で最低限エラーが出ないように修正
+
 ### 4.4.0
 
 - [merge] Merge tag 'v3.23.0'
